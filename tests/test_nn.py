@@ -142,7 +142,8 @@ class TestDownNet:
                                                                                  kernel_size=5,
                                                                                  time_collapse=time_collapse,
                                                                                  channel_collapse=channel_collapse,
-                                                                                 fix_gamma=fix_gamma)(x)
+                                                                                 fix_gamma=fix_gamma)(x,
+                                                                                                      debug_mode=True)
 
         # actual_lookback = lookback if ker % 2 != 0 else
 
@@ -164,6 +165,11 @@ class TestDownNet:
         net = DowNet((2,), kernel_size=(3,), time_collapse='avg', channel_collapse='avg', fix_gamma=2)
 
         assert net.n_parameters == 2 * (3 + 1)
+
+    def test_not_debug_mode(self):
+        res = DowNet((4,))(torch.ones(2, 1, 5, 19), debug_mode=False)
+
+        assert isinstance(res, torch.Tensor)
 
 
 class TestGammaOneByOne:

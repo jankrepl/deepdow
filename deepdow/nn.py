@@ -521,6 +521,7 @@ class DowNet(nn.Module):
         super(DowNet, self).__init__()
 
         self.max_weight = max_weight
+
         channels_ = [1] + list(channels)
         kernel_size_ = kernel_size if isinstance(kernel_size, (tuple, list)) else len(channels) * [kernel_size]
 
@@ -555,7 +556,7 @@ class DowNet(nn.Module):
         else:
             self.gamma_layer = lambda x: (torch.ones(len(x)) * fix_gamma)  # no parameters
 
-    def forward(self, x):
+    def forward(self, x, debug_mode=True):
         """Perform forward pass.
 
         Parameters
@@ -564,6 +565,9 @@ class DowNet(nn.Module):
             Batch of samples of shape `(n_samples, 1, lookback, n_assets)`. Note that in different calls one can
             alter the `lookback` and `n_assets` without problems. This is how we designed the forward pass and the
             constituent operations.
+
+        debug_mode : bool
+            If True returning multiple different objects. If False then only the weights.
 
         Returns
         -------
@@ -574,21 +578,23 @@ class DowNet(nn.Module):
         features : torch.Tensor
             Tensor of shape `(n_samples, n_channels, lookback, n_assets)` representing extracted features after initial
             1D convolutions. Note that the `lookback` might be different if `kernel_size` not odd due to symmetric
-            padding.
+            padding. Only returned if `self.debug_mode=True`.
 
         time_collapsed_features : torch.Tensor
-            Tensor of shape `(n_samples, n_channels, n_assets)` representing the time collapsed features.
+            Tensor of shape `(n_samples, n_channels, n_assets)` representing the time collapsed features. Only returned
+            if `self.debug_mode=True`.
 
         rets : torch.Tensor
-            Expected returns of shape `(n_samples, n_assets)`. Fully determined by the CNN feature extractor.
+            Expected returns of shape `(n_samples, n_assets)`. Fully determined by the CNN feature extractor. Only
+            returned if `self.debug_mode=True`.
 
         covmat_sqrt : torch.Tensor
             Square root of the covariance matrix of shape `(n_samples, n_assets, n_assets)`. Fully determined by the CNN
-            feature extractor.
+            feature extractor. Only returned if `self.debug_mode=True`.
 
         gamma : torch.Tensor
             Risk and return tradeoff of shape `(n_samples,)`. If `fix_gamma` was False, then determined by the CNN
-            feature extractor. Otherwise a user defined constant.
+            feature extractor. Otherwise a user defined constant.  Only returned if `self.debug_mode=True`.
 
         """
         n_samples, input_channels, lookback, n_assets = x.shape
@@ -611,7 +617,10 @@ class DowNet(nn.Module):
 
         weights = portolioopt(rets, covmat_sqrt, gamma)
 
-        return weights, x, tc_features, rets, covmat_sqrt, gamma
+        if debug_mode:
+            return weights, x, tc_features, rets, covmat_sqrt, gamma
+        else:
+            return weights
 
     @property
     def n_parameters(self):
