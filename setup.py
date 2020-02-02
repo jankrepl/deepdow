@@ -6,8 +6,8 @@ DESCRIPTION = "Portfolio optimization with deep learning"
 LONG_DESCRIPTION = DESCRIPTION
 
 INSTALL_REQUIRES = [
-    "cvxpy",
     "cvxpylayers",
+    "numpy>=1.16",
     "pandas",
     "torch"
 ]

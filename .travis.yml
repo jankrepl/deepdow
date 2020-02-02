@@ -1,0 +1,22 @@
+language: python
+
+cache: pip
+
+dist: xenial  # required for python3.7
+
+python:
+    - "3.5"
+    - "3.6"
+    - "3.7"
+
+install:
+    - pip install .[dev]
+
+script:
+    - pip freeze
+    - pytest
+    - flake8 deepdow
+    - pydocstyle deepdow
+
+after_success:
+    - codecov
