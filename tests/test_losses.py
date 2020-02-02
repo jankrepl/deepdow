@@ -13,8 +13,8 @@ class TestHelpers:
         shape = (2, 3)
         x = torch.rand(shape)
 
-        assert torch.allclose(log2simple(simple2log(x)), x)
-        assert torch.allclose(simple2log(log2simple(x)), x)
+        assert torch.allclose(log2simple(simple2log(x)), x, atol=1e-6)
+        assert torch.allclose(simple2log(log2simple(x)), x, atol=1e-6)
 
 
 class TestPortfolioReturns:
