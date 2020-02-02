@@ -10,9 +10,10 @@ python:
     - "3.7"
 
 install:
-    - pip install .[dev]
+    - pip install --upgrade .[dev]
 
 script:
+    - pip freeze
     - pytest
     - flake8 deepdow
     - pydocstyle deepdow
