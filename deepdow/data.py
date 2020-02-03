@@ -1,6 +1,7 @@
 """Collection of functions related to data."""
 import numpy as np
 import pandas as pd
+import torch
 
 from deepdow.utils import PandasChecks
 
@@ -53,3 +54,44 @@ def returns_to_Xy(returns, lookback=10, horizon=10):
     y = np.array(y_list)
 
     return X[:, np.newaxis, :, :], timestamps, y
+
+
+class InRAMDataset(torch.utils.data.Dataset):
+    """Dataset that lives entirely in RAM.
+
+    Parameters
+    ----------
+    X : np.ndarray
+        Full features dataset of shape `(n_assets, 1, lookback, n_assets)`.
+
+    y : np.ndarray
+        Full targets dataset of shape `(n_assets, horizon, n_assets)`.
+
+    device : torch.device or None
+        Device to which the samples will be assigned. If None then `torch.device('cpu')`.
+
+    """
+
+    def __init__(self, X, y, device=None):
+        """Construct."""
+        # checks
+        if len(X) != len(y):
+            raise ValueError('X and y need to have the same number of samples.')
+
+        if X.shape[-1] != y.shape[-1]:
+            raise ValueError('X and y need to have the same number of assets.')
+
+        self.X = X
+        self.y = y
+        self.device = device or torch.device('cpu')
+
+    def __len__(self):
+        """Compute length."""
+        return len(self.X)
+
+    def __getitem__(self, ix):
+        """Get item."""
+        X_sample = torch.from_numpy(self.X[ix]).to(self.device)
+        y_sample = torch.from_numpy(self.y[ix]).to(self.device)
+
+        return X_sample, y_sample
