@@ -95,3 +95,67 @@ class InRAMDataset(torch.utils.data.Dataset):
         y_sample = torch.from_numpy(self.y[ix]).to(self.device)
 
         return X_sample, y_sample
+
+
+def collate_uniform(batch, n_assets_range=(5, 10), lookback_range=(1, 20), horizon_range=(3, 15), random_state=None):
+    """Create batch of samples.
+
+    Randomly (from uniform distribution) selects assets, lookback and horizon.
+
+    Parameters
+    ----------
+    batch : list
+        List of tuples representing `(X_sample, y_sample)`. Note that the sample dimension is not present and all
+        the other dimensions are full (as determined by the dataset).
+
+    n_assets_range : tuple
+        Minimum and maximum (only left included) number of assets that are randomly subselected.
+
+    lookback_range : tuple
+        Minimum and maximum (only left included) of the lookback that is randomly selected.
+
+    horizon_range : tuple
+        Minimum and maximum (only left included) of the horizon that is randomly selected.
+
+    random_state : int or None
+        Random state.
+
+    Returns
+    -------
+    X_batch : torch.Tensor
+        Features batch of shape `(batch_size, 1, sampled_lookback, n_sampled_assets)`.
+
+    y_batch : torch.Tensor
+        Targets batch of shape `(batch_size, sampled_horizon, n_sampled_assets)`.
+
+    """
+    # checks
+    if not n_assets_range[1] > n_assets_range[0] >= 1:
+        raise ValueError('Incorrect number of assets range.')
+
+    if not lookback_range[1] > lookback_range[0] >= 1:
+        raise ValueError('Incorrect lookback range.')
+
+    if not horizon_range[1] > horizon_range[0] >= 1:
+        raise ValueError('Incorrect horizon range.')
+
+    if random_state is not None:
+        torch.manual_seed(random_state)
+
+    lookback_max, n_assets_max = batch[0][0].shape[1:]
+    horizon_max = batch[0][1].shape[0]
+
+    # sample assets
+    n_assets = torch.randint(low=n_assets_range[0], high=min(n_assets_max + 1, n_assets_range[1]), size=(1,))[0]
+    asset_idx = torch.multinomial(torch.from_numpy(np.array(range(n_assets_max), dtype='float')), n_assets.item())
+
+    # sample lookback
+    lookback = torch.randint(low=lookback_range[0], high=min(lookback_max + 1, lookback_range[1]), size=(1,))[0]
+
+    # sample horizon
+    horizon = torch.randint(low=horizon_range[0], high=min(horizon_max + 1, horizon_range[1]), size=(1,))[0]
+
+    X_batch = torch.stack([b[0][:, -lookback:, asset_idx] for b in batch], dim=0)
+    y_batch = torch.stack([b[1][:horizon, asset_idx] for b in batch], dim=0)
+
+    return X_batch, y_batch
