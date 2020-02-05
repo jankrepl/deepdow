@@ -554,7 +554,7 @@ class DowNet(nn.Module):
         if not fix_gamma:
             self.gamma_layer = GammaOneByOne(channels[-1])
         else:
-            self.gamma_layer = lambda x: (torch.ones(len(x)) * fix_gamma)  # no parameters
+            self.gamma_layer = lambda x: (torch.ones(len(x)).to(x.device) * fix_gamma)  # no parameters
 
     def forward(self, x, debug_mode=True):
         """Perform forward pass.
@@ -613,8 +613,7 @@ class DowNet(nn.Module):
         rets = self.channel_collapse_layer(tc_features)
 
         covmat_sqrt = self.covariance(tc_features)
-        covmat_sqrt += torch.stack(n_samples * [torch.eye(n_assets)], dim=0)  # will be initialized around equally w
-
+        covmat_sqrt += torch.stack([torch.eye(n_assets).to(covmat_sqrt.device) for _ in range(n_samples)], dim=0)
         weights = portolioopt(rets, covmat_sqrt, gamma)
 
         if debug_mode:

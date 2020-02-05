@@ -171,6 +171,24 @@ class TestDownNet:
 
         assert isinstance(res, torch.Tensor)
 
+    @pytest.mark.skipif(not torch.cuda.is_available(), reason="GPU not available")
+    def test_device(self):
+        """Make sure that casting that correctly run on both GPU and CPU."""
+        net = DowNet((2,))
+        x = torch.ones((3, 1, 4, 5))
+
+        device_cpu = torch.device('cpu')
+        device_gpu = torch.device('cuda:0')
+
+        res_cpu = net.to(device_cpu)(x.to(device_cpu))
+        res_gpu = net.to(device_gpu)(x.to(device_gpu))
+
+        for t in res_cpu:
+            assert t.device == device_cpu
+
+        for t in res_gpu:
+            assert t.device == device_gpu
+
 
 class TestGammaOneByOne:
     def test_basic(self, feature_notime_tensor):
