@@ -189,6 +189,10 @@ class TestDownNet:
         for t in res_gpu:
             assert t.device == device_gpu
 
+    def test_shuffle_invariant(self):
+        """Make sure shuffling assets has no effect."""
+        raise NotImplementedError()
+
 
 class TestGammaOneByOne:
     def test_basic(self, feature_notime_tensor):

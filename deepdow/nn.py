@@ -518,6 +518,9 @@ class DowNet(nn.Module):
     def __init__(self, channels, kernel_size=3, fix_gamma=True, time_collapse='RNN', channel_collapse='att',
                  max_weight=1, channel_collapse_kwargs=None, time_collapse_kwargs=None, sqrt=True):
         """Construct."""
+        self.mlflow_params = locals()
+        del self.mlflow_params['self']
+
         super(DowNet, self).__init__()
 
         self.max_weight = max_weight
@@ -603,7 +606,7 @@ class DowNet(nn.Module):
         for i, conv in enumerate(self.convolutions):
             x = conv(x)
             if i != len(self.convolutions) - 1:
-                x = nn.functional.tanh(x)  # to be customized
+                x = torch.tanh(x)  # to be customized
 
         # time collapsing
         tc_features = self.time_collapse_layer(x)  # (n_samples, n_channels, n_assets)
@@ -625,3 +628,8 @@ class DowNet(nn.Module):
     def n_parameters(self):
         """Compute number of parameters."""
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
+    @property
+    def lookback_invariant(self):
+        """Determine whether invariant to lookback size."""
+        return False
