@@ -33,7 +33,7 @@ def returns_to_Xy(returns, lookback=10, horizon=10):
         Index corresponding to the feature matrix `X`.
 
     y : np.ndarray
-        Array of shape `(N, horizon, n_assets)`. Generated out of the entire dataset.
+        Array of shape `(N, 1, horizon, n_assets)`. Generated out of the entire dataset.
 
     """
     # check
@@ -55,7 +55,7 @@ def returns_to_Xy(returns, lookback=10, horizon=10):
     timestamps = pd.DatetimeIndex(timestamps_list, freq=returns.index.freq)
     y = np.array(y_list)
 
-    return X[:, np.newaxis, :, :], timestamps, y
+    return X[:, np.newaxis, :, :], timestamps, y[:, np.newaxis, :, :]
 
 
 class InRAMDataset(torch.utils.data.Dataset):
@@ -64,10 +64,10 @@ class InRAMDataset(torch.utils.data.Dataset):
     Parameters
     ----------
     X : np.ndarray
-        Full features dataset of shape `(n_samples, 1, lookback, n_assets)`.
+        Full features dataset of shape `(n_samples, n_input_channels, lookback, n_assets)`.
 
     y : np.ndarray
-        Full targets dataset of shape `(n_samples, horizon, n_assets)`.
+        Full targets dataset of shape `(n_samples, n_input_channels, horizon, n_assets)`.
 
     timestamps : None or array-like
         If not None then of shape `(n_samples,)` representing a timestamp for each sample.
@@ -82,6 +82,9 @@ class InRAMDataset(torch.utils.data.Dataset):
         if len(X) != len(y):
             raise ValueError('X and y need to have the same number of samples.')
 
+        if X.shape[1] != y.shape[1]:
+            raise ValueError('X and y need to have the same number of input channels.')
+
         if X.shape[-1] != y.shape[-1]:
             raise ValueError('X and y need to have the same number of assets.')
 
@@ -92,7 +95,7 @@ class InRAMDataset(torch.utils.data.Dataset):
 
         # utility
         self.lookback, self.n_assets = X.shape[2:]
-        self.horizon = y.shape[1]
+        self.horizon = y.shape[2]
 
     def __len__(self):
         """Compute length."""
@@ -100,8 +103,8 @@ class InRAMDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, ix):
         """Get item."""
-        X_sample = torch.from_numpy(self.X[ix]).to(torch.double)
-        y_sample = torch.from_numpy(self.y[ix]).to(torch.double)
+        X_sample = torch.from_numpy(self.X[ix])
+        y_sample = torch.from_numpy(self.y[ix])
         timestamps_sample = self.timestamps[ix]
 
         return X_sample, y_sample, timestamps_sample, self.asset_names
@@ -140,10 +143,10 @@ def collate_uniform(batch, n_assets_range=(5, 10), lookback_range=(1, 20), horiz
     Returns
     -------
     X_batch : torch.Tensor
-        Features batch of shape `(batch_size, 1, sampled_lookback, n_sampled_assets)`.
+        Features batch of shape `(batch_size, n_input_channels, sampled_lookback, n_sampled_assets)`.
 
     y_batch : torch.Tensor
-        Targets batch of shape `(batch_size, sampled_horizon, n_sampled_assets)`.
+        Targets batch of shape `(batch_size, n_input_channels, sampled_horizon, n_sampled_assets)`.
 
     timestamps_batch : list
         List of timestamps (per sample).
@@ -165,7 +168,7 @@ def collate_uniform(batch, n_assets_range=(5, 10), lookback_range=(1, 20), horiz
         torch.manual_seed(random_state)
 
     lookback_max, n_assets_max = batch[0][0].shape[1:]
-    horizon_max = batch[0][1].shape[0]
+    horizon_max = batch[0][1].shape[1]
 
     # sample assets
     if asset_ixs is None:
@@ -181,7 +184,7 @@ def collate_uniform(batch, n_assets_range=(5, 10), lookback_range=(1, 20), horiz
     horizon = torch.randint(low=horizon_range[0], high=min(horizon_max + 1, horizon_range[1]), size=(1,))[0]
 
     X_batch = torch.stack([b[0][:, -lookback:, asset_ixs] for b in batch], dim=0)
-    y_batch = torch.stack([b[1][:horizon, asset_ixs] for b in batch], dim=0)
+    y_batch = torch.stack([b[1][:, :horizon, asset_ixs] for b in batch], dim=0)
     timestamps_batch = [b[2] for b in batch]
     asset_names_batch = batch[0][3][asset_ixs]  # same for the entire batch
 
@@ -256,10 +259,11 @@ class FlexibleDataLoader(torch.utils.data.DataLoader):
     @property
     def mlflow_params(self):
         """Generate dictionary of relevant parameters."""
-        return {'lookback_range': self.lookback_range,
+        return {
+                'lookback_range': self.lookback_range,
                 'horizon_range': self.horizon_range,
                 'n_assets_range': self.n_assets_range,
-                'asset_ixs': self.asset_ixs,
+                'asset_ixs': 'len={}'.format(len(self.asset_ixs)),
                 'batch_size': self.batch_size}
 
 
@@ -325,80 +329,3 @@ class RigidDataLoader(torch.utils.data.DataLoader):
                 'horizon': self.horizon,
                 'asset_ixs': self.asset_ixs,
                 'batch_size': self.batch_size}
-
-# class ValidationDataLoader(torch.utils.data.DataLoader):
-#     """Validation data loader.
-#
-#     The idea is that when validating one needs to fix `lookback`, `horizon` and `n_assets` (or specify them). This
-#     way the metrics will be comparable.
-#
-#     Parameters
-#     ----------
-#     dataset : torch.utils.data.Dataset
-#         Instance of our dataset. See ``InRAMDataset`` for more details.
-#
-#     indices : list
-#         List of indices of the `dataset` to be used. The idea is that one passes the indices of the validation set
-#         here.
-#
-#     lookback : int
-#         How many time steps do we look back.
-#
-#     horizon : int
-#         How many time steps we look forward.
-#
-#     assets : None or list
-#         If None, then assets are randomly sampled at each iteration. If ``list`` then indices of considered assets.
-#         In this cases `n_iters` needs to be 1 (there is no randomness anymore).
-#
-#     n_iters : int
-#         Number of times to sample assets (`n_assets` of them). If user specifies the actual assets via `assets` then
-#         needs to be 1.
-#
-#     kwargs : dict
-#         Additional parameters to be passed into the parent constructor - `torch.utils.data.DataLoader`.
-#
-#     """
-#
-#     def __init__(self, dataset, indices, lookbacks=5, horizon=5, assets=None, **kwargs):
-#         # checks
-#         if n_assets > dataset.n_assets:
-#             raise ValueError('Cannot select more assets than in the original dataset - {}.'.format(dataset.n_assets))
-#
-#         if max(lookbacks) > dataset.lookback:
-#             raise ValueError(
-#                 'Cannot select a bigger lookback than in the original dataset - {}.'.format(dataset.lookback))
-#
-#         if horizon > dataset.horizon:
-#             raise ValueError(
-#                 'Cannot select a bigger horizon than in the original dataset - {}.'.format(dataset.horizon))
-#
-#         if not (0 <= min(indices) <= max(indices) <= len(dataset) - 1):
-#             raise ValueError('The indices our outside of the range of the dataset.')
-#
-#         self.dataset = dataset
-#         self.indices = indices
-#         self.n_assets = n_assets
-#         self.lookback = lookback
-#         self.horizon = horizon
-#
-#         if assets is not None:
-#             if n_iters != 1:
-#                 raise ValueError('When assets are provided there can only be one iteration.')
-#
-#             raise NotImplementedError()
-#
-#         self.assets = assets
-#         self.n_iters = n_iters
-#
-#         super(ValidationDataLoader, self).__init__(dataset,
-#                                                    collate_fn=partial(collate_uniform,
-#                                                                       n_assets_range=(n_assets, n_assets + 1),
-#                                                                       lookback_range=(lookback, lookback + 1),
-#                                                                       horizon_range=(horizon, horizon + 1),
-#                                                                       assets=assets),
-#                                                    sampler=torch.utils.data.SubsetRandomSampler(indices),
-#                                                    batch_sampler=None,
-#                                                    shuffle=False,
-#                                                    drop_last=False,
-#                                                    **kwargs)

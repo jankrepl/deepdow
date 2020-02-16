@@ -1,4 +1,5 @@
 """Collection of losses."""
+from abc import ABC, abstractmethod
 
 import torch
 
@@ -127,6 +128,72 @@ def portfolio_cumulative_returns(weights, y, input_type='log', output_type='simp
 
     else:
         raise ValueError('Unsupported output type: {}'.format(output_type))
+
+
+class Loss(ABC):
+    @abstractmethod
+    def __call__(self, weights, y):
+        """Compute loss.
+
+        Parameters
+        ----------
+        weights : torch.Tensor
+            Tensor of shape `(n_samples, n_assets)` representing the predicted weights by our portfolio optimizer.
+
+        y : torch.Tensor
+            Tensor of shape `(n_samples, n_input_channels, horizon, n_assets)` representing ground truth labels
+            over the `horizon` of steps. The idea is that the channel dimensions can be given a specific meaning
+            in the constructor.
+
+        Returns
+        -------
+        torch.Tensor
+            Tensor of shape `(n_samples,)` representing the per sample loss.
+
+        """
+
+    @abstractmethod
+    def __repr__(self):
+        pass
+
+
+class SharpeRatio(Loss):
+    def __init__(self, returns_channel=0, input_type='log', output_type='simple'):
+        self.returns_channel = returns_channel
+        self.input_type = input_type
+        self.output_type = output_type
+
+    def __call__(self, weights, y):
+        """Compute negative sharpe ratio.
+
+        Parameters
+        ----------
+        weights : torch.Tensor
+            Tensor of shape `(n_samples, n_assets)` representing the predicted weights by our portfolio optimizer.
+
+        y : torch.Tensor
+            Tensor of shape `(n_samples, n_input_channels, horizon, n_assets)` representing ground truth labels
+            over the `horizon` of steps. The idea is that the channel dimensions can be given a specific meaning
+            in the constructor.
+
+        Returns
+        -------
+        torch.Tensor
+            Tensor of shape `(n_samples,)` representing the per sample negative sharpe ratio.
+
+        """
+        prets = portfolio_returns(weights,
+                                  y[:, self.returns_channel, ...],
+                                  input_type=self.input_type,
+                                  output_type=self.output_type)
+
+        return -prets.mean(dim=1) / prets.std(dim=1)
+
+    def __repr__(self):
+        return "{}(returns_channel={}, input_type='{}', output_type='{}')".format(self.__class__.__name__,
+                                                                                  self.returns_channel,
+                                                                                  self.input_type,
+                                                                                  self.output_type)
 
 
 def sharpe_ratio(weights, y, input_type='log', output_type='simple'):

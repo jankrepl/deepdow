@@ -1,5 +1,6 @@
 """Collection of utilities and helpers."""
 
+import mlflow
 import numpy as np
 import pandas as pd
 
@@ -86,6 +87,41 @@ class PandasChecks:
 
             if isinstance(f, pd.DataFrame) and not f.columns.equals(reference_index):
                 raise IndexError('The {} entry has wrong columns: {}'.format(i, f.columns))
+
+
+class MLflowUtils:
+    @staticmethod
+    def copy_metrics(run_id, step, client=None):
+        """Copy the latest value of all metrics into a new step.
+
+        Can be used in evaluation loops to avoid recomputing metrics on benchmarks that are deterministic.
+
+        Parameters
+        ----------
+        run_id : str
+            Unique MLflow run indentifier.
+
+        step : int
+            Number of the step under which to copy the previous results.
+
+        client : None or mlflow.tracking.MlflowClient
+            If not None, then instance of an existing client. If None then instantiated from scratch.
+
+        Returns
+        -------
+        success : bool
+            If True, at least one metric existed and copied. If False, no metrics found.
+
+        """
+        client = client or mlflow.tracking.MlflowClient()
+        run = client.get_run(run_id)
+        old_meltrics = run.data.metrics
+
+        if old_meltrics:
+            with mlflow.start_run(run_id=run_id):
+                mlflow.log_metrics(run.data.metrics, step=step)
+
+        return bool(old_meltrics)
 
 
 def prices_to_returns(prices, use_log=True):

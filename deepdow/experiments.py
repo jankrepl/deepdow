@@ -1,16 +1,15 @@
 import pathlib
 import time
 
-from IPython.display import display
-import matplotlib.pyplot as plt
+
 import mlflow
-import numpy as np
 import pandas as pd
 from tqdm import tqdm
 import torch
 
-from deepdow.benchmarks import OneOverN, Random
+from deepdow.benchmarks import Benchmark
 from deepdow.data import FlexibleDataLoader, RigidDataLoader
+from deepdow.utils import MLflowUtils
 
 
 class RunFresh:
@@ -20,7 +19,7 @@ class RunFresh:
 
     Parameters
     ----------
-    network : nn.Module
+    network : nn.Module and Benchmark
         Network.
 
     loss : callable
@@ -55,9 +54,11 @@ class RunFresh:
     mlflow_experiment_name : str
         Name of the mlflow experiment.
 
-    device : torch.device
-        Device on which to perform the deep network calculations.
+    device : torch.device or None
+        Device on which to perform the deep network calculations. If None then `torch.device('cpu')` used.
 
+    dtype : torch.dtype or None
+        Dtype to use for all torch tensors. If None then `torch.double` used.
 
     optimizer : None or torch.optim.Optimizer
         Optimizer to be used. If None then using Adam with lr=0.01.
@@ -69,26 +70,34 @@ class RunFresh:
         Keys represent metric names and values are callables. Note that it always has an element
         called 'loss' representing the actual loss.
 
-    metrics_dataloaders : dict
+    val_dataloaders : dict
         Keys represent dataloaders names and values are ``RigidDataLoader`` instances. Note that if empty then no
         logging is made.
 
     models : dict
         Keys represent model names and values are either `Benchmark` or `torch.nn.Module`. Note that it always
-        has an element called `main` representing the main network. Each model will is logged into a nested MLflow run.
+        has an element called `main` representing the main network.
+        
+    mlflow_client : mlflow.tracking.MlflowClient
+        MlflowClient instance for accessing and logging.
+
+    mlflow_run_ids : dict
+        Stores references to all MLflow runs. Keys represent {model_name}_lb{lookback} for models that are not lookback
+        invariant else {model_name}. The values are the MLflow run ids. Note that the network is stored under `main`.
+    
 
     """
 
     def __init__(self, network, loss, train_dataloader, val_dataloaders=None, additional_lookbacks=None, metrics=None,
-                 benchmarks=None, mlflow_experiment_name='test', device=None, optimizer=None):
+                 benchmarks=None, mlflow_experiment_name='test', device=None, dtype=None, optimizer=None):
         """Construct"""
 
         # checks
         if not isinstance(train_dataloader, (FlexibleDataLoader, RigidDataLoader)):
             raise TypeError('The train_dataloader needs to be an instance of TrainDataLoader.')
 
-        if not isinstance(network, torch.nn.Module):
-            raise TypeError('The network needs to be a torch.nn.Module')
+        if not (isinstance(network, torch.nn.Module) and isinstance(network, Benchmark)):
+            raise TypeError('The network needs to be a torch.nn.Module and Benchmark. ')
 
         self.network = network
         self.loss = loss
@@ -155,13 +164,14 @@ class RunFresh:
 
         self.loss = loss
         self.device = device or torch.device('cpu')
+        self.dtype = dtype or torch.double
         self.mlflow_experiment_name = mlflow_experiment_name
         self.optimizer = torch.optim.Adam(self.network.parameters(), lr=1e-2) if optimizer is None else optimizer
 
         # mlflow games
         self.mlflow_client = mlflow.tracking.MlflowClient()
         self.mlflow_parent_run_id = None  # to be populated in _initialize_mlflow
-        self.mlflow_children_run_ids = None  # to be populated in _initialize_mlflow
+        self.mlflow_run_ids = {}  # to be populated in _initialize_mlflow
         self._initialize_mlflow()
 
         # temp
@@ -174,7 +184,6 @@ class RunFresh:
 
         with mlflow.start_run(run_name='Parent'):
             self.mlflow_parent_run_id = mlflow.active_run().info.run_id
-            self.mlflow_children_run_ids = {}
 
             mlflow.log_params(self.train_dataloader.mlflow_params)
             mlflow.log_param('loss', str(self.loss))
@@ -186,11 +195,11 @@ class RunFresh:
                         new_model_name = "{}_lb{}".format(model_name, lb)
                         with mlflow.start_run(run_name=new_model_name, nested=True):
                             mlflow.log_params(model.mlflow_params if hasattr(model, 'mlflow_params') else {})
-                            self.mlflow_children_run_ids[new_model_name] = mlflow.active_run().info.run_id
+                            self.mlflow_run_ids[new_model_name] = mlflow.active_run().info.run_id
                 else:
                     with mlflow.start_run(run_name=model_name, nested=True):
                         mlflow.log_params(model.mlflow_params if hasattr(model, 'mlflow_params') else {})
-                        self.mlflow_children_run_ids[model_name] = mlflow.active_run().info.run_id
+                        self.mlflow_run_ids[model_name] = mlflow.active_run().info.run_id
 
     def launch(self, n_epochs=1, starting_epoch=0, epoch_end_freq=5, verbose=False):
         """Launch the training and logging loop.
@@ -204,9 +213,9 @@ class RunFresh:
         starting_epoch : int
             Initial epoch to start with (just for notation purposes - no model loading).
 
-        epoch_end_freq : int
+        epoch_end_freq : int or None
             How frequently to run `on_epoch_end` (where all the validation takes place). The higher the less we
-            perform logging. If `epoch_end_freq=1` then done after each epoch.
+            perform logging. If `epoch_end_freq=1` then done after each epoch. If None then never run.
 
         verbose : bool
             Controls verbosity.
@@ -224,11 +233,11 @@ class RunFresh:
                 self.on_batch_begin(batch_ix)
 
                 # Get batch
-                X_batch, y_batch = X_batch.to(self.device), y_batch.to(self.device)
+                X_batch, y_batch = X_batch.to(self.device).to(self.dtype), y_batch.to(self.device).to(self.dtype)
 
                 # Make sure network on the right device and in eval mode
-                self.network = self.network.to(self.device)
-                self.network = self.network.train()
+                self.network.to(device=self.device, dtype=self.dtype)
+                self.network.train()
 
                 # Forward & Backward
                 weights = self.network(X_batch, debug_mode=False)
@@ -242,7 +251,7 @@ class RunFresh:
                 self.on_batch_end(batch_ix)
 
             # Epoch end
-            if e % epoch_end_freq == 0:
+            if epoch_end_freq is not None and e % epoch_end_freq == 0:
                 self.on_epoch_end(e, verbose=verbose)
 
         # Train end
@@ -279,12 +288,15 @@ class RunFresh:
             if isinstance(m, torch.nn.Module):
                 m.eval()
 
+        first_time = epoch == 0  # probably should come up with a better condition
+
         results_list = []
 
         with torch.no_grad():
             for dl_name, dl in self.val_dataloaders.items():
 
                 for batch_ix, (X_batch, y_batch, timestamps_batch, asset_names_batch) in enumerate(dl):
+                    X_batch, y_batch = X_batch.to(self.device).to(self.dtype), y_batch.to(self.device).to(self.dtype)
 
                     for lookback_ix, lookback in enumerate(self.lookbacks):
                         if dl.lookback < lookback:
@@ -296,15 +308,14 @@ class RunFresh:
                             if model.lookback_invariant and lookback_ix > 0:
                                 continue
 
-                            if isinstance(model, torch.nn.Module):
-                                weights = model(X_batch_lb, debug_mode=False)
-                            else:
-                                weights = model(X_batch_lb)
+                            if not first_time and not (model is self.network or not model.deterministic):
+                                continue
 
-                            weights_df = pd.DataFrame(weights.detach().numpy(), columns=asset_names_batch)
+                            weights = model(X_batch_lb)
+                            weights_df = pd.DataFrame(weights.cpu().numpy(), columns=asset_names_batch)
 
                             for metric_name, metric in self.metrics.items():
-                                metric_per_s = metric(weights, y_batch).to(torch.device('cpu'))
+                                metric_per_s = metric(weights, y_batch).cpu()
 
                                 df = pd.DataFrame(
                                     {'timestamps': timestamps_batch,  # (n_samples,)
@@ -318,20 +329,23 @@ class RunFresh:
 
                                 results_list.append(df)
 
+            if not results_list:
+                return
+
             master_df = pd.concat(results_list, axis=0)
 
-            self.stats = master_df
-
-            # sanity checker - that the DF looks good
             per_model_mean_metrics = self.parser_per_model_mean_metrics(master_df)
 
-            for name, metrics_dict in per_model_mean_metrics.items():
-                with mlflow.start_run(run_id=self.mlflow_children_run_ids[name]):
-                    mlflow.log_metrics(metrics_dict, step=epoch)
+            for name, run_id in self.mlflow_run_ids.items():
+                if name in per_model_mean_metrics:
+                    with mlflow.start_run(run_id=run_id):
+                        mlflow.log_metrics(per_model_mean_metrics[name], step=epoch)
+                else:
+                    MLflowUtils.copy_metrics(run_id, step=epoch)
 
             per_model_weights = self.parser_per_model_weights(master_df)
             for name, weights_dict in per_model_weights.items():
-                with mlflow.start_run(run_id=self.mlflow_children_run_ids[name]):
+                with mlflow.start_run(run_id=self.mlflow_run_ids[name]):
                     root_path = pathlib.Path(mlflow.get_artifact_uri()[6:])
                     for dl_name, weights_df in weights_dict.items():
                         final_dir = root_path / str(epoch) / dl_name
