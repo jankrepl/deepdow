@@ -20,14 +20,8 @@ class Benchmark(ABC):
         """Prediction of the model."""
 
     @property
-    @abstractmethod
-    def lookback_invariant(self):
-        """Determine whether model yields the same weights irrespective of the lookback size."""
-
-    @property
-    @abstractmethod
-    def deterministic(self):
-        """Determine whether model yields the same weights for the same input."""
+    def mlflow_params(self):
+        return {}
 
 
 class MaximumReturn(Benchmark):
@@ -55,14 +49,6 @@ class MaximumReturn(Benchmark):
         self.return_channel = returns_channel
 
         self.optlayer = self._construct_problem(n_assets, max_weight) if self.n_assets is not None else None
-
-    @property
-    def lookback_invariant(self):
-        return False
-
-    @property
-    def deterministic(self):
-        return True
 
     @staticmethod
     def _construct_problem(n_assets, max_weight):
@@ -123,14 +109,6 @@ class MinimumVariance(Benchmark):
         self.max_weight = max_weight
 
         self.optlayer = self._construct_problem(n_assets, max_weight) if self.n_assets is not None else None
-
-    @property
-    def lookback_invariant(self):
-        return False
-
-    @property
-    def deterministic(self):
-        return True
 
     @staticmethod
     def _construct_problem(n_assets, max_weight):
@@ -197,14 +175,6 @@ class OneOverN(Benchmark):
 
         return torch.ones((n_samples, n_assets), dtype=X.dtype, device=X.device) / n_assets
 
-    @property
-    def lookback_invariant(self):
-        return True
-
-    @property
-    def deterministic(self):
-        return True
-
 
 class Random(Benchmark):
     """Random allocation for each prediction."""
@@ -229,14 +199,6 @@ class Random(Benchmark):
         weights_sums = weights_unscaled.sum(dim=1, keepdim=True).repeat(1, n_assets)
 
         return weights_unscaled / weights_sums
-
-    @property
-    def lookback_invariant(self):
-        return True
-
-    @property
-    def deterministic(self):
-        return False
 
 
 class Singleton(Benchmark):
@@ -275,11 +237,3 @@ class Singleton(Benchmark):
         weights[:, self.asset_ix] = 1
 
         return weights
-
-    @property
-    def lookback_invariant(self):
-        return True
-
-    @property
-    def deterministic(self):
-        return True

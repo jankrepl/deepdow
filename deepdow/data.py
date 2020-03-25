@@ -5,57 +5,43 @@ import numpy as np
 import pandas as pd
 import torch
 
-from deepdow.utils import PandasChecks
+from .utils import PandasChecks
 
 
-def returns_to_Xy(returns, lookback=10, horizon=10):
-    """Create a deep learning dataset (in memory).
+def scale_features(X, approach='standard'):
+    """Scale feature matrix.
 
     Parameters
     ----------
-    returns : pd.DataFrame
-        Returns where columns represent assets and rows timestamps. The last row
-        is the most recent.
+    X : torch.Tensor
+        Tensor of shape (n_samples, n_channels, lookback, n_assets). Unscaled
 
-    lookback : int
-        Number of timesteps to include in the features.
-
-    horizon : int
-        Number of timesteps to inclued in the label.
-
+    approach : str, {'standard', 'percent'}
+        How to scale features.
 
     Returns
     -------
-    X : np.ndarray
-        Array of shape `(N, 1, lookback, n_assets)`. Generated out of the entire dataset.
-
-    timestamps : pd.DateTimeIndex
-        Index corresponding to the feature matrix `X`.
-
-    y : np.ndarray
-        Array of shape `(N, 1, horizon, n_assets)`. Generated out of the entire dataset.
-
+    X_scaled : torch.tensor
+        Tensor of shape (n_samples, n_channels, lookback, n_assets). Scaled.
     """
-    # check
-    PandasChecks.check_no_gaps(returns.index)
-    PandasChecks.check_valid_entries(returns)
+    n_samples, n_channels, lookback, n_assets = X.shape
 
-    n_timesteps = len(returns.index)
+    if approach == 'standard':
+        means = X.mean(dim=[2, 3])  # for each sample and each channel a mean is computed (over lookback and assets)
+        stds = X.std(dim=[2, 3]) + 1e-6  # for each sample and each channel a std is computed (over lookback and assets)
 
-    X_list = []
-    timestamps_list = []
-    y_list = []
+        means_rep = means.view(n_samples, n_channels, 1, 1).repeat(1, 1, lookback, n_assets)
+        stds_rep = stds.view(n_samples, n_channels, 1, 1).repeat(1, 1, lookback, n_assets)
 
-    for i in range(lookback, n_timesteps - horizon + 1):
-        X_list.append(returns.iloc[i - lookback: i, :].values)
-        timestamps_list.append(returns.index[i])
-        y_list.append(returns.iloc[i: i + horizon, :].values)
+        X_scaled = (X - means_rep) / stds_rep
 
-    X = np.array(X_list)
-    timestamps = pd.DatetimeIndex(timestamps_list, freq=returns.index.freq)
-    y = np.array(y_list)
+    elif approach == 'percent':
+        X_scaled = X * 100
 
-    return X[:, np.newaxis, :, :], timestamps, y[:, np.newaxis, :, :]
+    else:
+        raise ValueError('Invalid scaling approach {}'.format(approach))
+
+    return X_scaled
 
 
 class InRAMDataset(torch.utils.data.Dataset):
@@ -111,7 +97,7 @@ class InRAMDataset(torch.utils.data.Dataset):
 
 
 def collate_uniform(batch, n_assets_range=(5, 10), lookback_range=(1, 20), horizon_range=(3, 15), asset_ixs=None,
-                    random_state=None):
+                    random_state=None, scaler=None):
     """Create batch of samples.
 
     Randomly (from uniform distribution) selects assets, lookback and horizon. If `assets` are specified then assets
@@ -139,6 +125,9 @@ def collate_uniform(batch, n_assets_range=(5, 10), lookback_range=(1, 20), horiz
 
     random_state : int or None
         Random state.
+
+    scaler : None or {'standard', 'percent'}
+        If None then no scaling applied. If string then a specific scaling theme. Only applied to X_batch.
 
     Returns
     -------
@@ -184,6 +173,9 @@ def collate_uniform(batch, n_assets_range=(5, 10), lookback_range=(1, 20), horiz
     horizon = torch.randint(low=horizon_range[0], high=min(horizon_max + 1, horizon_range[1]), size=(1,))[0]
 
     X_batch = torch.stack([b[0][:, -lookback:, asset_ixs] for b in batch], dim=0)
+    if scaler is not None:
+        X_batch = scale_features(X_batch, approach=scaler)
+
     y_batch = torch.stack([b[1][:, :horizon, asset_ixs] for b in batch], dim=0)
     timestamps_batch = [b[2] for b in batch]
     asset_names_batch = batch[0][3][asset_ixs]  # same for the entire batch
@@ -220,18 +212,21 @@ class FlexibleDataLoader(torch.utils.data.DataLoader):
         If None, then `n_assets` sampled randomly. If ``list`` then it represents the indices of desired assets - no
         randomness and `n_assets_range` is not used.
 
+    scaler : None or {'standard', 'percent'}
+        If None then no scaling applied. If string then a specific scaling theme. Only applied to X_batch.
+
     """
 
     def __init__(self, dataset, indices=None, n_assets_range=(5, 10), lookback_range=(3, 20), horizon_range=(3, 15),
-                 asset_ixs=None, **kwargs):
+                 asset_ixs=None, scaler=None, **kwargs):
         # checks
-        if not (2 <= n_assets_range[0] <= n_assets_range[1] <= dataset.n_assets):
+        if not (2 <= n_assets_range[0] <= n_assets_range[1] <= dataset.n_assets + 1):
             raise ValueError('Invalid n_assets_range.')
 
-        if not (2 <= lookback_range[0] <= lookback_range[1] <= dataset.lookback):
+        if not (2 <= lookback_range[0] <= lookback_range[1] <= dataset.lookback + 1):
             raise ValueError('Invalid lookback_range.')
 
-        if not (1 <= horizon_range[0] <= horizon_range[1] <= dataset.horizon):
+        if not (1 <= horizon_range[0] <= horizon_range[1] <= dataset.horizon + 1):
             raise ValueError('Invalid horizon_range.')
 
         if indices is not None and not (0 <= min(indices) <= max(indices) <= len(dataset) - 1):
@@ -243,28 +238,28 @@ class FlexibleDataLoader(torch.utils.data.DataLoader):
         self.lookback_range = lookback_range
         self.horizon_range = horizon_range
         self.asset_ixs = asset_ixs
+        self.scaler = scaler
 
-        super(FlexibleDataLoader, self).__init__(dataset,
-                                                 collate_fn=partial(collate_uniform,
-                                                                    n_assets_range=n_assets_range,
-                                                                    lookback_range=lookback_range,
-                                                                    horizon_range=horizon_range,
-                                                                    asset_ixs=asset_ixs),
-                                                 sampler=torch.utils.data.SubsetRandomSampler(indices),
-                                                 batch_sampler=None,
-                                                 shuffle=False,
-                                                 drop_last=False,
-                                                 **kwargs)
+        super().__init__(dataset,
+                         collate_fn=partial(collate_uniform,
+                                            n_assets_range=n_assets_range,
+                                            lookback_range=lookback_range,
+                                            horizon_range=horizon_range,
+                                            asset_ixs=asset_ixs,
+                                            scaler=scaler),
+                         sampler=torch.utils.data.SubsetRandomSampler(indices),
+                         batch_sampler=None,
+                         shuffle=False,
+                         drop_last=False,
+                         **kwargs)
 
     @property
     def mlflow_params(self):
         """Generate dictionary of relevant parameters."""
         return {
-                'lookback_range': self.lookback_range,
-                'horizon_range': self.horizon_range,
-                'n_assets_range': self.n_assets_range,
-                'asset_ixs': 'len={}'.format(len(self.asset_ixs)),
-                'batch_size': self.batch_size}
+            'lookback_range': self.lookback_range,
+            'horizon_range': self.horizon_range,
+            'batch_size': self.batch_size}
 
 
 class RigidDataLoader(torch.utils.data.DataLoader):
@@ -291,9 +286,11 @@ class RigidDataLoader(torch.utils.data.DataLoader):
     horizon : int
         How many time steps we look forward.
 
+    scaler : None or {'standard', 'percent'}
+        If None then no scaling applied. If string then a specific scaling theme. Only applied to X_batch.
     """
 
-    def __init__(self, dataset, asset_ixs, indices=None, lookback=5, horizon=5, **kwargs):
+    def __init__(self, dataset, asset_ixs, indices=None, lookback=5, horizon=5, scaler=None, **kwargs):
 
         if not (2 <= lookback <= dataset.lookback):
             raise ValueError('Invalid lookback_range.')
@@ -309,23 +306,24 @@ class RigidDataLoader(torch.utils.data.DataLoader):
         self.lookback = lookback
         self.horizon = horizon
         self.asset_ixs = asset_ixs
+        self.scaler = scaler
 
-        super(RigidDataLoader, self).__init__(dataset,
-                                              collate_fn=partial(collate_uniform,
-                                                                 n_assets_range=None,
-                                                                 lookback_range=(lookback, lookback + 1),
-                                                                 horizon_range=(horizon, horizon + 1),
-                                                                 asset_ixs=asset_ixs),
-                                              sampler=torch.utils.data.SubsetRandomSampler(indices),
-                                              batch_sampler=None,
-                                              shuffle=False,
-                                              drop_last=False,
-                                              **kwargs)
+        super().__init__(dataset,
+                         collate_fn=partial(collate_uniform,
+                                            n_assets_range=None,
+                                            lookback_range=(lookback, lookback + 1),
+                                            horizon_range=(horizon, horizon + 1),
+                                            asset_ixs=asset_ixs,
+                                            scaler=scaler),
+                         sampler=torch.utils.data.SubsetRandomSampler(indices),
+                         batch_sampler=None,
+                         shuffle=False,
+                         drop_last=False,
+                         **kwargs)
 
     @property
     def mlflow_params(self):
         """Generate dictionary of relevant parameters."""
         return {'lookback': self.lookback,
                 'horizon': self.horizon,
-                'asset_ixs': self.asset_ixs,
                 'batch_size': self.batch_size}

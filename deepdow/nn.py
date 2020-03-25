@@ -4,10 +4,132 @@ import torch.nn as nn
 
 from .benchmarks import Benchmark
 from .layers import (AttentionPool, ConvOneByOne, ConvTime, CovarianceMatrix, GammaOneByOne,
-                     PortfolioOptimization, TimeCollapseRNN)
+                     PoolTime, PortfolioOptimization, TimeCollapseRNN)
 
 
-class DowNet(nn.Module, Benchmark):
+class Whatever(nn.Module, Benchmark):
+    def __init__(self, hidden_size, num_layers=1, fix_gamma=True, time_collapse='RNN', channel_collapse='att',
+                 max_weight=1, channel_collapse_kwargs=None, time_collapse_kwargs=None, n_assets=None,
+                 n_input_channels=1, shrinkage_strategy='diagonal', shrinkage_coef=0.5):
+        """Construct."""
+        self._mlflow_params = locals().copy()
+        del self._mlflow_params['self']
+
+        super().__init__()
+
+        self.max_weight = max_weight
+        self.n_input_channels = n_input_channels
+
+        self.feature_extraction_layer = TimeCollapseRNN(n_input_channels,
+                                                        hidden_size=hidden_size,
+                                                        num_layers=num_layers,
+                                                        hidden_strategy='many2many')
+        self.covariance_layer = CovarianceMatrix(sqrt=True,
+                                                 shrinkage_strategy=shrinkage_strategy,
+                                                 shrinkage_coef=shrinkage_coef)
+
+        if channel_collapse == 'avg':
+            self.channel_collapse_layer = lambda x: x.mean(dim=1, keepdim=False)
+
+        elif channel_collapse == '1b1':
+            self.channel_collapse_layer = ConvOneByOne(hidden_size)
+
+        elif channel_collapse == 'att':
+            self.channel_collapse_layer = AttentionPool(hidden_size)
+
+        else:
+            raise ValueError('Unrecognized channel collapsing strategy:{}'.format(channel_collapse))
+
+        if time_collapse == 'RNN':
+            self.time_collapse_layer = TimeCollapseRNN(hidden_size, hidden_size, **(time_collapse_kwargs or {}))
+
+        elif time_collapse == 'avg':
+            self.time_collapse_layer = lambda x: x.mean(dim=2, keepdim=False)
+
+        elif time_collapse == 'att':
+            self.time_collapse_layer = AttentionPool(hidden_size)
+
+        else:
+            raise ValueError('Unrecognized time collapsing strategy:{}'.format(time_collapse))
+
+        if not fix_gamma:
+            self.gamma_layer = GammaOneByOne(hidden_size)
+        else:
+            self.gamma_layer = lambda x: (torch.ones(len(x)).to(x.device).to(x.dtype) * fix_gamma)  # no parameters
+
+        if n_assets is not None:
+            self.n_assets = n_assets
+            self.portolioopt = PortfolioOptimization(n_assets, max_weight=self.max_weight)
+
+        else:
+            self.n_assets = None
+            self.portolioopt = None
+
+    def forward(self, x, debug_mode=False):
+        """Perform forward pass.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Batch of samples of shape `(n_samples, self.n_input_channels, lookback, n_assets)`. Note that in different
+            calls one can alter the `lookback` without problems. If `self.n_assets=None` then we can also dynamically
+            change the number of assets. Otherwise it needs to be `self.n_assets`.
+
+        debug_mode : bool
+            If True returning multiple different objects. If False then only the weights.
+
+        Returns
+        -------
+        weights : torch.Tensor
+            Final weights of shape `(n_samples, n_assets)` that are solution to the convex optimization with parameters
+            being determined by the extracted feature tensor by the CNN.
+
+        """
+        n_samples, n_input_channels, lookback, n_assets = x.shape
+
+        x_inp = x.clone()
+
+        # Checks
+        if self.n_input_channels != n_input_channels:
+            raise ValueError('Incorrect number of input channels: {}, expected: {}'.format(n_input_channels,
+                                                                                           self.n_input_channels))
+
+        # Setup convex optimization layer
+        if self.portolioopt is not None:
+            if self.n_assets != n_assets:
+                raise ValueError('Incorrect number of assets: {}, expected: {}'.format(n_assets, self.n_assets))
+
+            portolioopt = self.portolioopt
+        else:
+            # overhead
+            portolioopt = PortfolioOptimization(n_assets, max_weight=self.max_weight)
+
+        x = self.feature_extraction_layer(x)
+        # time collapsing
+        tc_features = self.time_collapse_layer(x)  # (n_samples, n_channels, n_assets)
+
+        gamma = self.gamma_layer(tc_features)
+
+        # rets = self.channel_collapse_layer(tc_features) + x_inp[:, 0, ...].mean(dim=1)
+        rets = self.channel_collapse_layer(tc_features)
+        # covmat_sqrt = self.covariance_layer(tc_features)
+        covmat_sqrt = self.covariance_layer(x_inp[:, 0, ...])
+
+        weights = portolioopt(rets, covmat_sqrt, gamma)
+
+        return weights
+
+    @property
+    def n_parameters(self):
+        """Compute number of parameters."""
+        return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
+    @property
+    def mlflow_params(self):
+        return self._mlflow_params
+
+
+class DowNet(nn.Module):
     """End to end model.
 
     This model expects a tensor of shape `(n_samples, n_input_channels, lookback, n_assets)` and performs the
@@ -27,6 +149,9 @@ class DowNet(nn.Module, Benchmark):
     kernel_size : int or tuple
         Kernel size in the time dimension during initial convolutions.
 
+    pool : int
+        Kernel size for pooling. Note that `pool=1` results in no pooling.
+
     fix_gamma : bool or float
         If True or nonzero float, then gamma from the portfolio optimization is fixed. Otherwise it is extracted
         via the one by one convolution and averaging from the feature tensor.
@@ -41,9 +166,12 @@ class DowNet(nn.Module, Benchmark):
     max_weight : int
         Maximum weight per asset in the portfolio optimization.
 
-    sqrt : int
-        If True, then computing matrix square root after covariance computation. Note that the portfolio optimizer
-        expects a square root of the covariance matrix however empirically there are some numerical issues.
+    shrinkage_strategy : None or {'diagonal', 'identity', 'scaled_identity'}
+        Strategy of combining the sample covariance matrix with some more stable matrix.
+
+    shrinkage_coef : float
+        A float in the range [0, 1] representing the weight of the linear combination. If `shrinkage_coef=1` then
+        using purely the sample covariance matrix. If `shrinkage_coef=0` then using purely the stable matrix.
 
     time_collapse_kwargs : None or dict
         Additional parameters to be passed into the time collapsing layer.
@@ -67,7 +195,11 @@ class DowNet(nn.Module, Benchmark):
         transforms `(n_samples, n_input_channels, lookback, n_assets)` to
         `(n_samples, n_output_channels, lookback, n_assets)`.
 
-    covariance : CovarianceMatrix
+    pool_layer : PoolTime
+        Pooling layer over the time dimension. Transforms `(n_samples, n_input_channels, lookback_input, n_assets)` to
+        `(n_samples, n_output_channels, lookback_output, n_assets)`.
+
+    covariance_layer : CovarianceMatrix
         Covariance matrix layer.
 
     time_collapse_layer : TimeCollapseRNN or callable
@@ -82,14 +214,13 @@ class DowNet(nn.Module, Benchmark):
 
     """
 
-    def __init__(self, channels, kernel_size=3, fix_gamma=True, time_collapse='RNN', channel_collapse='att',
-                 max_weight=1, channel_collapse_kwargs=None, time_collapse_kwargs=None, sqrt=True, n_assets=None,
-                 n_input_channels=1):
+    def __init__(self, channels, kernel_size=3, pool=1, fix_gamma=True, time_collapse='RNN', channel_collapse='att',
+                 max_weight=1, channel_collapse_kwargs=None, time_collapse_kwargs=None, n_assets=None,
+                 n_input_channels=1, shrinkage_strategy='diagonal', shrinkage_coef=0.5):
         """Construct."""
-        self.mlflow_params = locals()
-        del self.mlflow_params['self']
+        self._mlflow_params = locals()
 
-        super(DowNet, self).__init__()
+        super().__init__()
 
         self.max_weight = max_weight
         self.n_input_channels = n_input_channels
@@ -100,33 +231,40 @@ class DowNet(nn.Module, Benchmark):
         self.convolutions = nn.ModuleList([ConvTime(channels_[i], channels_[i + 1], kernel_size=kernel_size_[i])
                                            for i in range(len(channels))])
 
-        self.covariance = CovarianceMatrix(sqrt=sqrt)
+        self.covariance_layer = CovarianceMatrix(sqrt=True,
+                                                 shrinkage_strategy=shrinkage_strategy,
+                                                 shrinkage_coef=shrinkage_coef)
+
+        self.pool_layer = PoolTime(pool)
 
         if channel_collapse == 'avg':
             self.channel_collapse_layer = lambda x: x.mean(dim=1, keepdim=False)
 
         elif channel_collapse == '1b1':
-            self.channel_collapse_layer = ConvOneByOne(channels[-1])
+            self.channel_collapse_layer = ConvOneByOne(channels_[-1])
 
         elif channel_collapse == 'att':
-            self.channel_collapse_layer = AttentionPool(channels[-1])
+            self.channel_collapse_layer = AttentionPool(channels_[-1])
 
         else:
             raise ValueError('Unrecognized channel collapsing strategy:{}'.format(channel_collapse))
 
         if time_collapse == 'RNN':
-            self.time_collapse_layer = TimeCollapseRNN(channels[-1], channels[-1], **(time_collapse_kwargs or {}))
+            self.time_collapse_layer = TimeCollapseRNN(channels_[-1], channels_[-1], **(time_collapse_kwargs or {}))
 
         elif time_collapse == 'avg':
             self.time_collapse_layer = lambda x: x.mean(dim=2, keepdim=False)
+
+        elif time_collapse == 'att':
+            self.time_collapse_layer = RealAttentionPool(channels_[-1])
 
         else:
             raise ValueError('Unrecognized time collapsing strategy:{}'.format(time_collapse))
 
         if not fix_gamma:
-            self.gamma_layer = GammaOneByOne(channels[-1])
+            self.gamma_layer = GammaOneByOne(channels_[-1])
         else:
-            self.gamma_layer = lambda x: (torch.ones(len(x)).to(x.device) * fix_gamma)  # no parameters
+            self.gamma_layer = lambda x: (torch.ones(len(x)).to(x.device).to(x.dtype) * fix_gamma)  # no parameters
 
         if n_assets is not None:
             self.n_assets = n_assets
@@ -179,6 +317,8 @@ class DowNet(nn.Module, Benchmark):
         """
         n_samples, n_input_channels, lookback, n_assets = x.shape
 
+        x_inp = x.clone()
+
         # Checks
         if self.n_input_channels != n_input_channels:
             raise ValueError('Incorrent number of input channels: {}, expected: {}'.format(n_input_channels,
@@ -197,17 +337,19 @@ class DowNet(nn.Module, Benchmark):
         for i, conv in enumerate(self.convolutions):
             x = conv(x)
             if i != len(self.convolutions) - 1:
-                x = torch.tanh(x)  # to be customized
+                x = torch.nn.functional.relu(x)
+                x = self.pool_layer(x)
 
         # time collapsing
         tc_features = self.time_collapse_layer(x)  # (n_samples, n_channels, n_assets)
 
         gamma = self.gamma_layer(tc_features)
 
-        rets = self.channel_collapse_layer(tc_features)
+        rets = self.channel_collapse_layer(tc_features) + x_inp[:, 0, ...].mean(dim=1)
 
-        covmat_sqrt = self.covariance(tc_features)
-        covmat_sqrt += torch.stack([torch.eye(n_assets).to(covmat_sqrt.device) for _ in range(n_samples)], dim=0)
+        # covmat_sqrt = self.covariance_layer(tc_features)
+        covmat_sqrt = self.covariance_layer(x_inp[:, 0, ...])
+
         weights = portolioopt(rets, covmat_sqrt, gamma)
 
         if debug_mode:

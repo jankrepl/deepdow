@@ -1,9 +1,12 @@
 import pytest
 import torch
 
-from deepdow.losses import (log2simple, mean_returns, number_of_unused_assets, portfolio_cumulative_returns,
-                            portfolio_returns, sharpe_ratio, simple2log, single_punish, sortino_ratio,
-                            squared_weights, std, worst_return)
+from deepdow.losses import (LargestWeight, Loss, MeanReturns, SharpeRatio, SortinoRatio, SquaredWeights,
+                            StandardDeviation, TargetMeanReturn, TargetStandardDeviation, WorstReturn, log2simple,
+                            portfolio_returns, portfolio_cumulative_returns, simple2log)
+
+ALL_LOSSES = [LargestWeight, MeanReturns, SharpeRatio, SortinoRatio, SquaredWeights, StandardDeviation,
+              TargetMeanReturn, TargetStandardDeviation, WorstReturn]
 
 
 class TestHelpers:
@@ -72,40 +75,134 @@ class TestCumulativePortfolioReturns:
 
 
 class TestAllLosses:
-    @pytest.mark.parametrize('loss', [mean_returns, sharpe_ratio, sortino_ratio, std, worst_return])
-    def test_shapes(self, y_dummy, loss):
-        n_samples, horizon, n_assets = y_dummy.shape
+    @pytest.mark.parametrize('loss_class', ALL_LOSSES, ids=[x.__name__ for x in ALL_LOSSES])
+    @pytest.mark.parametrize('n_samples', [1, 2])
+    @pytest.mark.parametrize('n_assets', [1, 4])
+    @pytest.mark.parametrize('n_channels', [1, 3])
+    def test_correct_output(self, loss_class, n_samples, n_assets, n_channels):
+        weights = torch.ones(n_samples, n_assets) / n_assets
+        y = torch.zeros(n_samples, n_channels, 5, n_assets)
 
-        weights = torch.ones((n_samples, n_assets)) * 1 / n_assets
-        res = loss(weights, y_dummy)
+        loss_instance = loss_class()  # only defaults
+        losses = loss_instance(weights, y)
 
-        assert res.shape == (n_samples,)
+        assert torch.is_tensor(losses)
+        assert losses.shape == (n_samples,)
 
+    @pytest.mark.parametrize('loss_class_l', ALL_LOSSES, ids=[x.__name__ for x in ALL_LOSSES])
+    @pytest.mark.parametrize('loss_class_r', ALL_LOSSES + [3], ids=[x.__name__ for x in ALL_LOSSES] + ['constant'])
+    @pytest.mark.parametrize('op', ['sum', 'div', 'mul', 'pow'])
+    def test_arithmetic(self, loss_class_l, loss_class_r, op):
+        n_samples = 2
+        n_assets = 3
+        n_channels = 3
 
-class TestSharpeRatio:
-    def test_shapes(self, y_dummy):
-        n_samples, horizon, n_assets = y_dummy.shape
+        loss_instance_l = loss_class_l()
+        loss_instance_r = loss_class_r() if not isinstance(loss_class_r, int) else loss_class_r
 
-        weights = torch.ones((n_samples, n_assets)) * 1 / n_assets
-        res = sharpe_ratio(weights, y_dummy)
+        if op == 'sum':
+            mixed = loss_instance_l + loss_instance_r
+            sign = '+'
 
-        assert res.shape == (n_samples,)
+        elif op == 'mul':
+            mixed = loss_instance_l * loss_instance_r
+            sign = '*'
 
+        elif op == 'div':
+            mixed = loss_instance_l / loss_instance_r
+            sign = '/'
 
-class TestWeightOnlyLosses:
+        elif op == 'pow':
+            mixed = loss_instance_l ** 2
+            sign = '**'
 
-    @pytest.mark.parametrize('loss', [number_of_unused_assets, single_punish, squared_weights])
-    def test_1overN_better(self, loss):
-        n_assets = 10
-        n_samples = 8
+        else:
+            raise ValueError('Unrecognized op')
 
-        winner = 3
+        weights = torch.ones(n_samples, n_assets) / n_assets
+        y = torch.rand(n_samples, n_channels, 5, n_assets)
 
-        weights_1overN = torch.ones((n_samples, n_assets)) / n_assets
-        weights_winner = torch.zeros((n_samples, n_assets))
-        weights_winner[:, winner] = 1
+        losses = mixed(weights, y)
 
-        loss_1overN = loss(weights_1overN)
-        loss_winner = loss(weights_winner)
+        assert torch.is_tensor(losses)
+        assert losses.shape == (n_samples,)
+        assert sign in repr(mixed)
 
-        assert torch.all(loss_1overN < loss_winner)
+    def test_parent_undefined_methods(self):
+        with pytest.raises(NotImplementedError):
+            Loss()(None, None)
+
+        with pytest.raises(NotImplementedError):
+            repr(Loss())
+
+    def test_invalid_types_on_ops(self):
+        with pytest.raises(TypeError):
+            Loss() + 'wrong'
+
+        with pytest.raises(TypeError):
+            'wrong' + Loss()
+
+        with pytest.raises(TypeError):
+            Loss() * 'wrong'
+
+        with pytest.raises(TypeError):
+            'wrong' * Loss()
+
+        with pytest.raises(TypeError):
+            Loss() / 'wrong'
+
+        with pytest.raises(ZeroDivisionError):
+            Loss() / 0
+
+        with pytest.raises(TypeError):
+            Loss() ** 'wrong'
+
+    @pytest.mark.parametrize('loss_class', ALL_LOSSES, ids=[x.__name__ for x in ALL_LOSSES])
+    def test_repr_single(self, loss_class):
+        n_samples, n_assets, n_channels = 3, 4, 2
+
+        weights = torch.rand(n_samples, n_assets)
+        weights /= weights.sum(dim=1).view(n_samples, 1)
+        y = torch.rand(n_samples, n_channels, 5, n_assets) - 1
+
+        loss_instance_orig = loss_class()  # only defaults
+        loss_instance_recreated = eval(repr(loss_instance_orig))
+
+        losses_orig = loss_instance_orig(weights, y)
+        losses_recreated = loss_instance_recreated(weights, y)
+
+        assert torch.allclose(losses_orig, losses_recreated)
+
+    @pytest.mark.parametrize('loss_class_l', ALL_LOSSES, ids=[x.__name__ for x in ALL_LOSSES])
+    @pytest.mark.parametrize('loss_class_r', ALL_LOSSES + [3], ids=[x.__name__ for x in ALL_LOSSES] + ['constant'])
+    @pytest.mark.parametrize('op', ['sum', 'div', 'mul', 'pow'])
+    def test_repr_arithmetic(self, loss_class_l, loss_class_r, op):
+        n_samples, n_assets, n_channels = 3, 4, 2
+
+        weights = torch.rand(n_samples, n_assets)
+        weights /= weights.sum(dim=1).view(n_samples, 1)
+        y = torch.rand(n_samples, n_channels, 5, n_assets) - 1
+
+        loss_instance_l = loss_class_l()
+        loss_instance_r = loss_class_r() if not isinstance(loss_class_r, int) else loss_class_r
+
+        if op == 'sum':
+            mixed = loss_instance_l + loss_instance_r
+
+        elif op == 'mul':
+            mixed = loss_instance_l * loss_instance_r
+
+        elif op == 'div':
+            mixed = loss_instance_l / loss_instance_r
+
+        elif op == 'pow':
+            mixed = loss_instance_l ** 2
+
+        else:
+            raise ValueError('Unrecognized op')
+
+        mixed_recreated = eval(repr(mixed))
+        losses_orig = mixed(weights, y)
+        losses_recreated = mixed_recreated(weights, y)
+
+        assert torch.allclose(losses_orig, losses_recreated)

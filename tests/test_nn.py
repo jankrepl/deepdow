@@ -3,7 +3,7 @@ import pytest
 import torch
 
 from deepdow.nn import (AttentionPool, DowNet, ConvOneByOne, ConvTime, CovarianceMatrix, GammaOneByOne,
-                        PortfolioOptimization, TimeCollapseRNN, TimeCollapseRNN_)
+                        PortfolioOptimization, TimeCollapseRNN)
 
 
 class TestAttentionPool:
@@ -234,38 +234,6 @@ class TestPortfolioOptimization:
         weights = popt(rets, covmat_sqrt, gamma)
 
         assert weights.shape == (n_samples, n_assets)
-
-
-class TestTimeCollapseRNN_:
-
-    @pytest.mark.parametrize('hidden_strategy', ['many2many', 'many2one'])
-    @pytest.mark.parametrize('hidden_size', [3, 5])
-    def test_basic(self, feature_tensor, hidden_size, hidden_strategy):
-        n_samples, n_channels, lookback, n_assets = feature_tensor.shape
-
-        layer = TimeCollapseRNN_(n_channels, hidden_size, hidden_strategy=hidden_strategy)
-
-        out = layer(feature_tensor)
-
-        assert out.shape == (n_samples, hidden_size, n_assets)
-
-    @pytest.mark.parametrize('hidden_size', [3, 5])
-    @pytest.mark.parametrize('n_channels', [1, 4])
-    def test_n_parameters(self, n_channels, hidden_size):
-        layer = TimeCollapseRNN_(n_channels, hidden_size)
-
-        n_parameters = sum(p.numel() for p in layer.parameters() if p.requires_grad)
-
-        assert n_parameters == (n_channels * hidden_size) + (hidden_size * hidden_size) + 2 * hidden_size
-
-    def test_error(self, feature_tensor):
-        n_samples, n_channels, lookback, n_assets = feature_tensor.shape
-
-        layer = TimeCollapseRNN_(n_channels, 4, hidden_strategy='fake')
-
-        with pytest.raises(ValueError):
-            layer(feature_tensor)
-
 
 class TestTimeCollapseRNN:
 
