@@ -34,6 +34,7 @@ class TestMaximumReturn:
         eps = 1e-4
         n_samples, n_channels, lookback, n_assets = X_dummy.shape
         dtype = X_dummy.dtype
+        device = X_dummy.device
 
         X_more_assets = torch.cat([X_dummy, X_dummy], dim=-1)
 
@@ -45,7 +46,8 @@ class TestMaximumReturn:
         assert isinstance(weights, torch.Tensor)
         assert weights.shape == (n_samples, n_assets)
         assert weights.dtype == dtype
-        assert torch.allclose(weights.sum(dim=1), torch.ones(n_samples).to(dtype=dtype))
+        assert weights.device == device
+        assert torch.allclose(weights.sum(dim=1), torch.ones(n_samples).to(dtype=dtype, device=device))
         assert torch.all(-eps <= weights) and torch.all(weights <= max_weight + eps)
 
         if predefined_assets:
@@ -64,6 +66,7 @@ class TestMinimumVariance:
         eps = 1e-4
         n_samples, n_channels, lookback, n_assets = X_dummy.shape
         dtype = X_dummy.dtype
+        device = X_dummy.device
 
         X_more_assets = torch.cat([X_dummy, X_dummy], dim=-1)
 
@@ -75,7 +78,8 @@ class TestMinimumVariance:
         assert isinstance(weights, torch.Tensor)
         assert weights.shape == (n_samples, n_assets)
         assert weights.dtype == dtype
-        assert torch.allclose(weights.sum(dim=1), torch.ones(n_samples).to(dtype=dtype))
+        assert weights.device == device
+        assert torch.allclose(weights.sum(dim=1), torch.ones(n_samples).to(dtype=dtype, device=device))
         assert torch.all(-eps <= weights) and torch.all(weights <= max_weight + eps)
 
         if predefined_assets:
@@ -91,13 +95,15 @@ class TestOneOverN:
     def test_basic(self, X_dummy):
         n_samples, n_channels, lookback, n_assets = X_dummy.shape
         dtype = X_dummy.dtype
+        device = X_dummy.device
 
         bm = OneOverN()
         weights = bm(X_dummy)
 
         assert isinstance(weights, torch.Tensor)
         assert weights.dtype == dtype
-        assert torch.allclose(weights.sum(dim=1), torch.ones(n_samples).to(dtype=dtype))
+        assert weights.device == device
+        assert torch.allclose(weights.sum(dim=1), torch.ones(n_samples).to(dtype=dtype, device=device))
         assert len(torch.unique(weights)) == 1
 
 
@@ -105,6 +111,7 @@ class TestRandom:
     def test_basic(self, X_dummy):
         n_samples, n_channels, lookback, n_assets = X_dummy.shape
         dtype = X_dummy.dtype
+        device = X_dummy.device
         bm = Random()
 
         weights = bm(X_dummy)
@@ -112,7 +119,8 @@ class TestRandom:
         assert isinstance(weights, torch.Tensor)
         assert weights.shape == (n_samples, n_assets)
         assert weights.dtype == dtype
-        assert torch.allclose(weights.sum(dim=1), torch.ones(n_samples).to(dtype=dtype))
+        assert weights.device == device
+        assert torch.allclose(weights.sum(dim=1), torch.ones(n_samples).to(dtype=dtype, device=device))
 
         assert torch.all(weights >= 0) and torch.all(weights <= 1)
 
@@ -123,15 +131,17 @@ class TestSingleton:
     def test_basic(self, asset_ix, X_dummy):
         n_samples, n_channels, lookback, n_assets = X_dummy.shape
         dtype = X_dummy.dtype
+        device = X_dummy.device
         bm = Singleton(asset_ix=asset_ix)
         weights = bm(X_dummy)
 
         assert isinstance(weights, torch.Tensor)
         assert weights.shape == (n_samples, n_assets)
         assert weights.dtype == dtype
-        assert torch.allclose(weights.sum(dim=1), torch.ones(n_samples).to(dtype=dtype))
+        assert weights.device == device
+        assert torch.allclose(weights.sum(dim=1), torch.ones(n_samples).to(dtype=dtype, device=device))
 
-        assert torch.allclose(weights[:, asset_ix], torch.ones(n_samples).to(dtype=dtype))
+        assert torch.allclose(weights[:, asset_ix], torch.ones(n_samples).to(dtype=dtype, device=device))
 
     def test_error(self):
         with pytest.raises(IndexError):

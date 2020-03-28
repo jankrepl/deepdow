@@ -37,10 +37,10 @@ def dataloader_dummy(dataset_dummy):
     pytest.param((torch.float64, torch.device('cpu')), id='float64_cpu'),
     pytest.param((torch.float32, torch.device('cuda:0')),
                  id='float32_gpu',
-                 marks=None if GPU_AVAILABLE else pytest.mark.skip),
+                 marks=[] if GPU_AVAILABLE else pytest.mark.skip),
     pytest.param((torch.float64, torch.device('cuda:0')),
                  id='float64_gpu',
-                 marks=None if GPU_AVAILABLE else pytest.mark.skip),
+                 marks=[] if GPU_AVAILABLE else pytest.mark.skip),
 ])
 def X_dummy(request):
     n_samples = 5
