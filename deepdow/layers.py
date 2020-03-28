@@ -209,7 +209,7 @@ class CovarianceMatrix(nn.Module):
         using purely the sample covariance matrix. If `shrinkage_coef=0` then using purely the stable matrix.
     """
 
-    def __init__(self, sqrt=True, shrinkage_strategy='identity', shrinkage_coef=0.5):
+    def __init__(self, sqrt=True, shrinkage_strategy='diagonal', shrinkage_coef=0.5):
         """Construct."""
         super().__init__()
 

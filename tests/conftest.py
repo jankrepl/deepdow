@@ -3,6 +3,61 @@ import pandas as pd
 import pytest
 import torch
 
+from deepdow.data import InRAMDataset, RigidDataLoader
+
+GPU_AVAILABLE = torch.cuda.is_available()
+
+
+@pytest.fixture(scope='session')
+def dataset_dummy():
+    n_samples = 200
+    n_channels = 2
+    lookback = 20
+    horizon = 32
+    n_assets = 30
+
+    X = np.random.normal(size=(n_samples, n_channels, lookback, n_assets))
+    y = np.random.normal(size=(n_samples, n_channels, horizon, n_assets))
+
+    timestamps = pd.date_range(start='31/01/2000', periods=n_samples, freq='M')
+    asset_names = ['asset_{}'.format(i) for i in range(n_assets)]
+
+    return InRAMDataset(X, y, timestamps=timestamps, asset_names=asset_names)
+
+
+@pytest.fixture()
+def dataloader_dummy(dataset_dummy):
+    batch_size = 32
+    return RigidDataLoader(dataset_dummy,
+                           batch_size=batch_size)
+
+
+@pytest.fixture(params=[
+    pytest.param((torch.float32, torch.device('cpu')), id='float32_cpu'),
+    pytest.param((torch.float64, torch.device('cpu')), id='float64_cpu'),
+    pytest.param((torch.float32, torch.device('cuda:0')),
+                 id='float32_gpu',
+                 marks=None if GPU_AVAILABLE else pytest.mark.skip),
+    pytest.param((torch.float64, torch.device('cuda:0')),
+                 id='float64_gpu',
+                 marks=None if GPU_AVAILABLE else pytest.mark.skip),
+])
+def X_dummy(request):
+    n_samples = 5
+    n_channels = 2
+    lookback = 3
+    n_assets = 4
+
+    torch.manual_seed(1)
+    dtype, device = request.param
+
+    return torch.rand((n_samples, n_channels, lookback, n_assets)).to(dtype=dtype, device=device)
+
+
+@pytest.fixture()
+def y_dummy():
+    pass
+
 
 @pytest.fixture()
 def returns_dummy():

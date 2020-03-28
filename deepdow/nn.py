@@ -7,6 +7,46 @@ from .layers import (AttentionPool, ConvOneByOne, ConvTime, CovarianceMatrix, Ga
                      PoolTime, PortfolioOptimization, TimeCollapseRNN)
 
 
+class DummyNetwork(torch.nn.Module, Benchmark):
+    """Minimal trainable network achieving the task.
+
+    Parameters
+    ----------
+    n_channels : int
+        Number of input channels. We learn one constant per channel. Therefore `n_channels=n_trainable_parameters`.
+    """
+
+    def __init__(self, n_channels=1):
+        super().__init__()
+
+        self.n_channels = n_channels
+        self.constant = torch.nn.Parameter(torch.ones(self.n_channels), requires_grad=True)
+
+    def forward(self, x):
+        """Perform forward pass.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Of shape (n_samples, n_channels, lookback, n_assets).
+
+        Returns
+        -------
+        weights : torch.Torch
+            Tensor of shape (n_samples, n_assets).
+
+        """
+        n_samples, n_channels, lookback, n_assets = x.shape
+
+        if self.n_channels != n_channels:
+            raise ValueError('The n_channels do not agree.')
+
+        temp = x * self.constant.view((1, n_channels, 1, 1))
+        means = torch.abs(temp).mean(dim=[1, 2]) + 1e-6
+
+        return means / (means.sum(dim=1, keepdim=True))
+
+
 class Whatever(nn.Module, Benchmark):
     def __init__(self, hidden_size, num_layers=1, fix_gamma=True, time_collapse='RNN', channel_collapse='att',
                  max_weight=1, channel_collapse_kwargs=None, time_collapse_kwargs=None, n_assets=None,

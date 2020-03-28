@@ -11,7 +11,8 @@ from .layers import CovarianceMatrix
 class Benchmark(ABC):
     """Abstract benchmark class.
 
-    The idea is to create some benchmarks that we can use for comparison to our neural networks.
+    The idea is to create some benchmarks that we can use for comparison to our neural networks. Note that we
+    assume that benchmarks are not trainable - one can only use them for inference.
 
     """
 

@@ -384,9 +384,15 @@ class ProgressBarCallback(Callback):
     def on_epoch_end(self, metadata):
         # collect
         epoch = metadata.get('epoch')
-        df = self.run.history.metrics_per_epoch(epoch)
-        additional_metrics = {'_'.join(list(map(lambda x: str(x), k))): v for k, v in
-                              df.groupby(['dataloader', 'metric'])['value'].mean().items()}
+
+        try:
+            df = self.run.history.metrics_per_epoch(epoch)
+            additional_metrics = {'_'.join(list(map(lambda x: str(x), k))): v for k, v in
+                                  df.groupby(['dataloader', 'metric'])['value'].mean().items()}
+
+        except KeyError:
+            # no val_dataloaders
+            additional_metrics = {}
 
         old_postfix = self.bar.postfix
         new_postfix = self.create_custom_postfix_str(additional_metrics)

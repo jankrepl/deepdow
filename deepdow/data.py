@@ -106,8 +106,8 @@ def collate_uniform(batch, n_assets_range=(5, 10), lookback_range=(1, 20), horiz
     Parameters
     ----------
     batch : list
-        List of tuples representing `(X_sample, y_sample)`. Note that the sample dimension is not present and all
-        the other dimensions are full (as determined by the dataset).
+        List of tuples representing `(X_sample, y_sample, timestamp_sample, asset_names)`. Note that the sample
+        dimension is not present and all the other dimensions are full (as determined by the dataset).
 
     n_assets_range : tuple
         Minimum and maximum (only left included) number of assets that are randomly subselected. Ignored if `asset_ixs`
@@ -178,7 +178,7 @@ def collate_uniform(batch, n_assets_range=(5, 10), lookback_range=(1, 20), horiz
 
     y_batch = torch.stack([b[1][:, :horizon, asset_ixs] for b in batch], dim=0)
     timestamps_batch = [b[2] for b in batch]
-    asset_names_batch = batch[0][3][asset_ixs]  # same for the entire batch
+    asset_names_batch = [batch[0][3][ix] for ix in asset_ixs]
 
     return X_batch, y_batch, timestamps_batch, asset_names_batch
 
@@ -273,29 +273,29 @@ class RigidDataLoader(torch.utils.data.DataLoader):
     dataset : torch.utils.data.Dataset
         Instance of our dataset. See ``InRAMDataset`` for more details.
 
-    asset_ixs : list
-        Represents indices of considered assets.
+    asset_ixs : list or None
+        Represents indices of considered assets (not asset names). If None then considering all assets.
 
     indices : list or None
-        List of indices to consider from the provided `dataset` which is inherently ordered. If None then considering
-        all the samples.
+        List of indices to consider (not timestamps) from the provided `dataset` which is inherently ordered. If None
+        then consider all the samples.
 
-    lookback : int
-        How many time steps do we look back.
+    lookback : int or None
+        How many time steps do we look back. If None then taking the maximum lookback from `dataset`.
 
-    horizon : int
-        How many time steps we look forward.
+    horizon : int or None
+        How many time steps we look forward. If None then taking the maximum horizon from `dataset`.
 
     scaler : None or {'standard', 'percent'}
         If None then no scaling applied. If string then a specific scaling theme. Only applied to X_batch.
     """
 
-    def __init__(self, dataset, asset_ixs, indices=None, lookback=5, horizon=5, scaler=None, **kwargs):
+    def __init__(self, dataset, asset_ixs=None, indices=None, lookback=None, horizon=None, scaler=None, **kwargs):
 
-        if not (2 <= lookback <= dataset.lookback):
+        if lookback is not None and not (2 <= lookback <= dataset.lookback):
             raise ValueError('Invalid lookback_range.')
 
-        if not (1 <= horizon <= dataset.horizon):
+        if horizon is not None and not (1 <= horizon <= dataset.horizon):
             raise ValueError('Invalid horizon_range.')
 
         if indices is not None and not (0 <= min(indices) <= max(indices) <= len(dataset) - 1):
@@ -303,19 +303,19 @@ class RigidDataLoader(torch.utils.data.DataLoader):
 
         self.dataset = dataset
         self.indices = indices if indices is not None else list(range(len(dataset)))
-        self.lookback = lookback
-        self.horizon = horizon
-        self.asset_ixs = asset_ixs
+        self.lookback = lookback if lookback is not None else dataset.lookback
+        self.horizon = horizon if horizon is not None else dataset.horizon
+        self.asset_ixs = asset_ixs if asset_ixs is not None else list(range(len(dataset.asset_names)))
         self.scaler = scaler
 
-        super().__init__(dataset,
+        super().__init__(self.dataset,
                          collate_fn=partial(collate_uniform,
                                             n_assets_range=None,
-                                            lookback_range=(lookback, lookback + 1),
-                                            horizon_range=(horizon, horizon + 1),
-                                            asset_ixs=asset_ixs,
-                                            scaler=scaler),
-                         sampler=torch.utils.data.SubsetRandomSampler(indices),
+                                            lookback_range=(self.lookback, self.lookback + 1),
+                                            horizon_range=(self.horizon, self.horizon + 1),
+                                            asset_ixs=self.asset_ixs,
+                                            scaler=self.scaler),
+                         sampler=torch.utils.data.SubsetRandomSampler(self.indices),
                          batch_sampler=None,
                          shuffle=False,
                          drop_last=False,
