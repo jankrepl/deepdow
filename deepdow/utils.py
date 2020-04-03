@@ -115,48 +115,14 @@ class PandasChecks:
                 raise IndexError('The {} entry has wrong columns: {}'.format(i, f.columns))
 
 
-class MLflowUtils:
-    @staticmethod
-    def copy_metrics(run_id, step, client=None):
-        """Copy the latest value of all metrics into a new step.
-
-        Can be used in evaluation loops to avoid recomputing metrics on benchmarks that are deterministic.
-
-        Parameters
-        ----------
-        run_id : str
-            Unique MLflow run indentifier.
-
-        step : int
-            Number of the step under which to copy the previous results.
-
-        client : None or mlflow.tracking.MlflowClient
-            If not None, then instance of an existing client. If None then instantiated from scratch.
-
-        Returns
-        -------
-        success : bool
-            If True, at least one metric existed and copied. If False, no metrics found.
-
-        """
-        client = client or mlflow.tracking.MlflowClient()
-        run = client.get_run(run_id)
-        old_meltrics = run.data.metrics
-
-        if old_meltrics:
-            with mlflow.start_run(run_id=run_id):
-                mlflow.log_metrics(run.data.metrics, step=step)
-
-        return bool(old_meltrics)
-
-
 def prices_to_returns(prices, use_log=True):
     """Convert prices to returns.
 
     Parameters
     ----------
     prices : pd.DataFrame
-        Rows represent different time points and the columns represent different assets.
+        Rows represent different time points and the columns represent different assets. Note that the columns
+        can also be a ``pd.MultiIndex``.
 
     use_log : bool
         If True, then logarithmic returns are use (natural logarithm. If False, then standard returns.
@@ -207,11 +173,10 @@ def returns_to_Xy(returns, lookback=10, horizon=10, gap=0):
         Array of shape `(N, 1, horizon, n_assets)`. Generated out of the entire dataset.
 
     """
-    # check
-    PandasChecks.check_no_gaps(returns.index)
-    PandasChecks.check_valid_entries(returns)
-
     n_timesteps = len(returns.index)
+
+    if lookback >= n_timesteps - horizon - gap + 1:
+        raise ValueError('Not enough timesteps to extract X and y.')
 
     X_list = []
     timestamps_list = []
@@ -219,7 +184,7 @@ def returns_to_Xy(returns, lookback=10, horizon=10, gap=0):
 
     for i in range(lookback, n_timesteps - horizon - gap + 1):
         X_list.append(returns.iloc[i - lookback: i, :].values)
-        timestamps_list.append(returns.index[i])
+        timestamps_list.append(returns.index[i - 1])
         y_list.append(returns.iloc[i + gap: i + gap + horizon, :].values)
 
     X = np.array(X_list)
@@ -235,8 +200,8 @@ def raw_to_Xy(raw_data, lookback=10, horizon=10, gap=0, freq='B', included_asset
     Parameters
     ----------
     raw_data : pd.DataFrame
-        Rows represents different timestamps stored in index. Columns are pd.MultiIndex with the zero level being
-        assets and the first level indicator.
+        Rows represents different timestamps stored in index. Note that there can be gaps. Columns are pd.MultiIndex
+        with the zero level being assets and the first level indicator.
 
     lookback : int
         Number of timesteps to include in the features.
@@ -273,8 +238,12 @@ def raw_to_Xy(raw_data, lookback=10, horizon=10, gap=0, freq='B', included_asset
     indicators : list
         List of indicators.
     """
-    asset_names = included_assets if included_assets is not None else raw_data.columns.levels[0]
-    indicators = included_indicators if included_indicators is not None else raw_data.columns.levels[1]
+
+    if freq is None:
+        raise ValueError('Frequency freq needs to be specified.')
+
+    asset_names = included_assets if included_assets is not None else raw_data.columns.levels[0].to_list()
+    indicators = included_indicators if included_indicators is not None else raw_data.columns.levels[1].to_list()
 
     index = pd.date_range(start=raw_data.index[0], end=raw_data.index[-1], freq=freq)
 
@@ -306,4 +275,4 @@ def raw_to_Xy(raw_data, lookback=10, horizon=10, gap=0, freq='B', included_asset
     X = np.concatenate(X_list, axis=1)
     y = np.concatenate(y_list, axis=1)
 
-    return X, timestamps, y, np.array(asset_names), indicators
+    return X, timestamps, y, asset_names, indicators

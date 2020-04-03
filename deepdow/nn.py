@@ -3,8 +3,8 @@ import torch
 import torch.nn as nn
 
 from .benchmarks import Benchmark
-from .layers import (AttentionPool, ConvOneByOne, ConvTime, CovarianceMatrix, GammaOneByOne,
-                     PoolTime, PortfolioOptimization, TimeCollapseRNN)
+from .layers import (AttentionPool, ConvOneByOne, ConvTime, CovarianceMatrix, GammaOneByOne, MultiplyByConstant,
+                     PoolTime, PortfolioOptimization, TimeCollapseRNN,)
 
 
 class DummyNetwork(torch.nn.Module, Benchmark):
@@ -20,7 +20,7 @@ class DummyNetwork(torch.nn.Module, Benchmark):
         super().__init__()
 
         self.n_channels = n_channels
-        self.constant = torch.nn.Parameter(torch.ones(self.n_channels), requires_grad=True)
+        self.mbc = MultiplyByConstant(n_channels=n_channels)
 
     def forward(self, x):
         """Perform forward pass.
@@ -36,15 +36,7 @@ class DummyNetwork(torch.nn.Module, Benchmark):
             Tensor of shape (n_samples, n_assets).
 
         """
-        n_samples, n_channels, lookback, n_assets = x.shape
-
-        if self.n_channels != n_channels:
-            raise ValueError('The n_channels do not agree.')
-
-        temp = x * self.constant.view((1, n_channels, 1, 1))
-        means = torch.abs(temp).mean(dim=[1, 2]) + 1e-6
-
-        return means / (means.sum(dim=1, keepdim=True))
+        return self.mbc(x)
 
 
 class Whatever(nn.Module, Benchmark):

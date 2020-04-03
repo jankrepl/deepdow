@@ -1,15 +1,70 @@
+import datetime
+from unittest.mock import MagicMock
+
 import numpy as np
 import pandas as pd
 import pytest
 import torch
 
 from deepdow.data import InRAMDataset, RigidDataLoader
+from deepdow.experiments import History, Run
+from deepdow.losses import MeanReturns
+from deepdow.nn import DummyNetwork
 
 GPU_AVAILABLE = torch.cuda.is_available()
 
 
+@pytest.fixture(scope='session', params=['B', 'M'], ids=['true_freq=B', 'true_freq=M'])
+def raw_data(request):
+    """Could represent prices, volumes,... Only positive values are allowed.
+
+    Returns
+    -------
+    df : pd.DataFrame
+        2D arrays where where rows represent different time points. Columns are a `pd.MultiIndex` with first
+        level being the assets and the second level being the indicator.
+
+    n_missing_entries : int
+        Number of missing entries that were intentionally dropped from otherwise regular timeseries.
+
+    true_freq : str
+        True frequency of the underlying timeseries.
+    """
+    np.random.seed(1)
+
+    n_assets = 4
+    n_indicators = 6
+    n_timestamps = 30
+    n_missing_entries = 3
+    true_freq = request.param
+
+    missing_ixs = np.random.choice(list(range(1, n_timestamps - 1)), replace=False, size=n_missing_entries)
+
+    index_full = pd.date_range('1/1/2000', periods=n_timestamps, freq=true_freq)
+    index = pd.DatetimeIndex([x for ix, x in enumerate(index_full) if ix not in missing_ixs])  # freq=None
+
+    columns = pd.MultiIndex.from_product([['asset_{}'.format(i) for i in range(n_assets)],
+                                          ['indicator_{}'.format(i) for i in range(n_indicators)]],
+                                         names=['assets', 'indicators'])
+
+    df = pd.DataFrame(np.random.randint(low=1,
+                                        high=1000,
+                                        size=(n_timestamps - n_missing_entries, n_assets * n_indicators)) / 100,
+                      index=index,
+                      columns=columns)
+
+    return df, n_missing_entries, true_freq
+
+
 @pytest.fixture(scope='session')
 def dataset_dummy():
+    """Minimal instance of ``InRAMDataset``.
+
+    Returns
+    -------
+    InRAMDataset
+
+    """
     n_samples = 200
     n_channels = 2
     lookback = 20
@@ -27,9 +82,38 @@ def dataset_dummy():
 
 @pytest.fixture()
 def dataloader_dummy(dataset_dummy):
+    """Minimal instance of ``RigidDataLoader``.
+
+    Parameters
+    ----------
+    dataset_dummy : InRAMDataset
+        Underlying dataset.
+
+
+    Returns
+    -------
+
+    """
     batch_size = 32
     return RigidDataLoader(dataset_dummy,
                            batch_size=batch_size)
+
+
+@pytest.fixture(params=[
+    pytest.param((torch.float32, torch.device('cpu')), id='float32_cpu'),
+    pytest.param((torch.float64, torch.device('cpu')), id='float64_cpu'),
+    pytest.param((torch.float32, torch.device('cuda:0')),
+                 id='float32_gpu',
+                 marks=[] if GPU_AVAILABLE else pytest.mark.skip),
+    pytest.param((torch.float64, torch.device('cuda:0')),
+                 id='float64_gpu',
+                 marks=[] if GPU_AVAILABLE else pytest.mark.skip),
+])
+def Xy_dummy(request, dataloader_dummy):
+    dtype, device = request.param
+    X, y, timestamps, asset_names = next(iter(dataloader_dummy))
+
+    return X.to(dtype=dtype, device=device), y.to(dtype=dtype, device=device), timestamps, asset_names
 
 
 @pytest.fixture(params=[
@@ -55,51 +139,38 @@ def X_dummy(request):
 
 
 @pytest.fixture()
-def y_dummy():
-    pass
+def network_dummy(dataset_dummy):
+    return DummyNetwork(n_channels=dataset_dummy.n_channels)
 
 
-@pytest.fixture()
-def returns_dummy():
-    """Historical returns."""
-    n_timesteps = 20
-    n_assets = 5
-    random_state = 3
-
-    freq = 'M'
-
-    index = pd.date_range(start='1/1/2000', periods=n_timesteps, freq=freq)
-    columns = [chr(65 + i) for i in range(n_assets)]
-
-    np.random.seed(random_state)
-    return_mean = np.random.uniform(-0.1, 0.1, size=n_assets)
-    return_covmat = np.eye(n_assets) * 0.001
-
-    returns = np.random.multivariate_normal(return_mean, return_covmat, size=n_timesteps - 1)
-
-    return pd.DataFrame(returns, index=index[1:], columns=columns)
+@pytest.fixture
+def run_dummy(dataloader_dummy, network_dummy):
+    """"""
+    return Run(network_dummy, MeanReturns(), dataloader_dummy,
+               val_dataloaders={'val': dataloader_dummy},
+               benchmarks={'bm': network_dummy})
 
 
-@pytest.fixture()
-def prices_dummy(returns_dummy):
-    """Historical prices."""
+@pytest.fixture
+def metadata_dummy(Xy_dummy, network_dummy):
+    X_batch, y_batch, timestamps, asset_names = Xy_dummy
 
-    index = pd.DatetimeIndex([pd.date_range(end=returns_dummy.index[0], periods=2, freq=returns_dummy.index.freq)[
-                                  0]] + returns_dummy.index.to_list(), freq=returns_dummy.index.freq)
-    columns = returns_dummy.columns
-    n_assets = len(columns)
+    device = X_batch.device
+    dtype = X_batch.dtype
+    _, _, horizon, _ = y_batch.shape
 
-    starting_prices = np.random.randint(1, 100, size=n_assets)
+    network_dummy.to(device=device, dtype=dtype)
 
-    cumreturns = (1 + returns_dummy).cumprod(axis=1)
-
-    prices = pd.DataFrame(index=index, columns=columns)
-    prices.iloc[0, :] = starting_prices
-    prices.iloc[1:, :] = prices.iloc[[0], :].values * cumreturns
-
-    prices = prices.applymap(lambda x: max(0, x))
-
-    return prices
+    return {'asset_names': asset_names,
+            'batch': 1,
+            'batch_loss': 1.4,
+            'epoch': 0,
+            'exception': ValueError,
+            'locals': {'a': 2},
+            'timestamps': timestamps,
+            'weights': network_dummy(X_batch),
+            'X_batch': X_batch,
+            'y_batch': y_batch}
 
 
 @pytest.fixture(params=[1, 3], ids=['input_channels=1', "input_channels=3"])

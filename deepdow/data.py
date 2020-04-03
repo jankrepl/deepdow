@@ -80,7 +80,7 @@ class InRAMDataset(torch.utils.data.Dataset):
         self.asset_names = ['a_{}'.format(i) for i in range(X.shape[-1])] if asset_names is None else asset_names
 
         # utility
-        self.lookback, self.n_assets = X.shape[2:]
+        self.n_channels, self.lookback, self.n_assets = X.shape[1:]
         self.horizon = y.shape[2]
 
     def __len__(self):
