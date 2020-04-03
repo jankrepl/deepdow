@@ -7,6 +7,7 @@ import pytest
 import torch
 
 from deepdow.data import InRAMDataset, RigidDataLoader
+from deepdow.benchmarks import OneOverN
 from deepdow.experiments import History, Run
 from deepdow.losses import MeanReturns
 from deepdow.nn import DummyNetwork
@@ -144,11 +145,18 @@ def network_dummy(dataset_dummy):
 
 
 @pytest.fixture
-def run_dummy(dataloader_dummy, network_dummy):
+def run_dummy(dataloader_dummy, network_dummy, Xy_dummy):
     """"""
+    X_batch, y_batch, timestamps, asset_names = Xy_dummy
+
+    device = X_batch.device
+    dtype = X_batch.dtype
+
     return Run(network_dummy, MeanReturns(), dataloader_dummy,
                val_dataloaders={'val': dataloader_dummy},
-               benchmarks={'bm': network_dummy})
+               benchmarks={'bm': OneOverN()},
+               device=device,
+               dtype=dtype)
 
 
 @pytest.fixture
