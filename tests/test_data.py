@@ -1,16 +1,15 @@
 """Tests focused on the data module."""
+import datetime
 import numpy as np
-import pandas as pd
 import pytest
 import torch
 
-from deepdow.data import InRAMDataset, collate_uniform
+from deepdow.data import FlexibleDataLoader, InRAMDataset, RigidDataLoader, collate_uniform, scale_features
 
 
 class TestCollateUniform:
 
     def test_incorrect_input(self):
-
         with pytest.raises(ValueError):
             collate_uniform([], n_assets_range=(-2, 0))
 
@@ -25,22 +24,31 @@ class TestCollateUniform:
         max_n_assets = 10
         max_lookback = 8
         max_horizon = 5
-        batch = [(torch.zeros((1, max_lookback, max_n_assets)), torch.ones((max_horizon, max_n_assets))) for _ in
+        n_channels = 2
+
+        batch = [(torch.zeros((n_channels, max_lookback, max_n_assets)),
+                  torch.ones((n_channels, max_horizon, max_n_assets)),
+                  datetime.datetime.now(),
+                  ['asset_{}'.format(i) for i in range(max_n_assets)]) for _ in
                  range(n_samples)]
 
         n_trials = 10
 
-        for _ in range(n_trials):
-            X_batch, y_batch = collate_uniform(batch, n_assets_range=(5, 6), lookback_range=(4, 5),
-                                               horizon_range=(3, 4))
+        X_batch, y_batch, timestamps_batch, asset_names_batch = collate_uniform(batch,
+                                                                                n_assets_range=(5, 6),
+                                                                                lookback_range=(4, 5),
+                                                                                horizon_range=(3, 4))
 
-            assert torch.is_tensor(X_batch)
-            assert torch.is_tensor(y_batch)
+        assert torch.is_tensor(X_batch)
+        assert torch.is_tensor(y_batch)
 
-            assert X_batch.shape == (n_samples, 1, 4, 5)
-            assert y_batch.shape == (n_samples, 3, 5)
+        assert X_batch.shape == (n_samples, n_channels, 4, 5)
+        assert y_batch.shape == (n_samples, n_channels, 3, 5)
+        assert len(timestamps_batch) == n_samples
+        assert len(asset_names_batch) == 5
 
-    def test_replicable(self):
+    @pytest.mark.parametrize('scaler', [None, 'standard', 'percent'])
+    def test_replicable(self, scaler):
         random_state_a = 3
         random_state_b = 5
 
@@ -48,12 +56,33 @@ class TestCollateUniform:
         max_n_assets = 10
         max_lookback = 8
         max_horizon = 5
-        batch = [(torch.rand((1, max_lookback, max_n_assets)), torch.rand((max_horizon, max_n_assets))) for _ in
+        n_channels = 2
+
+        batch = [(torch.rand((n_channels, max_lookback, max_n_assets)),
+                  torch.rand((n_channels, max_horizon, max_n_assets)),
+                  datetime.datetime.now(),
+                  ['asset_{}'.format(i) for i in range(max_n_assets)]) for _ in
                  range(n_samples)]
 
-        X_batch_1, y_batch_1 = collate_uniform(batch, random_state=random_state_a)
-        X_batch_2, y_batch_2 = collate_uniform(batch, random_state=random_state_a)
-        X_batch_3, y_batch_3 = collate_uniform(batch, random_state=random_state_b)
+        X_batch_1, y_batch_1, _, _ = collate_uniform(batch,
+                                                     random_state=random_state_a,
+                                                     n_assets_range=(4, 5),
+                                                     lookback_range=(4, 5),
+                                                     horizon_range=(3, 4),
+                                                     scaler=scaler)
+        X_batch_2, y_batch_2, _, _ = collate_uniform(batch,
+                                                     random_state=random_state_a,
+                                                     n_assets_range=(4, 5),
+                                                     lookback_range=(4, 5),
+                                                     horizon_range=(3, 4),
+                                                     scaler=scaler)
+
+        X_batch_3, y_batch_3, _, _ = collate_uniform(batch,
+                                                     random_state=random_state_b,
+                                                     n_assets_range=(4, 5),
+                                                     lookback_range=(4, 5),
+                                                     horizon_range=(3, 4),
+                                                     scaler=scaler)
 
         assert torch.allclose(X_batch_1, X_batch_2)
         assert torch.allclose(y_batch_1, y_batch_2)
@@ -66,9 +95,13 @@ class TestCollateUniform:
         max_n_assets = 27
         max_lookback = 15
         max_horizon = 12
-        batch = [(torch.zeros((1, max_lookback, max_n_assets)), torch.ones((max_horizon, max_n_assets))) for _ in
-                 range(n_samples)]
 
+        n_channels = 2
+        batch = [(torch.rand((n_channels, max_lookback, max_n_assets)),
+                  torch.rand((n_channels, max_horizon, max_n_assets)),
+                  datetime.datetime.now(),
+                  ['asset_{}'.format(i) for i in range(max_n_assets)]) for _ in
+                 range(n_samples)]
         n_trials = 10
 
         n_assets_set = set()
@@ -76,10 +109,10 @@ class TestCollateUniform:
         horizon_set = set()
 
         for _ in range(n_trials):
-            X_batch, y_batch = collate_uniform(batch,
-                                               n_assets_range=(1, max_n_assets),
-                                               lookback_range=(1, max_lookback),
-                                               horizon_range=(1, max_lookback))
+            X_batch, y_batch, timestamps_batch, asset_names_batch = collate_uniform(batch,
+                                                                                    n_assets_range=(1, max_n_assets),
+                                                                                    lookback_range=(1, max_lookback),
+                                                                                    horizon_range=(1, max_lookback))
 
             n_assets_set.add(X_batch.shape[-1])
             lookback_set.add(X_batch.shape[-2])
@@ -93,27 +126,27 @@ class TestCollateUniform:
 class TestInRAMDataset:
     def test_incorrect_input(self):
         with pytest.raises(ValueError):
-            InRAMDataset(np.zeros((2, 1, 3, 4)), np.zeros((3, 5, 4)))
+            InRAMDataset(np.zeros((2, 1, 3, 4)), np.zeros((3, 1, 5, 4)))
 
         with pytest.raises(ValueError):
-            InRAMDataset(np.zeros((2, 1, 3, 4)), np.zeros((2, 9, 5)))
+            InRAMDataset(np.zeros((2, 1, 3, 4)), np.zeros((2, 2, 6, 4)))
 
-    def test_default_device(self):
-        dset = InRAMDataset(np.zeros((2, 1, 3, 4)), np.zeros((2, 6, 4)), device=None)
-
-        assert dset.device == torch.device('cpu')
+        with pytest.raises(ValueError):
+            InRAMDataset(np.zeros((2, 1, 3, 4)), np.zeros((2, 1, 3, 6)))
 
     @pytest.mark.parametrize('n_samples', [1, 3, 6])
     def test_lenght(self, n_samples):
-        dset = InRAMDataset(np.zeros((n_samples, 1, 3, 4)), np.zeros((n_samples, 6, 4)))
+        dset = InRAMDataset(np.zeros((n_samples, 1, 3, 4)), np.zeros((n_samples, 1, 6, 4)))
 
         assert len(dset) == n_samples
 
     def test_get_item(self):
         n_samples = 3
 
-        X = np.zeros((n_samples, 1, 3, 4))
-        y = np.zeros((n_samples, 6, 4))
+        n_channels = 3
+
+        X = np.zeros((n_samples, n_channels, 3, 4))
+        y = np.zeros((n_samples, n_channels, 6, 4))
 
         for i in range(n_samples):
             X[i] = i
@@ -122,13 +155,102 @@ class TestInRAMDataset:
         dset = InRAMDataset(X, y)
 
         for i in range(n_samples):
-            X_sample, y_sample = dset[i]
+            X_sample, y_sample, _, _ = dset[i]
 
             assert torch.is_tensor(X_sample)
             assert torch.is_tensor(y_sample)
 
-            assert X_sample.shape == (1, 3, 4)
-            assert y_sample.shape == (6, 4)
+            assert X_sample.shape == (n_channels, 3, 4)
+            assert y_sample.shape == (n_channels, 6, 4)
 
             assert torch.allclose(X_sample, torch.ones_like(X_sample) * i)
             assert torch.allclose(y_sample, torch.ones_like(y_sample) * i)
+
+
+@pytest.mark.parametrize('scaler', ['standard', 'percent', 'wrong'])
+def test_scale_features(scaler):
+    X = torch.rand(2, 3, 4, 5)
+
+    if scaler == 'wrong':
+        with pytest.raises(ValueError):
+            scale_features(X, approach=scaler)
+    else:
+        X_scaled = scale_features(X, approach=scaler)
+
+        assert X_scaled.shape == X.shape
+
+
+class TestFlexibleDataLoader:
+    def test_wrong_construction(self, dataset_dummy):
+        max_assets = dataset_dummy.n_assets
+        max_lookback = dataset_dummy.lookback
+        max_horizon = dataset_dummy.horizon
+
+        with pytest.raises(ValueError):
+            FlexibleDataLoader(dataset_dummy,
+                               indices=[-1],
+                               n_assets_range=(max_assets, max_assets + 1),
+                               lookback_range=(max_lookback, max_lookback + 1),
+                               horizon_range=(max_horizon, max_horizon + 1))
+
+        with pytest.raises(ValueError):
+            FlexibleDataLoader(dataset_dummy,
+                               indices=None,
+                               n_assets_range=(max_assets, max_assets + 2),
+                               lookback_range=(max_lookback, max_lookback + 1),
+                               horizon_range=(max_horizon, max_horizon + 1))
+
+        with pytest.raises(ValueError):
+            FlexibleDataLoader(dataset_dummy,
+                               indices=None,
+                               n_assets_range=(max_assets, max_assets + 1),
+                               lookback_range=(0, max_lookback + 1),
+                               horizon_range=(max_horizon, max_horizon + 1))
+
+        with pytest.raises(ValueError):
+            FlexibleDataLoader(dataset_dummy,
+                               indices=None,
+                               n_assets_range=(max_assets, max_assets + 1),
+                               lookback_range=(max_lookback, max_lookback + 1),
+                               horizon_range=(-2, max_horizon + 1))
+
+    def test_basic(self, dataset_dummy):
+        max_assets = dataset_dummy.n_assets
+        max_lookback = dataset_dummy.lookback
+        max_horizon = dataset_dummy.horizon
+
+        dl = FlexibleDataLoader(dataset_dummy,
+                                indices=None,
+                                n_assets_range=(max_assets, max_assets + 1),
+                                lookback_range=(max_lookback, max_lookback + 1),
+                                horizon_range=(max_horizon, max_horizon + 1))
+
+        assert isinstance(dl.mlflow_params, dict)
+
+
+class TestRidigDataLoader:
+    def test_wrong_construction(self, dataset_dummy):
+        max_assets = dataset_dummy.n_assets
+        max_lookback = dataset_dummy.lookback
+        max_horizon = dataset_dummy.horizon
+
+        with pytest.raises(ValueError):
+            RigidDataLoader(dataset_dummy,
+                            indices=[-1])
+
+        with pytest.raises(ValueError):
+            RigidDataLoader(dataset_dummy,
+                            asset_ixs=[max_assets + 1, max_assets + 2])
+
+        with pytest.raises(ValueError):
+            RigidDataLoader(dataset_dummy,
+                            lookback=max_lookback + 1)
+
+        with pytest.raises(ValueError):
+            RigidDataLoader(dataset_dummy,
+                            horizon=max_horizon + 1)
+
+    def test_basic(self, dataset_dummy):
+        dl = RigidDataLoader(dataset_dummy)
+
+        assert isinstance(dl.mlflow_params, dict)

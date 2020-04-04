@@ -2,10 +2,7 @@
 from functools import partial
 
 import numpy as np
-import pandas as pd
 import torch
-
-from .utils import PandasChecks
 
 
 def scale_features(X, approach='standard'):
@@ -291,6 +288,9 @@ class RigidDataLoader(torch.utils.data.DataLoader):
     """
 
     def __init__(self, dataset, asset_ixs=None, indices=None, lookback=None, horizon=None, scaler=None, **kwargs):
+
+        if asset_ixs is not None and not (0 <= min(asset_ixs) <= max(asset_ixs) <= dataset.n_assets - 1):
+            raise ValueError('Invalid asset_ixs.')
 
         if lookback is not None and not (2 <= lookback <= dataset.lookback):
             raise ValueError('Invalid lookback_range.')
