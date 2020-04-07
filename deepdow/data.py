@@ -251,7 +251,7 @@ class FlexibleDataLoader(torch.utils.data.DataLoader):
                          **kwargs)
 
     @property
-    def mlflow_params(self):
+    def hparams(self):
         """Generate dictionary of relevant parameters."""
         return {
             'lookback_range': self.lookback_range,
@@ -322,7 +322,7 @@ class RigidDataLoader(torch.utils.data.DataLoader):
                          **kwargs)
 
     @property
-    def mlflow_params(self):
+    def hparams(self):
         """Generate dictionary of relevant parameters."""
         return {'lookback': self.lookback,
                 'horizon': self.horizon,

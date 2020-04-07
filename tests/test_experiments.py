@@ -2,17 +2,17 @@ import pandas as pd
 import pytest
 import torch
 
-from deepdow.benchmarks import Benchmark, OneOverN
+from deepdow.benchmarks import OneOverN
 from deepdow.callbacks import Callback
 from deepdow.experiments import History, Run
 from deepdow.losses import MeanReturns, StandardDeviation
-from deepdow.nn import DummyNetwork
+from deepdow.nn import DummyNet
 
 
 def test_basic():
     n_channels = 2
     x = torch.rand(10, n_channels, 4, 5)
-    network = DummyNetwork(n_channels=n_channels)
+    network = DummyNet(n_channels=n_channels)
     y = network(x)
 
     print(y)
@@ -42,6 +42,9 @@ def test_history():
     with pytest.raises(KeyError):
         history.metrics_per_epoch(3)
 
+    history.pretty_print(epoch=1)
+    history.pretty_print(epoch=None)
+
 
 class TestRun:
     def test_wrong_construction_1(self, dataloader_dummy):
@@ -50,40 +53,40 @@ class TestRun:
             Run('this_is_fake', MeanReturns(), dataloader_dummy)
 
         with pytest.raises(TypeError):
-            Run(DummyNetwork(), 'this_is_fake', dataloader_dummy)
+            Run(DummyNet(), 'this_is_fake', dataloader_dummy)
 
         with pytest.raises(TypeError):
-            Run(DummyNetwork(), MeanReturns(), 'this_is_fake')
+            Run(DummyNet(), MeanReturns(), 'this_is_fake')
 
     def test_wrong_construction_2(self, dataloader_dummy):
         """Wrong keyword arguments."""
         with pytest.raises(TypeError):
-            Run(DummyNetwork(), MeanReturns(), dataloader_dummy, metrics='this_is_fake')
+            Run(DummyNet(), MeanReturns(), dataloader_dummy, metrics='this_is_fake')
 
         with pytest.raises(TypeError):
-            Run(DummyNetwork(), MeanReturns(), dataloader_dummy, metrics={'a': 'this_is_fake'})
+            Run(DummyNet(), MeanReturns(), dataloader_dummy, metrics={'a': 'this_is_fake'})
 
         with pytest.raises(ValueError):
-            Run(DummyNetwork(), MeanReturns(), dataloader_dummy, metrics={'loss': MeanReturns()})
+            Run(DummyNet(), MeanReturns(), dataloader_dummy, metrics={'loss': MeanReturns()})
 
         with pytest.raises(TypeError):
-            Run(DummyNetwork(), MeanReturns(), dataloader_dummy, val_dataloaders='this_is_fake')
+            Run(DummyNet(), MeanReturns(), dataloader_dummy, val_dataloaders='this_is_fake')
 
         with pytest.raises(TypeError):
-            Run(DummyNetwork(), MeanReturns(), dataloader_dummy, val_dataloaders={'val': 'this_is_fake'})
+            Run(DummyNet(), MeanReturns(), dataloader_dummy, val_dataloaders={'val': 'this_is_fake'})
 
         with pytest.raises(TypeError):
-            Run(DummyNetwork(), MeanReturns(), dataloader_dummy, benchmarks='this_is_fake')
+            Run(DummyNet(), MeanReturns(), dataloader_dummy, benchmarks='this_is_fake')
 
         with pytest.raises(TypeError):
-            Run(DummyNetwork(), MeanReturns(), dataloader_dummy, benchmarks={'uniform': 'this_is_fake'})
+            Run(DummyNet(), MeanReturns(), dataloader_dummy, benchmarks={'uniform': 'this_is_fake'})
 
         with pytest.raises(ValueError):
-            Run(DummyNetwork(), MeanReturns(), dataloader_dummy, benchmarks={'main': OneOverN()})
+            Run(DummyNet(), MeanReturns(), dataloader_dummy, benchmarks={'main': OneOverN()})
 
     @pytest.mark.parametrize('additional_kwargs', [True, False])
     def test_attributes_after_construction(self, dataloader_dummy, additional_kwargs):
-        network = DummyNetwork()
+        network = DummyNet()
         loss = MeanReturns()
 
         kwargs = {}
@@ -101,20 +104,21 @@ class TestRun:
         assert isinstance(run.val_dataloaders, dict)
 
     def test_launch(self, dataloader_dummy):
-        network = DummyNetwork(n_channels=dataloader_dummy.dataset.X.shape[1])
+        network = DummyNet(n_channels=dataloader_dummy.dataset.X.shape[1])
         loss = MeanReturns()
         run = Run(network, loss, dataloader_dummy)
 
         run.launch(n_epochs=1)
 
-    def test_launch_interrupt(self, dataloader_dummy):
-        network = DummyNetwork(n_channels=dataloader_dummy.dataset.X.shape[1])
+    def test_launch_interrupt(self, dataloader_dummy, monkeypatch):
+        network = DummyNet(n_channels=dataloader_dummy.dataset.X.shape[1])
         loss = MeanReturns()
 
         class TempCallback(Callback):
             def on_train_begin(self, metadata):
                 raise KeyboardInterrupt()
 
+        monkeypatch.setattr('time.sleep', lambda x: None)
         run = Run(network, loss, dataloader_dummy, callbacks=[TempCallback()])
 
         run.launch(n_epochs=1)

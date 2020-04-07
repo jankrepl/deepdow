@@ -137,6 +137,18 @@ class TestTensorBoardCallback:
 
             getattr(run_dummy, method_name)(metadata_dummy)
 
+    def test_validation(self, run_dummy, metadata_dummy):
+        cb = TensorBoardCallback()
+        cb_val = ValidationCallback()
+
+        cb.run = run_dummy
+        cb_val.run = run_dummy
+
+        run_dummy.callbacks = [cb_val, cb]  # make sure there are no default callbacks
+
+        for method_name in ALL_METHODS:
+            getattr(run_dummy, method_name)(metadata_dummy)
+
 
 @pytest.mark.parametrize('lookbacks', [None, [2, 3]])
 def test_validation(run_dummy, metadata_dummy, lookbacks):

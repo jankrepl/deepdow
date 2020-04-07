@@ -46,6 +46,15 @@ class History:
                                      'timestamp': timestamp,
                                      'current_time': datetime.datetime.now()})
 
+    def pretty_print(self, epoch=None):
+        if epoch is None:
+            df = self.metrics
+
+        else:
+            df = self.metrics_per_epoch(epoch)
+
+        print(df.groupby(['model', 'metric', 'epoch', 'dataloader'])['value'].mean())
+
 
 class Run:
     """Represents one experiment.
@@ -236,7 +245,8 @@ class Run:
                                                 'y_batch': y_batch})
 
                 # Epoch end
-                self.on_epoch_end(metadata={'epoch': e})
+                self.on_epoch_end(metadata={'epoch': e,
+                                            'n_epochs': n_epochs})
 
             # Train end
             self.on_train_end()
@@ -277,3 +287,18 @@ class Run:
     def on_batch_end(self, metadata=None):
         for cb in self.callbacks:
             cb.on_batch_end(metadata=metadata)
+
+    @property
+    def hparams(self):
+        res = {}
+        res.update(self.network.hparams)
+        res.update(self.train_dataloader.hparams)
+        res.update({'device': str(self.device),
+                    'dtype': str(self.dtype),
+                    'loss': str(self.loss),
+                    'weight_decay': self.optimizer.defaults.get('weight_decay', ''),
+                    'lr': self.optimizer.defaults.get('lr', '')
+                    # 'optimizer': str(self.optimizer)
+                    })
+
+        return res

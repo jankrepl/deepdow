@@ -6,7 +6,8 @@ from deepdow.benchmarks import Benchmark, MaximumReturn, MinimumVariance, OneOve
 
 
 class TestBenchmark:
-    def test_errors(self, X_dummy):
+    def test_errors(self, Xy_dummy):
+        X_dummy, _, _, _ = Xy_dummy
         with pytest.raises(TypeError):
             Benchmark()
 
@@ -23,14 +24,15 @@ class TestBenchmark:
         temp = TempBenchmarkCorrect()
         temp(X_dummy)
 
-        assert isinstance(temp.mlflow_params, dict)
+        assert isinstance(temp.hparams, dict)
 
 
 class TestMaximumReturn:
 
     @pytest.mark.parametrize('max_weight', [1, 0.5], ids=['max_weight=1', 'max_weight=0.5'])
     @pytest.mark.parametrize('predefined_assets', [True, False], ids=['fixed_assets', 'nonfixed_assets'])
-    def test_basic(self, X_dummy, predefined_assets, max_weight):
+    def test_basic(self, Xy_dummy, predefined_assets, max_weight):
+        X_dummy, _, _, _ = Xy_dummy
         eps = 1e-4
         n_samples, n_channels, lookback, n_assets = X_dummy.shape
         dtype = X_dummy.dtype
@@ -47,7 +49,7 @@ class TestMaximumReturn:
         assert weights.shape == (n_samples, n_assets)
         assert weights.dtype == dtype
         assert weights.device == device
-        assert torch.allclose(weights.sum(dim=1), torch.ones(n_samples).to(dtype=dtype, device=device))
+        assert torch.allclose(weights.sum(dim=1), torch.ones(n_samples).to(dtype=dtype, device=device), atol=1e-4)
         assert torch.all(-eps <= weights) and torch.all(weights <= max_weight + eps)
 
         if predefined_assets:
@@ -62,7 +64,8 @@ class TestMaximumReturn:
 class TestMinimumVariance:
     @pytest.mark.parametrize('max_weight', [1, 0.5], ids=['max_weight=1', 'max_weight=0.5'])
     @pytest.mark.parametrize('predefined_assets', [True, False], ids=['fixed_assets', 'nonfixed_assets'])
-    def test_basic(self, X_dummy, predefined_assets, max_weight):
+    def test_basic(self, Xy_dummy, predefined_assets, max_weight):
+        X_dummy, _, _, _ = Xy_dummy
         eps = 1e-4
         n_samples, n_channels, lookback, n_assets = X_dummy.shape
         dtype = X_dummy.dtype
@@ -79,7 +82,7 @@ class TestMinimumVariance:
         assert weights.shape == (n_samples, n_assets)
         assert weights.dtype == dtype
         assert weights.device == device
-        assert torch.allclose(weights.sum(dim=1), torch.ones(n_samples).to(dtype=dtype, device=device))
+        assert torch.allclose(weights.sum(dim=1), torch.ones(n_samples).to(dtype=dtype, device=device), atol=1e-4)
         assert torch.all(-eps <= weights) and torch.all(weights <= max_weight + eps)
 
         if predefined_assets:
@@ -92,7 +95,8 @@ class TestMinimumVariance:
 
 
 class TestOneOverN:
-    def test_basic(self, X_dummy):
+    def test_basic(self, Xy_dummy):
+        X_dummy, _, _, _ = Xy_dummy
         n_samples, n_channels, lookback, n_assets = X_dummy.shape
         dtype = X_dummy.dtype
         device = X_dummy.device
@@ -108,7 +112,8 @@ class TestOneOverN:
 
 
 class TestRandom:
-    def test_basic(self, X_dummy):
+    def test_basic(self, Xy_dummy):
+        X_dummy, _, _, _ = Xy_dummy
         n_samples, n_channels, lookback, n_assets = X_dummy.shape
         dtype = X_dummy.dtype
         device = X_dummy.device
@@ -128,7 +133,8 @@ class TestRandom:
 class TestSingleton:
 
     @pytest.mark.parametrize('asset_ix', [0, 3])
-    def test_basic(self, asset_ix, X_dummy):
+    def test_basic(self, asset_ix, Xy_dummy):
+        X_dummy, _, _, _ = Xy_dummy
         n_samples, n_channels, lookback, n_assets = X_dummy.shape
         dtype = X_dummy.dtype
         device = X_dummy.device

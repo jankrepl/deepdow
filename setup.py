@@ -9,6 +9,7 @@ INSTALL_REQUIRES = [
     "cvxpylayers",
     "numpy>=1.16",
     "pandas",
+    "pillow",
     "torch"
 ]
 

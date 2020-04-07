@@ -23,10 +23,12 @@ class TestHelpers:
 class TestPortfolioReturns:
     @pytest.mark.parametrize('input_type', ['log', 'simple'])
     @pytest.mark.parametrize('output_type', ['log', 'simple'])
-    def test_shape(self, y_dummy, input_type, output_type):
+    def test_shape(self, Xy_dummy, input_type, output_type):
+        _, y_dummy, _, _ = Xy_dummy
+        y_dummy = y_dummy.mean(dim=1)
         n_samples, horizon, n_assets = y_dummy.shape
 
-        weights = torch.randint(1, 10, size=(n_samples, n_assets)).float()
+        weights = torch.randint(1, 10, size=(n_samples, n_assets)).to(device=y_dummy.device, dtype=y_dummy.dtype)
 
         prets = portfolio_returns(weights, y_dummy, input_type=input_type, output_type=output_type)
 
@@ -50,10 +52,13 @@ class TestPortfolioReturns:
 class TestCumulativePortfolioReturns:
     @pytest.mark.parametrize('input_type', ['log', 'simple'])
     @pytest.mark.parametrize('output_type', ['log', 'simple'])
-    def test_shape(self, y_dummy, input_type, output_type):
+    def test_shape(self, Xy_dummy, input_type, output_type):
+        _, y_dummy, _, _ = Xy_dummy
+
+        y_dummy = y_dummy.mean(dim=1)
         n_samples, horizon, n_assets = y_dummy.shape
 
-        weights = torch.randint(1, 10, size=(n_samples, n_assets)).float()
+        weights = torch.randint(1, 10, size=(n_samples, n_assets)).to(device=y_dummy.device, dtype=y_dummy.dtype)
 
         pcrets = portfolio_cumulative_returns(weights, y_dummy, input_type=input_type, output_type=output_type)
 
@@ -76,26 +81,26 @@ class TestCumulativePortfolioReturns:
 
 class TestAllLosses:
     @pytest.mark.parametrize('loss_class', ALL_LOSSES, ids=[x.__name__ for x in ALL_LOSSES])
-    @pytest.mark.parametrize('n_samples', [1, 2])
-    @pytest.mark.parametrize('n_assets', [1, 4])
-    @pytest.mark.parametrize('n_channels', [1, 3])
-    def test_correct_output(self, loss_class, n_samples, n_assets, n_channels):
-        weights = torch.ones(n_samples, n_assets) / n_assets
-        y = torch.zeros(n_samples, n_channels, 5, n_assets)
+    def test_correct_output(self, loss_class, Xy_dummy):
+        _, y_dummy, _, _ = Xy_dummy
+        n_samples, n_channels, horizon, n_assets = y_dummy.shape
+
+        weights = (torch.ones(n_samples, n_assets) / n_assets).to(device=y_dummy.device, dtype=y_dummy.dtype)
 
         loss_instance = loss_class()  # only defaults
-        losses = loss_instance(weights, y)
+        losses = loss_instance(weights, y_dummy)
 
         assert torch.is_tensor(losses)
         assert losses.shape == (n_samples,)
+        assert losses.dtype == y_dummy.dtype
+        assert losses.device == y_dummy.device
 
     @pytest.mark.parametrize('loss_class_l', ALL_LOSSES, ids=[x.__name__ for x in ALL_LOSSES])
     @pytest.mark.parametrize('loss_class_r', ALL_LOSSES + [3], ids=[x.__name__ for x in ALL_LOSSES] + ['constant'])
     @pytest.mark.parametrize('op', ['sum', 'div', 'mul', 'pow'])
-    def test_arithmetic(self, loss_class_l, loss_class_r, op):
-        n_samples = 2
-        n_assets = 3
-        n_channels = 3
+    def test_arithmetic(self, loss_class_l, loss_class_r, op, Xy_dummy):
+        _, y_dummy, _, _ = Xy_dummy
+        n_samples, n_channels, horizon, n_assets = y_dummy.shape
 
         loss_instance_l = loss_class_l()
         loss_instance_r = loss_class_r() if not isinstance(loss_class_r, int) else loss_class_r
@@ -119,13 +124,14 @@ class TestAllLosses:
         else:
             raise ValueError('Unrecognized op')
 
-        weights = torch.ones(n_samples, n_assets) / n_assets
-        y = torch.rand(n_samples, n_channels, 5, n_assets)
+        weights = (torch.ones(n_samples, n_assets) / n_assets).to(device=y_dummy.device, dtype=y_dummy.dtype)
 
-        losses = mixed(weights, y)
+        losses = mixed(weights, y_dummy)
 
         assert torch.is_tensor(losses)
         assert losses.shape == (n_samples,)
+        assert losses.dtype == y_dummy.dtype
+        assert losses.device == y_dummy.device
         assert sign in repr(mixed)
 
     def test_parent_undefined_methods(self):

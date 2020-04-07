@@ -1,6 +1,3 @@
-import datetime
-from unittest.mock import MagicMock
-
 import numpy as np
 import pandas as pd
 import pytest
@@ -8,9 +5,9 @@ import torch
 
 from deepdow.data import InRAMDataset, RigidDataLoader
 from deepdow.benchmarks import OneOverN
-from deepdow.experiments import History, Run
+from deepdow.experiments import Run
 from deepdow.losses import MeanReturns
-from deepdow.nn import DummyNetwork
+from deepdow.nn import DummyNet
 
 GPU_AVAILABLE = torch.cuda.is_available()
 
@@ -68,9 +65,9 @@ def dataset_dummy():
     """
     n_samples = 200
     n_channels = 2
-    lookback = 20
-    horizon = 32
-    n_assets = 30
+    lookback = 9
+    horizon = 10
+    n_assets = 6
 
     X = np.random.normal(size=(n_samples, n_channels, lookback, n_assets))
     y = np.random.normal(size=(n_samples, n_channels, horizon, n_assets))
@@ -95,7 +92,7 @@ def dataloader_dummy(dataset_dummy):
     -------
 
     """
-    batch_size = 32
+    batch_size = 4
     return RigidDataLoader(dataset_dummy,
                            batch_size=batch_size)
 
@@ -117,31 +114,9 @@ def Xy_dummy(request, dataloader_dummy):
     return X.to(dtype=dtype, device=device), y.to(dtype=dtype, device=device), timestamps, asset_names
 
 
-@pytest.fixture(params=[
-    pytest.param((torch.float32, torch.device('cpu')), id='float32_cpu'),
-    pytest.param((torch.float64, torch.device('cpu')), id='float64_cpu'),
-    pytest.param((torch.float32, torch.device('cuda:0')),
-                 id='float32_gpu',
-                 marks=[] if GPU_AVAILABLE else pytest.mark.skip),
-    pytest.param((torch.float64, torch.device('cuda:0')),
-                 id='float64_gpu',
-                 marks=[] if GPU_AVAILABLE else pytest.mark.skip),
-])
-def X_dummy(request):
-    n_samples = 5
-    n_channels = 2
-    lookback = 3
-    n_assets = 4
-
-    torch.manual_seed(1)
-    dtype, device = request.param
-
-    return torch.rand((n_samples, n_channels, lookback, n_assets)).to(dtype=dtype, device=device)
-
-
 @pytest.fixture()
 def network_dummy(dataset_dummy):
-    return DummyNetwork(n_channels=dataset_dummy.n_channels)
+    return DummyNet(n_channels=dataset_dummy.n_channels)
 
 
 @pytest.fixture
@@ -179,29 +154,3 @@ def metadata_dummy(Xy_dummy, network_dummy):
             'weights': network_dummy(X_batch),
             'X_batch': X_batch,
             'y_batch': y_batch}
-
-
-@pytest.fixture(params=[1, 3], ids=['input_channels=1', "input_channels=3"])
-def feature_tensor(request):
-    """Standard tensor to be process by ConvTime layers."""
-    n_samples = 10
-    n_input_channels = request.param
-    n_assets = 4
-    lookback = 5
-
-    return torch.ones((n_samples, n_input_channels, lookback, n_assets))
-
-
-@pytest.fixture()
-def feature_notime_tensor(feature_tensor):
-    """Tensor to be processed by ConvOneByOne not containing time information."""
-    return torch.mean(feature_tensor, dim=2)
-
-
-@pytest.fixture()
-def y_dummy():
-    n_samples = 3
-    horizon = 5
-    n_assets = 6
-
-    return (torch.rand((n_samples, horizon, n_assets)) - 0.5) / 10

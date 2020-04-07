@@ -1,16 +1,13 @@
 import pathlib
 import sys
 
-import matplotlib.pyplot as plt
 import mlflow
 import numpy as np
 import pandas as pd
-import seaborn as sns
 import torch
 from torch.utils.tensorboard import SummaryWriter
 import tqdm
 
-from .data import RigidDataLoader
 from .utils import ChangeWorkingDirectory
 
 
@@ -76,6 +73,9 @@ class BenchmarkCallback(Callback):
                                                                metric=metric_name,
                                                                value=metric_value)
 
+        if len(self.run.models) > 1:
+            self.run.history.pretty_print(-1)
+
 
 class MLFlowCallback(Callback):
     """MLFlow logging callback.
@@ -132,8 +132,8 @@ class MLFlowCallback(Callback):
                     'dtype': self.run.dtype,
                     'train_dataloader': self.run.train_dataloader.__class__.__name__
                 }
-                params.update(self.run.train_dataloader.mlflow_params)
-                params.update(self.run.network.mlflow_params)
+                params.update(self.run.train_dataloader.hparams)
+                params.update(self.run.network.hparams)
 
                 mlflow.log_params(params)
 
@@ -261,7 +261,10 @@ class TensorBoardCallback(Callback):
 
         Parameters
         ----------
-        log_dir
+        log_dir : None or str or pathlib.Path
+            Represent the folder where to checkpoints will be saved. If None then using
+            `cwd/runs/CURRENT_DATETIME_HOSTNAME`. Else the exact path.
+
         ts : datetime.datetime or None
             If ``datetime.datetime``, then only logging specific sample corresponding to provided timestamp.
             If None then logging every sample.
@@ -274,6 +277,7 @@ class TensorBoardCallback(Callback):
 
         self.activations = {}
         self.handles = []
+        self.weights = []
 
     def on_batch_begin(self, metadata):
         timestamps = metadata.get('timestamps')
@@ -288,6 +292,41 @@ class TensorBoardCallback(Callback):
             self.handles.append(layer.register_forward_hook(hook))
 
     def on_batch_end(self, metadata):
+        timestamps = metadata.get('timestamps')
+        weights = metadata.get('weights')
+
+        # cache weights
+        self.weights.append(pd.DataFrame(weights.detach().cpu().numpy(), index=timestamps))
+
+        # add activations
+        self._add_activations(metadata)
+
+    def on_epoch_end(self, metadata):
+        epoch = metadata.get('epoch')
+        n_epochs = metadata.get('n_epochs')
+
+        # create weight image
+        master_df = pd.concat(self.weights).sort_index()
+        self.writer.add_image('weights', master_df.values[np.newaxis, ...], global_step=metadata['epoch'])
+        self.weights = []
+
+        # log scalars
+        try:
+            df = self.run.history.metrics_per_epoch(epoch)
+
+            metrics = {'/'.join(list(map(lambda x: str(x), k))): v for k, v in
+                       df.groupby(['dataloader', 'metric', 'lookback'])['value'].mean().items()}
+
+            for metric_name, metric_value in metrics.items():
+                self.writer.add_scalar(metric_name, metric_value, global_step=epoch)
+
+            if epoch == n_epochs - 1:
+                self.writer.add_hparams(self.run.hparams, metrics)
+
+        except KeyError:
+            pass
+
+    def _add_activations(self, metadata):
         X_batch = metadata.get('X_batch')
         timestamps = metadata.get('timestamps')
 

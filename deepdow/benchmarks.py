@@ -21,7 +21,7 @@ class Benchmark(ABC):
         """Prediction of the model."""
 
     @property
-    def mlflow_params(self):
+    def hparams(self):
         return {}
 
 

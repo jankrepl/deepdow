@@ -225,7 +225,7 @@ class TestFlexibleDataLoader:
                                 lookback_range=(max_lookback, max_lookback + 1),
                                 horizon_range=(max_horizon, max_horizon + 1))
 
-        assert isinstance(dl.mlflow_params, dict)
+        assert isinstance(dl.hparams, dict)
 
 
 class TestRidigDataLoader:
@@ -253,4 +253,4 @@ class TestRidigDataLoader:
     def test_basic(self, dataset_dummy):
         dl = RigidDataLoader(dataset_dummy)
 
-        assert isinstance(dl.mlflow_params, dict)
+        assert isinstance(dl.hparams, dict)
