@@ -118,6 +118,7 @@ class TestMarkowitz:
 
     def test_basic(self, Xy_dummy):
         X, _, _, _ = Xy_dummy
+        device, dtype = X.device, X.dtype
         n_samples, n_channels, lookback, n_assets = X.shape
 
         popt = Markowitz(n_assets)
@@ -126,7 +127,7 @@ class TestMarkowitz:
 
         covmat_sqrt__ = torch.rand((n_assets, n_assets)).to(device=X.device, dtype=X.dtype)
         covmat_sqrt_ = covmat_sqrt__ @ covmat_sqrt__
-        covmat_sqrt_.add_(torch.eye(n_assets))
+        covmat_sqrt_.add_(torch.eye(n_assets, dtype=dtype, device=device))
 
         covmat_sqrt = torch.stack(n_samples * [covmat_sqrt_])
 
