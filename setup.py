@@ -7,10 +7,12 @@ LONG_DESCRIPTION = DESCRIPTION
 
 INSTALL_REQUIRES = [
     "cvxpylayers",
+    "mlflow",
     "numpy>=1.16",
     "pandas",
     "pillow",
-    "torch"
+    "torch",
+    "tensorboard",
 ]
 
 setup(
