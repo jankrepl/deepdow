@@ -1,9 +1,6 @@
 Introduction
 ============
 
-:code:`deepdow` (read as "wow") is a Python package that connects portfolio optimization and deep
-learning with differentiable convex optimization layers.
-
 Name
 ----
 The name of the packages is inspired by the father of the Technical Analysis—**Charles Dow**.

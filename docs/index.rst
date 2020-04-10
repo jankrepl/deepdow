@@ -3,15 +3,25 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-DeepDow
-=======
+
+.. image:: https://i.imgur.com/x77b8Lc.png
+   :align: center
+
+:code:`deepdow` (read as "wow") is a Python package that connects portfolio optimization and deep
+learning with differentiable convex optimization layers.
+
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
 
    source/introduction
+   source/data
+   source/layers
+   source/networks
    source/losses
+   source/experiments
+   source/example
 
 .. toctree::
    :maxdepth: 2
