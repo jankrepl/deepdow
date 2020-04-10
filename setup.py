@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import find_packages, setup
 
 import deepdow
 
@@ -24,8 +24,8 @@ setup(
     description=DESCRIPTION,
     long_description=LONG_DESCRIPTION,
     url="https://github.com/jankrepl/deepdow",
-    packages=["deepdow"],
-    license="MIT",
+    packages=find_packages(),
+    license="Apache License 2.0",
     install_requires=INSTALL_REQUIRES,
     extras_require={
         "dev": ["codecov", "flake8", "pydocstyle", "pytest>=3.6", "pytest-cov", "tox"],
