@@ -13,6 +13,7 @@ INSTALL_REQUIRES = [
     "pillow",
     "torch",
     "tensorboard",
+    "tqdm"
 ]
 
 setup(
