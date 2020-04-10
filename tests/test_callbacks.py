@@ -48,9 +48,9 @@ class TestMLFlowCallback:
     def test_independent(self, run_dummy, metadata_dummy, tmpdir, log_benchmarks):
         with pytest.raises(ValueError):
             MLFlowCallback(run_name='name', run_id='some_id', log_benchmarks=log_benchmarks,
-                           mlflow_path=pathlib.Path(tmpdir))
+                           mlflow_path=pathlib.Path(str(tmpdir)))
 
-        cb = MLFlowCallback(mlflow_path=pathlib.Path(tmpdir), experiment_name='test', log_benchmarks=log_benchmarks)
+        cb = MLFlowCallback(mlflow_path=pathlib.Path(str(tmpdir)), experiment_name='test', log_benchmarks=log_benchmarks)
         cb.run = run_dummy
 
         run_dummy.callbacks = [cb]  # make sure there are no default callbacks
@@ -59,7 +59,7 @@ class TestMLFlowCallback:
             getattr(run_dummy, method_name)(metadata_dummy)
 
     def test_benchmarks(self, run_dummy, metadata_dummy, tmpdir):
-        cb = MLFlowCallback(mlflow_path=pathlib.Path(tmpdir), experiment_name='test', log_benchmarks=True)
+        cb = MLFlowCallback(mlflow_path=pathlib.Path(str(tmpdir)), experiment_name='test', log_benchmarks=True)
         cb_bm = BenchmarkCallback()
 
         cb.run = run_dummy
@@ -71,7 +71,7 @@ class TestMLFlowCallback:
             getattr(run_dummy, method_name)(metadata_dummy)
 
     def test_validation(self, run_dummy, metadata_dummy, tmpdir):
-        cb = MLFlowCallback(mlflow_path=pathlib.Path(tmpdir), experiment_name='test', log_benchmarks=False)
+        cb = MLFlowCallback(mlflow_path=pathlib.Path(str(tmpdir)), experiment_name='test', log_benchmarks=False)
         cb_val = ValidationCallback()
 
         cb.run = run_dummy
@@ -124,7 +124,7 @@ class TestTensorBoardCallback:
         else:
             ValueError()
 
-        cb = TensorBoardCallback(log_dir=pathlib.Path(tmpdir),
+        cb = TensorBoardCallback(log_dir=pathlib.Path(str(tmpdir)),
                                  ts=ts)
         cb.run = run_dummy
 
@@ -138,7 +138,7 @@ class TestTensorBoardCallback:
 
     @pytest.mark.parametrize('bm_available', [True, False], ids=['bmarks_available', 'bmarks_unavailable'])
     def test_benchmark(self, run_dummy, metadata_dummy, bm_available, tmpdir):
-        cb = TensorBoardCallback(log_benchmarks=True, log_dir=pathlib.Path(tmpdir))
+        cb = TensorBoardCallback(log_benchmarks=True, log_dir=pathlib.Path(str(tmpdir)))
         cb_bm = BenchmarkCallback()
 
         cb.run = run_dummy
@@ -150,7 +150,7 @@ class TestTensorBoardCallback:
             getattr(run_dummy, method_name)(metadata_dummy)
 
     def test_validation(self, run_dummy, metadata_dummy, tmpdir):
-        cb = TensorBoardCallback(log_dir=pathlib.Path(tmpdir))
+        cb = TensorBoardCallback(log_dir=pathlib.Path(str(tmpdir)))
         cb_val = ValidationCallback()
 
         cb.run = run_dummy

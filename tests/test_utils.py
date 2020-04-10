@@ -11,7 +11,7 @@ from deepdow.utils import ChangeWorkingDirectory, PandasChecks, prices_to_return
 class TestChangeWorkingDirectory:
     def test_construction(self, tmpdir):
         dir_str = str(tmpdir)
-        dir_path = pathlib.Path(tmpdir)
+        dir_path = pathlib.Path(dir_str)
 
         assert ChangeWorkingDirectory(dir_str).directory == dir_path
         assert ChangeWorkingDirectory(dir_path).directory == dir_path
@@ -20,7 +20,7 @@ class TestChangeWorkingDirectory:
             ChangeWorkingDirectory('/fake/directory/')
 
     def test_working(self, tmpdir):
-        dir_path = pathlib.Path(tmpdir)
+        dir_path = pathlib.Path(str(tmpdir))
 
         cwd_before = pathlib.Path.cwd()
 
