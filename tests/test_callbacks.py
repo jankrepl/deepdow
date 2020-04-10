@@ -4,7 +4,6 @@ import pathlib
 
 import pandas as pd
 import pytest
-import torch
 
 from deepdow.callbacks import (BenchmarkCallback, Callback,
                                ProgressBarCallback, MLFlowCallback,
@@ -137,8 +136,21 @@ class TestTensorBoardCallback:
 
             getattr(run_dummy, method_name)(metadata_dummy)
 
-    def test_validation(self, run_dummy, metadata_dummy):
-        cb = TensorBoardCallback()
+    @pytest.mark.parametrize('bm_available', [True, False], ids=['bmarks_available', 'bmarks_unavailable'])
+    def test_benchmark(self, run_dummy, metadata_dummy, bm_available, tmpdir):
+        cb = TensorBoardCallback(log_benchmarks=True, log_dir=pathlib.Path(tmpdir))
+        cb_bm = BenchmarkCallback()
+
+        cb.run = run_dummy
+        cb_bm.run = run_dummy
+
+        run_dummy.callbacks = [cb_bm, cb] if bm_available else [cb]  # make sure there are no default callbacks
+
+        for method_name in ALL_METHODS:
+            getattr(run_dummy, method_name)(metadata_dummy)
+
+    def test_validation(self, run_dummy, metadata_dummy, tmpdir):
+        cb = TensorBoardCallback(log_dir=pathlib.Path(tmpdir))
         cb_val = ValidationCallback()
 
         cb.run = run_dummy
@@ -160,5 +172,5 @@ def test_validation(run_dummy, metadata_dummy, lookbacks):
     for method_name in ALL_METHODS:
         getattr(run_dummy, method_name)(metadata_dummy)
 
-    assert isinstance(run_dummy.history.metrics_per_epoch(0), pd.DataFrame)
+    assert isinstance(run_dummy.history.metrics_per_epoch(metadata_dummy['epoch']), pd.DataFrame)
     assert len(run_dummy.history.metrics['epoch'].unique()) == 1

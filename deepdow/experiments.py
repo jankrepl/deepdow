@@ -1,3 +1,5 @@
+"""Running experiments."""
+
 import datetime
 import time
 
@@ -13,14 +15,28 @@ from .losses import Loss
 
 
 class History:
-    """A shared information database for the training process."""
+    """A shared information database for the training process.
+
+    Attributes
+    ----------
+    database : dict
+        Keys are different epochs and values are ``pd.DataFrame`` with detailed results.
+
+    """
 
     def __init__(self):
         self.database = {}  # dict where keys are epochs and values are lists
-        self.misc = {}
 
     @property
     def metrics(self):
+        """Concatenate metrics over all epochs.
+
+        Returns
+        -------
+        df : pd.DataFrame
+            Each row represents a unique logging sample. Columns are `batch`, `current_time`, `dataloader`, `epoch`,
+            `lookback`, `metric`, `model`, `timestamp`, `value`.
+        """
         master_list = []  # over all epochs
         for l in self.database.values():
             master_list.extend(l)
@@ -28,11 +44,19 @@ class History:
         return pd.DataFrame(master_list)
 
     def metrics_per_epoch(self, epoch):
+        """Results over a specified epoch.
+
+        Returns
+        -------
+        df : pd.DataFrame
+            Each row represents a unique logging sample. Columns are `batch`, `current_time`, `dataloader`, `epoch`,
+            `lookback`, `metric`, `model`, `timestamp`, `value`.
+        """
         return pd.DataFrame(self.database[epoch])
 
     def add_entry(self, model=None, metric=None, batch=None, epoch=None, dataloader=None,
                   lookback=None, timestamp=None, value=np.nan):
-
+        """Add entry to the internal database."""
         if epoch not in self.database:
             self.database[epoch] = []
 
@@ -47,6 +71,14 @@ class History:
                                      'current_time': datetime.datetime.now()})
 
     def pretty_print(self, epoch=None):
+        """Print nicely the internal database.
+
+        Parameters
+        ----------
+        epoch : int or None
+            If epoch given, then a results only over this epoch. If epoch is `None` then print results over all epochs.
+
+        """
         if epoch is None:
             df = self.metrics
 
@@ -111,8 +143,6 @@ class Run:
 
     def __init__(self, network, loss, train_dataloader, val_dataloaders=None, metrics=None,
                  benchmarks=None, device=None, dtype=None, optimizer=None, callbacks=None):
-        """Construct"""
-
         # checks
         if not isinstance(train_dataloader, (FlexibleDataLoader, RigidDataLoader)):
             raise TypeError('The train_dataloader needs to be an instance of TrainDataLoader.')
@@ -193,7 +223,6 @@ class Run:
     def launch(self, n_epochs=1, starting_epoch=0):
         """Launch the training and logging loop.
 
-
         Parameters
         ----------
         n_epochs : int
@@ -205,7 +234,7 @@ class Run:
         try:
             self.network.to(device=self.device, dtype=self.dtype)
             # Train begin
-            self.on_train_begin()
+            self.on_train_begin(metadata={'n_epochs': n_epochs})
 
             for e in range(starting_epoch, starting_epoch + n_epochs):
                 # Epoch begin
@@ -261,35 +290,43 @@ class Run:
         return self.history
 
     def on_train_begin(self, metadata=None):
+        """Take actions at the beginning of the training."""
         for cb in self.callbacks:
             cb.on_train_begin(metadata=metadata)
 
     def on_train_interrupt(self, metadata=None):
+        """Take actions when training interrupted."""
         for cb in self.callbacks:
             cb.on_train_interrupt(metadata=metadata)
 
     def on_train_end(self, metadata=None):
+        """Take actions at the end of the training."""
         for cb in self.callbacks:
             cb.on_train_end(metadata=metadata)
 
     def on_epoch_begin(self, metadata=None):
+        """Take actions at the beginning of an epoch."""
         for cb in self.callbacks:
             cb.on_epoch_begin(metadata=metadata)
 
     def on_epoch_end(self, metadata=None):
+        """Take actions at the end of an epoch."""
         for cb in self.callbacks:
             cb.on_epoch_end(metadata=metadata)
 
     def on_batch_begin(self, metadata=None):
+        """Take actions at the beginning of a batch."""
         for cb in self.callbacks:
             cb.on_batch_begin(metadata=metadata)
 
     def on_batch_end(self, metadata=None):
+        """Take actions at the end of a batch."""
         for cb in self.callbacks:
             cb.on_batch_end(metadata=metadata)
 
     @property
     def hparams(self):
+        """Collect relevant hyperparamters specifying an experiment."""
         res = {}
         res.update(self.network.hparams)
         res.update(self.train_dataloader.hparams)
@@ -298,7 +335,6 @@ class Run:
                     'loss': str(self.loss),
                     'weight_decay': self.optimizer.defaults.get('weight_decay', ''),
                     'lr': self.optimizer.defaults.get('lr', '')
-                    # 'optimizer': str(self.optimizer)
                     })
 
         return res

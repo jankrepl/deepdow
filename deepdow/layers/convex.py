@@ -1,6 +1,7 @@
+"""Collection of layers that are using convex optimization."""
+
 import cvxpy as cp
 from cvxpylayers.torch import CvxpyLayer
-import torch
 import torch.nn as nn
 
 

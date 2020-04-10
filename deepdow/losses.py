@@ -379,9 +379,8 @@ class MeanReturns(Loss):
             Tensor of shape `(n_samples, n_assets)` representing the predicted weights by our portfolio optimizer.
 
         y : torch.Tensor
-            Tensor of shape `(n_samples, n_input_channels, horizon, n_assets)` representing ground truth labels
-            over the `horizon` of steps. The idea is that the channel dimensions can be given a specific meaning
-            in the constructor.
+            Tensor of shape `(n_samples, n_channels, horizon, n_assets)` representing the evolution over the next
+            `horizon` timesteps.
 
         Returns
         -------
@@ -421,9 +420,8 @@ class SharpeRatio(Loss):
             Tensor of shape `(n_samples, n_assets)` representing the predicted weights by our portfolio optimizer.
 
         y : torch.Tensor
-            Tensor of shape `(n_samples, n_input_channels, horizon, n_assets)` representing ground truth labels
-            over the `horizon` of steps. The idea is that the channel dimensions can be given a specific meaning
-            in the constructor.
+            Tensor of shape `(n_samples, n_channels, horizon, n_assets)` representing the evolution over the next
+            `horizon` timesteps.
 
         Returns
         -------
@@ -446,6 +444,39 @@ class SharpeRatio(Loss):
                                                                                   self.output_type)
 
 
+class Softmax(Loss):
+    """Softmax of per asset cumulative returns as the target."""
+
+    def __init__(self, returns_channel=0):
+        self.returns_channel = returns_channel
+
+    def __call__(self, weights, y):
+        """Compute softmax loss.
+
+        Parameters
+        ----------
+        weights : torch.Tensor
+            Tensor of shape `(n_samples, n_assets)` representing the predicted weights by our portfolio optimizer.
+
+        y : torch.Tensor
+            Tensor of shape `(n_samples, n_channels, horizon, n_assets)` representing the evolution over the next
+            `horizon` timesteps.
+
+        Returns
+        -------
+        torch.Tensor
+            Tensor of shape `(n_samples,)` representing the per sample negative worst return over the horizon.
+
+        """
+        cumrets = y[:, self.returns_channel, ...].sum(dim=1)
+
+        return ((weights - cumrets.softmax(dim=1)) ** 2).sum(dim=1)
+
+    def __repr__(self):
+        """Generate representation string."""
+        return "{}(returns_channel={})".format(self.__class__.__name__, self.returns_channel)
+
+
 class SortinoRatio(Loss):
     """Negative Sortino ratio."""
 
@@ -463,14 +494,8 @@ class SortinoRatio(Loss):
             Tensor of shape `(n_samples, n_assets)` representing the predicted weights by our portfolio optimizer.
 
         y : torch.Tensor
-            Tensor of shape `(n_samples, horizon, n_assets)` representing the return evolution over the next
+            Tensor of shape `(n_samples, n_channels, horizon, n_assets)` representing the evolution over the next
             `horizon` timesteps.
-
-        input_type : str, {'log', 'simple'}
-            What type of returns are we dealing with in `y`.
-
-        output_type : str, {'log', 'simple'}
-            What type of returns are we dealing with in the output.
 
         Returns
         -------
@@ -548,9 +573,8 @@ class StandardDeviation(Loss):
             Tensor of shape `(n_samples, n_assets)` representing the predicted weights by our portfolio optimizer.
 
         y : torch.Tensor
-            Tensor of shape `(n_samples, n_input_channels, horizon, n_assets)` representing ground truth labels
-            over the `horizon` of steps. The idea is that the channel dimensions can be given a specific meaning
-            in the constructor.
+            Tensor of shape `(n_samples, n_channels, horizon, n_assets)` representing the evolution over the next
+            `horizon` timesteps.
 
         Returns
         -------
@@ -595,9 +619,8 @@ class TargetMeanReturn(Loss):
             Tensor of shape `(n_samples, n_assets)` representing the predicted weights by our portfolio optimizer.
 
         y : torch.Tensor
-            Tensor of shape `(n_samples, n_input_channels, horizon, n_assets)` representing ground truth labels
-            over the `horizon` of steps. The idea is that the channel dimensions can be given a specific meaning
-            in the constructor.
+            Tensor of shape `(n_samples, n_channels, horizon, n_assets)` representing the evolution over the next
+            `horizon` timesteps.
 
         Returns
         -------
@@ -649,9 +672,8 @@ class TargetStandardDeviation(Loss):
             Tensor of shape `(n_samples, n_assets)` representing the predicted weights by our portfolio optimizer.
 
         y : torch.Tensor
-            Tensor of shape `(n_samples, n_input_channels, horizon, n_assets)` representing ground truth labels
-            over the `horizon` of steps. The idea is that the channel dimensions can be given a specific meaning
-            in the constructor.
+            Tensor of shape `(n_samples, n_channels, horizon, n_assets)` representing the evolution over the next
+            `horizon` timesteps.
 
         Returns
         -------
@@ -701,8 +723,9 @@ class WorstReturn(Loss):
             Tensor of shape `(n_samples, n_assets)` representing the predicted weights by our portfolio optimizer.
 
         y : torch.Tensor
-            Tensor of shape `(n_samples, n_input_channels, horizon, n_assets)` representing the return evolution over
-             the next `horizon` timesteps.
+            Tensor of shape `(n_samples, n_channels, horizon, n_assets)` representing the evolution over the next
+            `horizon` timesteps.
+
 
         Returns
         -------

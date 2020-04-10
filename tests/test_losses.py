@@ -1,11 +1,11 @@
 import pytest
 import torch
 
-from deepdow.losses import (LargestWeight, Loss, MeanReturns, SharpeRatio, SortinoRatio, SquaredWeights,
+from deepdow.losses import (LargestWeight, Loss, MeanReturns, SharpeRatio, Softmax, SortinoRatio, SquaredWeights,
                             StandardDeviation, TargetMeanReturn, TargetStandardDeviation, WorstReturn, log2simple,
                             portfolio_returns, portfolio_cumulative_returns, simple2log)
 
-ALL_LOSSES = [LargestWeight, MeanReturns, SharpeRatio, SortinoRatio, SquaredWeights, StandardDeviation,
+ALL_LOSSES = [LargestWeight, MeanReturns, SharpeRatio, Softmax, SortinoRatio, SquaredWeights, StandardDeviation,
               TargetMeanReturn, TargetStandardDeviation, WorstReturn]
 
 

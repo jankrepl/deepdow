@@ -13,10 +13,8 @@ DeepDow
    source/introduction
    source/losses
 
+.. toctree::
+   :maxdepth: 2
+   :caption: API Reference:
 
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+   source/api/deepdow

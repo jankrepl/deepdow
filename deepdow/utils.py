@@ -2,7 +2,6 @@
 import os
 import pathlib
 
-import mlflow
 import numpy as np
 import pandas as pd
 
@@ -15,6 +14,11 @@ class ChangeWorkingDirectory:
     directory : str or pathlib.Path or None
         The new working directory. If None then staying in the current one.
 
+    Attributes
+    ----------
+    _previous : pathlib.Path
+        The original working directory we want to return to after exiting the context manager.
+
     """
 
     def __init__(self, directory):
@@ -25,9 +29,11 @@ class ChangeWorkingDirectory:
         self._previous = pathlib.Path.cwd()
 
     def __enter__(self):
+        """Change directory."""
         os.chdir(str(self.directory))
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        """Go bach to the original directory."""
         os.chdir(str(self._previous))
 
 
@@ -238,7 +244,6 @@ def raw_to_Xy(raw_data, lookback=10, horizon=10, gap=0, freq='B', included_asset
     indicators : list
         List of indicators.
     """
-
     if freq is None:
         raise ValueError('Frequency freq needs to be specified.')
 

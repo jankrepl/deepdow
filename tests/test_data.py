@@ -32,8 +32,6 @@ class TestCollateUniform:
                   ['asset_{}'.format(i) for i in range(max_n_assets)]) for _ in
                  range(n_samples)]
 
-        n_trials = 10
-
         X_batch, y_batch, timestamps_batch, asset_names_batch = collate_uniform(batch,
                                                                                 n_assets_range=(5, 6),
                                                                                 lookback_range=(4, 5),

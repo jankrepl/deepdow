@@ -22,6 +22,7 @@ class Benchmark(ABC):
 
     @property
     def hparams(self):
+        """Hyperparamters relevant to construction of the model."""
         return {}
 
 

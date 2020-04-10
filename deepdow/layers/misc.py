@@ -1,3 +1,5 @@
+"""miscellaneous layers."""
+
 import torch
 import torch.nn as nn
 
@@ -173,3 +175,23 @@ class MultiplyByConstant(torch.nn.Module):
                                                                                                 self.dim_size))
         view = [self.dim_size if i == self.dim_ix else 1 for i in range(x.ndim)]
         return x * self.constant.view(view)
+
+
+class SoftmaxAllocator(torch.nn.Module):
+    """Dummy portfolio creation by computing a softmax over the asset dimension."""
+
+    def forward(self, x):
+        """Perform forward pass.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Tensor of shape `(n_samples, n_assets`).
+
+        Returns
+        -------
+        weights : torch.Tensor
+            Tensor of shape `(n_samples, n_assets`).
+
+        """
+        return nn.functional.softmax(x, dim=1)

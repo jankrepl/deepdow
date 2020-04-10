@@ -1,3 +1,5 @@
+"""Collection of layers that decrease the number of dimensions."""
+
 import torch
 import torch.nn as nn
 

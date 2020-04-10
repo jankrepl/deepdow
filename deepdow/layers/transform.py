@@ -1,3 +1,5 @@
+"""Collection of layers focusing on transforming tensors while keeping the number of dimensions constant."""
+
 import torch
 import torch.nn as nn
 

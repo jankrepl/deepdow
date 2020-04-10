@@ -3,7 +3,7 @@ import torch
 
 from deepdow.layers import AverageCollapse, AttentionCollapse, ElementCollapse, MaxCollapse, SumCollapse
 from deepdow.layers import Markowitz
-from deepdow.layers import CovarianceMatrix, MultiplyByConstant
+from deepdow.layers import CovarianceMatrix, MultiplyByConstant, SoftmaxAllocator
 from deepdow.layers import Conv, RNN
 
 ALL_COLLAPSE = [AverageCollapse, AttentionCollapse, ElementCollapse, MaxCollapse, SumCollapse]
@@ -215,3 +215,21 @@ class TestRNN:
 
         with pytest.raises(ValueError):
             RNN(3, 3, cell_type='LSTM', bidirectional=True)
+
+
+class TestSoftmax:
+    def test_basic(self, Xy_dummy):
+        eps = 1e-5
+        X, _, _, _ = Xy_dummy
+        dtype, device = X.dtype, X.device
+        n_samples, n_channels, lookback, n_assets = X.shape
+
+        rets = X.mean(dim=(1, 2))
+
+        weights = SoftmaxAllocator()(rets)
+
+        assert weights.shape == (n_samples, n_assets)
+        assert weights.dtype == X.dtype
+        assert weights.device == X.device
+        assert torch.all(-eps <= weights) and torch.all(weights <= 1 + eps)
+        assert torch.allclose(weights.sum(dim=1), torch.ones(n_samples).to(dtype=dtype, device=device), atol=eps)
