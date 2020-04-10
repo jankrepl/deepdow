@@ -1,4 +1,4 @@
-"""Package for using deep learning in portfolio optimization.
+"""Package connecting deep learning and portfolio optimization.
 
 Release markers:
 X.Y
