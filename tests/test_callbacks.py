@@ -50,7 +50,8 @@ class TestMLFlowCallback:
             MLFlowCallback(run_name='name', run_id='some_id', log_benchmarks=log_benchmarks,
                            mlflow_path=pathlib.Path(str(tmpdir)))
 
-        cb = MLFlowCallback(mlflow_path=pathlib.Path(str(tmpdir)), experiment_name='test', log_benchmarks=log_benchmarks)
+        cb = MLFlowCallback(mlflow_path=pathlib.Path(str(tmpdir)), experiment_name='test',
+                            log_benchmarks=log_benchmarks)
         cb.run = run_dummy
 
         run_dummy.callbacks = [cb]  # make sure there are no default callbacks

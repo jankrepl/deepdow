@@ -13,9 +13,6 @@
 # import os
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
-def setup(app):
-    app.add_stylesheet('css/custom.css')
-
 
 # -- Project information -----------------------------------------------------
 
@@ -67,3 +64,15 @@ html_sidebars = {
 
 # Disable prepending with package and module name
 add_module_names = False
+
+
+# Making sure __call__ shows up in the documentation
+def skip(app, what, name, obj, would_skip, options):
+    if name == "__call__":
+        return False
+    return would_skip
+
+
+def setup(app):
+    app.add_stylesheet('css/custom.css')  # adding custom styling
+    app.connect("autodoc-skip-member", skip)  # making sure __call__ is shown when implemented in child class

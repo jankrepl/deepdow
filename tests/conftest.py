@@ -107,8 +107,14 @@ def dataloader_dummy(dataset_dummy):
                  id='float64_gpu',
                  marks=[] if GPU_AVAILABLE else pytest.mark.skip),
 ])
-def Xy_dummy(request, dataloader_dummy):
+def dtype_device(request):
     dtype, device = request.param
+    return dtype, device
+
+
+@pytest.fixture()
+def Xy_dummy(dtype_device, dataloader_dummy):
+    dtype, device = dtype_device
     X, y, timestamps, asset_names = next(iter(dataloader_dummy))
 
     return X.to(dtype=dtype, device=device), y.to(dtype=dtype, device=device), timestamps, asset_names
