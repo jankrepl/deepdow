@@ -265,7 +265,7 @@ class TestKMeans:
 
         cluster_ixs, cluster_centers = kmeans_layer(x, manual_init=manual_init)
 
-        assert torch.allclose(cluster_ixs, torch.tensor([0, 0, 1, 1]))
+        assert torch.allclose(cluster_ixs, torch.tensor([0, 0, 1, 1]).to(device=device))
         assert torch.allclose(cluster_centers, torch.tensor([[0.25, 0], [0.75, 1]]).to(dtype=dtype, device=device))
 
 
@@ -336,7 +336,7 @@ class TestNCO:
         true_weights = AnalyticalMarkowitz()(covmat, rets=rets)
         pred_weights = NCO(n_clusters=n_clusters)(covmat, rets=rets)
 
-        assert torch.allclose(pred_weights, true_weights)
+        assert torch.allclose(pred_weights, true_weights, atol=1e-3)
         assert true_weights.device == pred_weights.device
         assert true_weights.dtype == pred_weights.dtype
 
