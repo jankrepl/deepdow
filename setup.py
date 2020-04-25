@@ -7,6 +7,7 @@ LONG_DESCRIPTION = DESCRIPTION
 
 INSTALL_REQUIRES = [
     "cvxpylayers",
+    "matplotlib",
     "mlflow",
     "numpy>=1.16",
     "pandas",

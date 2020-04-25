@@ -403,6 +403,51 @@ class MeanReturns(Loss):
                                                                                   self.output_type)
 
 
+class Quantile(Loss):
+    """Compute negative percentile.
+
+    Parameters
+    ----------
+    q : float
+        Number from (0, 1) representing the quantile.
+
+    """
+
+    def __init__(self, returns_channel=0, q=0.1):
+        self.returns_channel = returns_channel
+        self.q = q
+
+    def __call__(self, weights, y):
+        """Compute negative quantile.
+
+        Parameters
+        ----------
+        weights : torch.Tensor
+            Tensor of shape `(n_samples, n_assets)` representing the predicted weights by our portfolio optimizer.
+
+        y : torch.Tensor
+            Tensor of shape `(n_samples, n_channels, horizon, n_assets)` representing the evolution over the next
+            `horizon` timesteps.
+
+        Returns
+        -------
+        torch.Tensor
+            Tensor of shape `(n_samples,)` representing the per sample negative quantile.
+
+        """
+        prets = portfolio_returns(weights,
+                                  y[:, self.returns_channel, ...])  # (n_samples, horizon)
+
+        _, horizon = prets.shape
+
+        k = 1 + round(self.q * (horizon - 1))
+        return -prets.kthvalue(k)[0]
+
+    def __repr__(self):
+        """Generate representation string."""
+        return "{}(returns_channel={})".format(self.__class__.__name__, self.returns_channel)
+
+
 class SharpeRatio(Loss):
     """Negative Sharpe ratio."""
 

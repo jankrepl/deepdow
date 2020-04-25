@@ -497,6 +497,8 @@ class TensorBoardCallback(Callback):
                                               global_step=self.counter)
                 else:
                     for j, y in enumerate(x):
+                        if y is None:
+                            continue   # pragma: no cover
                         self.writer.add_histogram(s.__class__.__name__ + "_{}_{}".format('inp' if i == 0 else 'out', j),
                                                   y[ix],
                                                   global_step=self.counter)

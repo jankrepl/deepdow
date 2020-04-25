@@ -1,13 +1,46 @@
 import pytest
 import torch
 
-from deepdow.layers import AverageCollapse, AttentionCollapse, ElementCollapse, MaxCollapse, SumCollapse
-from deepdow.layers import Markowitz
-from deepdow.layers import CovarianceMatrix, MultiplyByConstant, SoftmaxAllocator
+from deepdow.layers import (AverageCollapse, AttentionCollapse, ElementCollapse, ExponentialCollapse, MaxCollapse,
+                            SumCollapse)
+from deepdow.layers import AnalyticalMarkowitz, NCO, NumericalMarkowitz, Resample, SoftmaxAllocator
+from deepdow.layers import Cov2Corr, CovarianceMatrix, KMeans, MultiplyByConstant
 from deepdow.layers import Conv, RNN
 
-ALL_COLLAPSE = [AverageCollapse, AttentionCollapse, ElementCollapse, MaxCollapse, SumCollapse]
+ALL_COLLAPSE = [AverageCollapse, AttentionCollapse, ElementCollapse, ExponentialCollapse, MaxCollapse, SumCollapse]
 ALL_TRANSFORM = [Conv]
+
+
+class TestAnalyticalMarkowitz:
+    @pytest.mark.parametrize('use_rets', [True, False], ids=['use_rets', 'dont_use_rets'])
+    def test_eye(self, dtype_device, use_rets):
+        dtype, device = dtype_device
+
+        n_samples = 2
+        n_assets = 4
+
+        covmat = torch.stack([torch.eye(n_assets, n_assets, dtype=dtype, device=device) for _ in range(n_samples)],
+                             dim=0)
+        rets = torch.ones(n_samples, n_assets, dtype=dtype, device=device) if use_rets else None
+        true_weights = torch.ones(n_samples, n_assets, dtype=dtype, device=device) / n_assets
+
+        pred_weights = AnalyticalMarkowitz()(covmat, rets=rets)
+
+        assert torch.allclose(pred_weights, true_weights)
+        assert true_weights.device == pred_weights.device
+        assert true_weights.dtype == pred_weights.dtype
+
+    def test_diagonal(self, dtype_device):
+        dtype, device = dtype_device
+
+        covmat = torch.tensor([[[1 / 2, 0, 0], [0, 1 / 3, 0], [0, 0, 1 / 5]]], dtype=dtype, device=device)
+        true_weights = torch.tensor([[0.2, 0.3, 0.5]], dtype=dtype, device=device)
+
+        pred_weights = AnalyticalMarkowitz()(covmat)
+
+        assert torch.allclose(pred_weights, true_weights)
+        assert true_weights.device == pred_weights.device
+        assert true_weights.dtype == pred_weights.dtype
 
 
 class TestCollapse:
@@ -68,6 +101,34 @@ class TestConv:
         assert X.shape[2:] == res.shape[2:]
 
 
+class TestCov2Corr:
+    def test_eye(self, dtype_device):
+        dtype, device = dtype_device  # we just use X to steal the device and dtype
+
+        n_samples = 2
+        n_assets = 3
+        covmat = torch.stack([torch.eye(n_assets, device=device, dtype=dtype) for _ in range(n_samples)], dim=0)
+        corrmat = Cov2Corr()(covmat)
+
+        assert torch.allclose(covmat, corrmat)
+        assert covmat.device == corrmat.device
+        assert covmat.dtype == corrmat.dtype
+
+    def test_diagonal(self, Xy_dummy):
+        X, _, _, _ = Xy_dummy
+
+        device, dtype = X.device, X.dtype  # we just use X to steal the device and dtype
+
+        covmat = torch.Tensor([[4, 0, 0], [0, 9, 0], [0, 0, 16]]).to(device=device, dtype=dtype).view(1, 3, 3)
+        corrmat_true = torch.eye(3, device=device, dtype=dtype).view(1, 3, 3)
+
+        corrmat_pred = Cov2Corr()(covmat)
+
+        assert torch.allclose(corrmat_pred, corrmat_true)
+        assert corrmat_pred.device == corrmat_true.device
+        assert corrmat_pred.dtype == corrmat_true.dtype
+
+
 class TestCovarianceMatrix:
 
     def test_wrong_construction(self):
@@ -114,14 +175,108 @@ class TestCovarianceMatrix:
             assert torch.allclose(cov[i], cov_sqrt[i] @ cov_sqrt[i], atol=1e-2)
 
 
-class TestMarkowitz:
+class TestKMeans:
+    def test_errors(self):
+        with pytest.raises(ValueError):
+            KMeans(init='fake')
+
+        with pytest.raises(ValueError):
+            KMeans(n_clusters=4)(torch.ones(3, 2))
+
+    def test_compute_distances(self, dtype_device):
+        dtype, device = dtype_device
+
+        x = torch.tensor([[1, 0], [0, 1], [2, 2]]).to(dtype=dtype, device=device)
+        cluster_centers = torch.tensor([[0, 0], [1, 1]]).to(dtype=dtype, device=device)
+
+        correct_result = torch.tensor([[1, 1], [1, 1], [8, 2]]).to(dtype=dtype, device=device)
+
+        assert torch.allclose(KMeans.compute_distances(x, cluster_centers), correct_result)
+
+    def test_manual_init(self):
+        n_samples = 10
+        n_features = 3
+        n_clusters = 2
+
+        kmeans_layer = KMeans(init='manual', n_clusters=n_clusters)
+
+        x = torch.rand((n_samples, n_features))
+        manual_init = torch.rand((n_clusters, n_features))
+        wrong_init_1 = torch.rand((n_clusters + 1, n_features))
+        wrong_init_2 = torch.rand((n_clusters, n_features + 1))
+
+        with pytest.raises(TypeError):
+            kmeans_layer.initialize(x, manual_init=None)
+
+        with pytest.raises(ValueError):
+            kmeans_layer.initialize(x, manual_init=wrong_init_1)
+
+        with pytest.raises(ValueError):
+            kmeans_layer.initialize(x, manual_init=wrong_init_2)
+
+        assert torch.allclose(manual_init, kmeans_layer.initialize(x, manual_init=manual_init))
+
+    @pytest.mark.parametrize('init', ['random', 'k-means++'])
+    def test_init_deterministic(self, init, dtype_device):
+        dtype, device = dtype_device
+
+        random_state = 2
+        x = torch.rand((20, 5), dtype=dtype, device=device)
+
+        kmeans_layer = KMeans(n_clusters=3, init=init)
+
+        torch.manual_seed(random_state)
+        cluster_centers_1 = kmeans_layer.initialize(x)
+        torch.manual_seed(random_state)
+        cluster_centers_2 = kmeans_layer.initialize(x)
+
+        assert torch.allclose(cluster_centers_1, cluster_centers_2)
+
+    @pytest.mark.parametrize('init', ['random', 'k-means++'])
+    def test_all_deterministic(self, init, dtype_device):
+        dtype, device = dtype_device
+
+        random_state = 2
+        kmeans_layer = KMeans(n_clusters=3, init=init, random_state=random_state, n_init=2, verbose=True)
+
+        x = torch.rand((20, 5), dtype=dtype, device=device)
+
+        cluster_ixs_1, cluster_centers_1 = kmeans_layer(x)
+        cluster_ixs_2, cluster_centers_2 = kmeans_layer(x)
+
+        assert torch.allclose(cluster_centers_1, cluster_centers_2)
+        assert torch.allclose(cluster_ixs_1, cluster_ixs_2)
+
+    @pytest.mark.parametrize('random_state', [None, 1, 2])
+    def test_dummy(self, dtype_device, random_state):
+        """Create a dummy feature matrix.
+
+        Notes
+        -----
+        Copied from scikit-learn tests.
+
+        """
+
+        dtype, device = dtype_device
+        x = torch.tensor([[0, 0], [0.5, 0], [0.5, 1], [1, 1]]).to(dtype=dtype, device=device)
+        manual_init = torch.tensor([[0, 0], [1, 1]])
+
+        kmeans_layer = KMeans(n_clusters=2, init='manual', random_state=random_state, n_init=1, verbose=True)
+
+        cluster_ixs, cluster_centers = kmeans_layer(x, manual_init=manual_init)
+
+        assert torch.allclose(cluster_ixs, torch.tensor([0, 0, 1, 1]).to(device=device))
+        assert torch.allclose(cluster_centers, torch.tensor([[0.25, 0], [0.75, 1]]).to(dtype=dtype, device=device))
+
+
+class TestNumericalMarkowitz:
 
     def test_basic(self, Xy_dummy):
         X, _, _, _ = Xy_dummy
         device, dtype = X.device, X.dtype
         n_samples, n_channels, lookback, n_assets = X.shape
 
-        popt = Markowitz(n_assets)
+        popt = NumericalMarkowitz(n_assets)
 
         rets = X.mean(dim=(1, 2))
 
@@ -132,8 +287,9 @@ class TestMarkowitz:
         covmat_sqrt = torch.stack(n_samples * [covmat_sqrt_])
 
         gamma = (torch.rand(n_samples) * 5 + 0.1).to(device=X.device, dtype=X.dtype)
+        alpha = torch.ones(n_samples).to(device=X.device, dtype=X.dtype)
 
-        weights = popt(rets, covmat_sqrt, gamma)
+        weights = popt(rets, covmat_sqrt, gamma, alpha)
 
         assert weights.shape == (n_samples, n_assets)
         assert weights.dtype == X.dtype
@@ -160,6 +316,95 @@ class TestMultiplyByConstant:
         assert X.device == res.device
         assert X.dtype == res.dtype
         assert res.shape == X.shape
+
+
+class TestNCO:
+    @pytest.mark.parametrize('use_rets', [True, False], ids=['use_rets', 'dont_use_rets'])
+    @pytest.mark.parametrize('edge_case', ['single_cluster', 'n_clusters=n_samples'])
+    def test_edge_case(self, dtype_device, use_rets, edge_case):
+        dtype, device = dtype_device
+
+        n_samples = 2
+        n_assets = 4
+        n_clusters = 1 if edge_case == 'single_cluster' else n_assets
+
+        single_ = torch.rand(n_assets, n_assets, dtype=dtype, device=device)
+        single = single_ @ single_.t()
+        covmat = torch.stack([single for _ in range(n_samples)], dim=0)
+        rets = torch.rand(n_samples, n_assets, dtype=dtype, device=device) if use_rets else None
+
+        true_weights = AnalyticalMarkowitz()(covmat, rets=rets)
+        pred_weights = NCO(n_clusters=n_clusters)(covmat, rets=rets)
+
+        assert torch.allclose(pred_weights, true_weights, atol=1e-3)
+        assert true_weights.device == pred_weights.device
+        assert true_weights.dtype == pred_weights.dtype
+
+    @pytest.mark.parametrize('use_rets', [True, False], ids=['use_rets', 'dont_use_rets'])
+    def test_reproducible(self, dtype_device, use_rets):
+        dtype, device = dtype_device
+
+        n_samples = 2
+        n_assets = 6
+        n_clusters = 3
+
+        single_ = torch.rand(n_assets, n_assets, dtype=dtype, device=device)
+        single = single_ @ single_.t()
+        covmat = torch.stack([single for _ in range(n_samples)], dim=0)
+        rets = torch.rand(n_samples, n_assets, dtype=dtype, device=device) if use_rets else None
+
+        layer = NCO(n_clusters=n_clusters, random_state=2)
+        weights_1 = layer(covmat, rets=rets)
+        weights_2 = layer(covmat, rets=rets)
+
+        assert torch.allclose(weights_1, weights_2)
+        assert weights_1.device == weights_2.device
+        assert weights_1.dtype == weights_2.dtype
+
+
+class TestResample:
+    def test_error(self):
+        with pytest.raises(TypeError):
+            Resample('wrong_type')
+
+    @pytest.mark.parametrize('random_state', [1, None], ids=['random', 'not_random'])
+    @pytest.mark.parametrize('allocator_class', [AnalyticalMarkowitz, NCO, NumericalMarkowitz])
+    def test_basic(self, dtype_device, allocator_class, random_state):
+        dtype, device = dtype_device
+
+        n_samples = 2
+        n_assets = 3
+
+        single_ = torch.rand(n_assets, n_assets, dtype=dtype, device=device)
+        single = single_ @ single_.t()
+        covmat = torch.stack([single for _ in range(n_samples)], dim=0)
+        rets = torch.rand(n_samples, n_assets, dtype=dtype, device=device)
+
+        if allocator_class.__name__ == 'AnalyticalMarkowitz':
+            allocator = allocator_class()
+            kwargs = {}
+        elif allocator_class.__name__ == 'NCO':
+            allocator = allocator_class(n_clusters=2)
+            kwargs = {}
+
+        elif allocator_class.__name__ == 'NumericalMarkowitz':
+            allocator = allocator_class(n_assets=n_assets)
+            kwargs = {'gamma': torch.ones(n_samples, dtype=dtype, device=device),
+                      'alpha': torch.ones(n_samples, dtype=dtype, device=device)}
+
+        resample_layer = Resample(allocator, n_portfolios=2, sqrt=False, random_state=random_state)
+
+        weights_1 = resample_layer(covmat, rets=rets, **kwargs)
+        weights_2 = resample_layer(covmat, rets=rets, **kwargs)
+
+        assert weights_1.shape == (n_samples, n_assets)
+        assert weights_1.device == device
+        assert weights_1.dtype == dtype
+
+        if random_state is None:
+            assert not torch.allclose(weights_1, weights_2)
+        else:
+            assert torch.allclose(weights_1, weights_2)
 
 
 class TestRNN:

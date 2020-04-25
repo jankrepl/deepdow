@@ -252,7 +252,7 @@ class Run:
                     # Get batch
                     X_batch, y_batch = X_batch.to(self.device).to(self.dtype), y_batch.to(self.device).to(self.dtype)
 
-                    # Make sure network on the right device and in eval mode
+                    # Make sure network on the right device and train mode
                     self.network.train()
 
                     # Forward & Backward
@@ -262,6 +262,9 @@ class Run:
                     self.optimizer.zero_grad()
                     loss.backward()
                     self.optimizer.step()
+
+                    # Switch back to eval mode
+                    self.network.eval()
 
                     # Batch end
                     self.on_batch_end(metadata={'asset_names': asset_names,

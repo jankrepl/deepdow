@@ -104,6 +104,56 @@ class ElementCollapse(nn.Module):
         return x.unbind(self.collapse_dim)[self.element_ix]
 
 
+class ExponentialCollapse(nn.Module):
+    """Exponential weighted collapsing over a specified dimension.
+
+    The unscaled weights are defined recursively with the following rules:
+        - w_{0}=1
+        - w_{t+1} = forgetting_factor * w_{t} + 1
+
+    Parameters
+    ----------
+    collapse_dim : int
+        What dimension to remove.
+
+    forgetting_factor : float or None
+        If float, then fixed constant. If None this will become learnable.
+
+    """
+
+    def __init__(self, collapse_dim=2, forgetting_factor=None):
+        super().__init__()
+        self.collapse_dim = collapse_dim
+        self.forgetting_factor = forgetting_factor or torch.nn.Parameter(torch.Tensor([0.5]), requires_grad=True)
+
+    def forward(self, x):
+        """Perform forward pass.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            N-dimensional tensor of shape (d_0, d_1, ..., d_{N-1}).
+
+        Returns
+        -------
+        torch.Tensor
+            {N-1}-dimensional tensor of shape (d_0, ..., d_{collapse_dim - 1}, d_{collapse_dim + 1}, ..., d_{N-1}).
+            Exponential Average over the removed dimension.
+        """
+        n_steps = x.shape[self.collapse_dim]
+        n_dim = x.ndim
+        view = [-1 if i == self.collapse_dim else 1 for i in range(n_dim)]
+
+        w_unscaled = [1]
+        for _ in range(1, n_steps):
+            w_unscaled.append(self.forgetting_factor * w_unscaled[-1] + 1)
+
+        w_unscaled = torch.Tensor(w_unscaled).to(dtype=x.dtype, device=x.device)
+        w = w_unscaled / w_unscaled.sum()
+
+        return (x * w.view(*view)).sum(dim=self.collapse_dim)
+
+
 class MaxCollapse(nn.Module):
     """Global max collapsing over a specified dimension."""
 

@@ -2,7 +2,7 @@
 import pytest
 import torch
 
-from deepdow.benchmarks import Benchmark, MaximumReturn, MinimumVariance, OneOverN, Random, Singleton
+from deepdow.benchmarks import Benchmark, InverseVolatility, MaximumReturn, MinimumVariance, OneOverN, Random, Singleton
 
 
 class TestBenchmark:
@@ -25,6 +25,26 @@ class TestBenchmark:
         temp(X_dummy)
 
         assert isinstance(temp.hparams, dict)
+
+
+class TestInverseVolatility:
+    @pytest.mark.parametrize('use_std', [True, False], ids=['use_std', 'use_var'])
+    def test_basic(self, Xy_dummy, use_std):
+        X_dummy, _, _, _ = Xy_dummy
+        n_samples, n_channels, lookback, n_assets = X_dummy.shape
+        dtype = X_dummy.dtype
+        device = X_dummy.device
+        bm = InverseVolatility(use_std=use_std)
+
+        weights = bm(X_dummy)
+
+        assert isinstance(weights, torch.Tensor)
+        assert weights.shape == (n_samples, n_assets)
+        assert weights.dtype == dtype
+        assert weights.device == device
+        assert torch.allclose(weights.sum(dim=1), torch.ones(n_samples).to(dtype=dtype, device=device))
+        assert torch.all(weights >= 0) and torch.all(weights <= 1)
+        assert isinstance(bm.hparams, dict) and bm.hparams
 
 
 class TestMaximumReturn:
@@ -51,6 +71,7 @@ class TestMaximumReturn:
         assert weights.device == device
         assert torch.allclose(weights.sum(dim=1), torch.ones(n_samples).to(dtype=dtype, device=device), atol=1e-4)
         assert torch.all(-eps <= weights) and torch.all(weights <= max_weight + eps)
+        assert isinstance(bm.hparams, dict) and bm.hparams
 
         if predefined_assets:
             with pytest.raises(ValueError):
@@ -84,6 +105,7 @@ class TestMinimumVariance:
         assert weights.device == device
         assert torch.allclose(weights.sum(dim=1), torch.ones(n_samples).to(dtype=dtype, device=device), atol=1e-4)
         assert torch.all(-eps <= weights) and torch.all(weights <= max_weight + eps)
+        assert isinstance(bm.hparams, dict) and bm.hparams
 
         if predefined_assets:
             with pytest.raises(ValueError):
@@ -109,6 +131,7 @@ class TestOneOverN:
         assert weights.device == device
         assert torch.allclose(weights.sum(dim=1), torch.ones(n_samples).to(dtype=dtype, device=device))
         assert len(torch.unique(weights)) == 1
+        assert isinstance(bm.hparams, dict) and not bm.hparams
 
 
 class TestRandom:
@@ -128,6 +151,7 @@ class TestRandom:
         assert torch.allclose(weights.sum(dim=1), torch.ones(n_samples).to(dtype=dtype, device=device))
 
         assert torch.all(weights >= 0) and torch.all(weights <= 1)
+        assert isinstance(bm.hparams, dict) and not bm.hparams
 
 
 class TestSingleton:
@@ -148,6 +172,7 @@ class TestSingleton:
         assert torch.allclose(weights.sum(dim=1), torch.ones(n_samples).to(dtype=dtype, device=device))
 
         assert torch.allclose(weights[:, asset_ix], torch.ones(n_samples).to(dtype=dtype, device=device))
+        assert isinstance(bm.hparams, dict) and bm.hparams
 
     def test_error(self):
         with pytest.raises(IndexError):

@@ -79,7 +79,7 @@ class TestThorpNet:
     def test_n_params(self, n_assets, force_symmetric):
         network = ThorpNet(n_assets, force_symmetric=force_symmetric)
 
-        expected = n_assets * n_assets + n_assets + 1
+        expected = n_assets * n_assets + n_assets + 1 + 1
         actual = sum(p.numel() for p in network.parameters() if p.requires_grad)
 
         assert expected == actual
