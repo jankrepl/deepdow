@@ -7,7 +7,7 @@ from types import MethodType
 import torch
 
 
-def simple2log(x):
+def log2simple(x):
     """Turn simple returns into log returns.
 
     r_simple = exp(r_log) - 1.
@@ -26,7 +26,7 @@ def simple2log(x):
     return torch.exp(x) - 1
 
 
-def log2simple(x):
+def simple2log(x):
     """Turn log returns into simple returns.
 
     r_log = ln(r_simple + 1).
@@ -86,8 +86,8 @@ def portfolio_returns(weights, y, input_type='log', output_type='simple', rebala
     weights_ = weights.view(n_samples, 1, n_assets).repeat(1, horizon, 1)  # (n_samples, horizon, n_assets)
 
     if not rebalance:
-        weights_unscaled = (1 + simple_returns).cumprod(1) * weights_
-        weights_ = weights_unscaled / weights_unscaled.sum(2, keepdim=True)
+        weights_unscaled = (1 + simple_returns).cumprod(1)[:, :-1, :] * weights_[:, 1:, :]
+        weights_[:, 1:, :] = weights_unscaled / weights_unscaled.sum(2, keepdim=True)
 
     out = (simple_returns * weights_).sum(-1)
 
@@ -101,7 +101,7 @@ def portfolio_returns(weights, y, input_type='log', output_type='simple', rebala
         raise ValueError('Unsupported output type: {}'.format(output_type))
 
 
-def portfolio_cumulative_returns(weights, y, input_type='log', output_type='simple'):
+def portfolio_cumulative_returns(weights, y, input_type='log', output_type='simple', rebalance=False):
     """Compute cumulative portfolio returns.
 
     Parameters
@@ -119,14 +119,18 @@ def portfolio_cumulative_returns(weights, y, input_type='log', output_type='simp
     output_type : str, {'log', 'simple'}
         What type of returns are we dealing with in the output.
 
+    rebalance : bool
+        If True, each timestep the weights are adjusted to be equal to be equal to the original ones. Note that
+        this assumes that we tinker with the portfolio. If False, the portfolio evolves untouched.
+
     Returns
     -------
     torch.Tensor
         Tensor of shape `(n_samples, horizon)`.
 
     """
-    prets = portfolio_returns(weights, y, input_type=input_type, output_type='log')  # we can aggregate overtime by sum
-    log_prets = torch.cumsum(prets, dim=1)
+    prets = portfolio_returns(weights, y, input_type=input_type, output_type='log', rebalance=rebalance)
+    log_prets = torch.cumsum(prets, dim=1)  # we can aggregate log returns over time by sum
 
     if output_type == 'log':
         return log_prets

@@ -51,11 +51,109 @@ class TestPortfolioReturns:
         with pytest.raises(ValueError):
             portfolio_returns(weights, y, output_type='fake')
 
+    @pytest.mark.parametrize('input_type', ['simple', 'log'])
+    def test_sanity_check(self, input_type):
+        initial_wealth = 50
+        y_1_ = torch.tensor([[0.01, 0.02],
+                             [-0.05, 0.04]])  # assets move in a different way
+        y_2_ = torch.tensor([[0.01, 0.01],
+                             [-0.05, -0.05]])  # assets move in the same way
 
-class TestCumulativePortfolioReturns:
+        w_a_ = torch.tensor([0.2, 0.8])
+
+        y_1 = y_1_[None, ...]
+        y_2 = y_2_[None, ...]
+        w_a = w_a_[None, ...]
+
+        # No need to rebalance when returns evolve in the same way
+        assert torch.allclose(portfolio_returns(w_a,
+                                                y_2,
+                                                rebalance=True,
+                                                input_type=input_type),
+                              portfolio_returns(w_a,
+                                                y_2,
+                                                rebalance=False,
+                                                input_type=input_type))
+
+        # rebalancing necessary when returns evolve differently
+        assert not torch.allclose(portfolio_returns(w_a, y_1, rebalance=True, input_type=input_type),
+                                  portfolio_returns(w_a, y_1, rebalance=False, input_type=input_type))
+
+        # manually computed returns
+
+        if input_type == 'simple':
+            h_per_asset_1 = torch.tensor([[w_a_[0], w_a_[1]],
+                                          [w_a_[0] * (1 + y_1_[0, 0]), w_a_[1] * (1 + y_1_[0, 1])],
+                                          [w_a_[0] * (1 + y_1_[0, 0]) * (1 + y_1_[1, 0]),
+                                           w_a_[1] * (1 + y_1_[0, 1]) * (1 + y_1_[1, 1])]
+                                          ]) * initial_wealth
+        else:
+            h_per_asset_1 = torch.tensor([[w_a_[0], w_a_[1]],
+                                          [w_a_[0] * torch.exp(y_1_[0, 0]), w_a_[1] * torch.exp(y_1_[0, 1])],
+                                          [w_a_[0] * torch.exp(y_1_[0, 0]) * torch.exp(y_1_[1, 0]),
+                                           w_a_[1] * torch.exp(y_1_[0, 1]) * torch.exp(y_1_[1, 1])]
+                                          ]) * initial_wealth
+
+        h_1 = h_per_asset_1.sum(1)
+
+        correct_simple_returns = torch.tensor([(h_1[1] / h_1[0]) - 1, (h_1[2] / h_1[1]) - 1])
+        correct_log_returns = torch.tensor([torch.log(h_1[1] / h_1[0]), torch.log(h_1[2] / h_1[1])])
+        correct_simple_creturns = torch.tensor([(h_1[1] / h_1[0]) - 1, (h_1[2] / h_1[0]) - 1])
+        correct_log_creturns = torch.tensor([torch.log(h_1[1] / h_1[0]), torch.log(h_1[2] / h_1[0])])
+
+        assert torch.allclose(portfolio_returns(w_a,
+                                                y_1,
+                                                input_type=input_type,
+                                                output_type='simple',
+                                                rebalance=False)[0],
+                              correct_simple_returns)
+
+        assert torch.allclose(portfolio_returns(w_a,
+                                                y_1,
+                                                input_type=input_type,
+                                                output_type='log',
+                                                rebalance=False)[0],
+                              correct_log_returns)
+
+        assert torch.allclose(portfolio_cumulative_returns(w_a,
+                                                           y_1,
+                                                           input_type=input_type,
+                                                           output_type='simple',
+                                                           rebalance=False)[0],
+                              correct_simple_creturns)
+
+        assert torch.allclose(portfolio_cumulative_returns(w_a,
+                                                           y_1,
+                                                           input_type=input_type,
+                                                           output_type='log',
+                                                           rebalance=False)[0],
+                              correct_log_creturns)
+
     @pytest.mark.parametrize('input_type', ['log', 'simple'])
     @pytest.mark.parametrize('output_type', ['log', 'simple'])
-    def test_shape(self, Xy_dummy, input_type, output_type):
+    @pytest.mark.parametrize('rebalance', [True, False])
+    def test_sample_independence(self, input_type, output_type, rebalance):
+        y_a = torch.tensor([[0.01, 0.02],
+                            [-0.05, 0.04]])  # assets move in a different way
+        y_b = torch.tensor([[0.01, 0.03],
+                            [-0.01, -0.02]])  # assets move in the same way
+        w_a = torch.tensor([0.2, 0.8])
+        w_b = torch.tensor([0.45, 0.55])
+
+        w_1 = torch.stack([w_a, w_b], dim=0)
+        y_1 = torch.stack([y_a, y_b], dim=0)
+        w_2 = torch.stack([w_b, w_a], dim=0)
+        y_2 = torch.stack([y_b, y_a], dim=0)
+
+        res_1 = portfolio_returns(w_1, y_1, input_type=input_type, output_type=output_type, rebalance=rebalance)
+        res_2 = portfolio_returns(w_2, y_2, input_type=input_type, output_type=output_type, rebalance=rebalance)
+
+        assert torch.allclose(res_1[0], res_2[1])
+        assert torch.allclose(res_1[1], res_2[0])
+
+    @pytest.mark.parametrize('input_type', ['log', 'simple'])
+    @pytest.mark.parametrize('output_type', ['log', 'simple'])
+    def test_shape_cumulative(self, Xy_dummy, input_type, output_type):
         _, y_dummy, _, _ = Xy_dummy
 
         y_dummy = y_dummy.mean(dim=1)
@@ -67,7 +165,7 @@ class TestCumulativePortfolioReturns:
 
         assert pcrets.shape == (n_samples, horizon)
 
-    def test_errors(self):
+    def test_errors_cumulative(self):
         n_samples = 3
         n_assets = 2
         horizon = 4
