@@ -12,7 +12,7 @@ INSTALL_REQUIRES = [
     "numpy>=1.16",
     "pandas",
     "pillow",
-    "torch",
+    "torch>=1.5",
     "tensorboard",
     "tqdm"
 ]

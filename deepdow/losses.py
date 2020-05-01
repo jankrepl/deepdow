@@ -7,7 +7,7 @@ from types import MethodType
 import torch
 
 
-def simple2log(x):
+def log2simple(x):
     """Turn simple returns into log returns.
 
     r_simple = exp(r_log) - 1.
@@ -26,7 +26,7 @@ def simple2log(x):
     return torch.exp(x) - 1
 
 
-def log2simple(x):
+def simple2log(x):
     """Turn log returns into simple returns.
 
     r_log = ln(r_simple + 1).
@@ -45,7 +45,7 @@ def log2simple(x):
     return torch.log(x + 1)
 
 
-def portfolio_returns(weights, y, input_type='log', output_type='simple'):
+def portfolio_returns(weights, y, input_type='log', output_type='simple', rebalance=False):
     """Compute portfolio returns.
 
     Parameters
@@ -62,10 +62,14 @@ def portfolio_returns(weights, y, input_type='log', output_type='simple'):
     output_type : str, {'log', 'simple'}
         What type of returns are we dealing with in the output.
 
+    rebalance : bool
+        If True, each timestep the weights are adjusted to be equal to be equal to the original ones. Note that
+        this assumes that we tinker with the portfolio. If False, the portfolio evolves untouched.
+
     Returns
     -------
     portfolio_returns : torch.Tensor
-        Of shape (n_samples, horizon)
+        Of shape (n_samples, horizon) representing per timestep portfolio returns.
 
     """
     if input_type == 'log':
@@ -79,12 +83,13 @@ def portfolio_returns(weights, y, input_type='log', output_type='simple'):
 
     n_samples, horizon, n_assets = simple_returns.shape
 
-    res = []
+    weights_ = weights.view(n_samples, 1, n_assets).repeat(1, horizon, 1)  # (n_samples, horizon, n_assets)
 
-    for i in range(n_samples):
-        res.append(simple_returns[i] @ weights[i])  # (horizon, n_assets)x(n_assets)=(horizon,)
+    if not rebalance:
+        weights_unscaled = (1 + simple_returns).cumprod(1)[:, :-1, :] * weights_[:, 1:, :]
+        weights_[:, 1:, :] = weights_unscaled / weights_unscaled.sum(2, keepdim=True)
 
-    out = torch.stack(res, dim=0)
+    out = (simple_returns * weights_).sum(-1)
 
     if output_type == 'log':
         return simple2log(out)
@@ -96,7 +101,7 @@ def portfolio_returns(weights, y, input_type='log', output_type='simple'):
         raise ValueError('Unsupported output type: {}'.format(output_type))
 
 
-def portfolio_cumulative_returns(weights, y, input_type='log', output_type='simple'):
+def portfolio_cumulative_returns(weights, y, input_type='log', output_type='simple', rebalance=False):
     """Compute cumulative portfolio returns.
 
     Parameters
@@ -114,14 +119,18 @@ def portfolio_cumulative_returns(weights, y, input_type='log', output_type='simp
     output_type : str, {'log', 'simple'}
         What type of returns are we dealing with in the output.
 
+    rebalance : bool
+        If True, each timestep the weights are adjusted to be equal to be equal to the original ones. Note that
+        this assumes that we tinker with the portfolio. If False, the portfolio evolves untouched.
+
     Returns
     -------
     torch.Tensor
         Tensor of shape `(n_samples, horizon)`.
 
     """
-    prets = portfolio_returns(weights, y, input_type=input_type, output_type='log')  # we can aggregate overtime by sum
-    log_prets = torch.cumsum(prets, dim=1)
+    prets = portfolio_returns(weights, y, input_type=input_type, output_type='log', rebalance=rebalance)
+    log_prets = torch.cumsum(prets, dim=1)  # we can aggregate log returns over time by sum
 
     if output_type == 'log':
         return log_prets
@@ -360,6 +369,52 @@ class LargestWeight(Loss):
     def __repr__(self):
         """Generate representation string."""
         return "{}()".format(self.__class__.__name__)
+
+
+class MaximumDrawdown(Loss):
+    """Negative of the maximum drawdown."""
+
+    def __init__(self, returns_channel=0, input_type='log'):
+        self.returns_channel = returns_channel
+        self.input_type = input_type
+
+    def __call__(self, weights, y):
+        """Compute maximum drawdown.
+
+        Parameters
+        ----------
+        weights : torch.Tensor
+            Tensor of shape `(n_samples, n_assets)` representing the predicted weights by our portfolio optimizer.
+
+        y : torch.Tensor
+            Tensor of shape `(n_samples, n_channels, horizon, n_assets)` representing the evolution over the next
+            `horizon` timesteps.
+
+        Returns
+        -------
+        torch.Tensor
+            Tensor of shape `(n_samples,)` representing the per sample maximum drawdown.
+
+        """
+        cumrets = 1 + portfolio_cumulative_returns(weights,
+                                                   y[:, self.returns_channel, ...],
+                                                   input_type=self.input_type,
+                                                   output_type='simple')
+
+        cummax = torch.cummax(cumrets, 1)[0]  # (n_samples, n_timesteps)
+
+        div = (cumrets / cummax) - 1  # (n_samples, n_timesteps)
+
+        end = div.argmin(dim=1)  # (n_samples,)
+        mdd = div.gather(1, end.view(-1, 1)).view(-1)
+
+        return -mdd
+
+    def __repr__(self):
+        """Generate representation string."""
+        return "{}(returns_channel={}, input_type='{}')".format(self.__class__.__name__,
+                                                                self.returns_channel,
+                                                                self.input_type)
 
 
 class MeanReturns(Loss):

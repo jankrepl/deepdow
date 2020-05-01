@@ -69,8 +69,8 @@ def dataset_dummy():
     horizon = 10
     n_assets = 6
 
-    X = np.random.normal(size=(n_samples, n_channels, lookback, n_assets))
-    y = np.random.normal(size=(n_samples, n_channels, horizon, n_assets))
+    X = np.random.normal(size=(n_samples, n_channels, lookback, n_assets)) / 100
+    y = np.random.normal(size=(n_samples, n_channels, horizon, n_assets)) / 100
 
     timestamps = pd.date_range(start='31/01/2000', periods=n_samples, freq='M')
     asset_names = ['asset_{}'.format(i) for i in range(n_assets)]
