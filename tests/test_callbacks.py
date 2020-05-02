@@ -5,9 +5,8 @@ import pathlib
 import pandas as pd
 import pytest
 
-from deepdow.callbacks import (BenchmarkCallback, Callback,
-                               ProgressBarCallback, MLFlowCallback,
-                               TensorBoardCallback,
+from deepdow.callbacks import (BenchmarkCallback, Callback, EarlyStoppingCallback, EarlyStoppingException,
+                               ModelCheckpointCallback, MLFlowCallback, ProgressBarCallback, TensorBoardCallback,
                                ValidationCallback)
 
 ALL_METHODS = ['on_train_begin',
@@ -41,6 +40,46 @@ def test_benchmark(run_dummy, metadata_dummy, lookbacks):
 
     assert isinstance(run_dummy.history.metrics_per_epoch(-1), pd.DataFrame)
     assert len(run_dummy.history.metrics['epoch'].unique()) == 1
+
+
+class TestEarlyStoppingCallback:
+    def test_error(self, run_dummy, metadata_dummy):
+        dataloader_name = list(run_dummy.val_dataloaders.keys())[0]
+        metric_name = list(run_dummy.metrics.keys())[0]
+
+        cb_wrong_dataloader = EarlyStoppingCallback(dataloader_name='fake',
+                                                    metric_name=metric_name)
+        cb_wrong_metric = EarlyStoppingCallback(dataloader_name=dataloader_name,
+                                                metric_name='fake')
+
+        cb_wrong_dataloader.run = run_dummy
+        cb_wrong_metric.run = run_dummy
+
+        with pytest.raises(ValueError):
+            cb_wrong_dataloader.on_train_begin(metadata_dummy)
+
+        with pytest.raises(ValueError):
+            cb_wrong_metric.on_train_begin(metadata_dummy)
+
+    def test_basic(self, run_dummy, metadata_dummy):
+        dataloader_name = list(run_dummy.val_dataloaders.keys())[0]
+        metric_name = list(run_dummy.metrics.keys())[0]
+
+        cb = EarlyStoppingCallback(dataloader_name=dataloader_name,
+                                   metric_name=metric_name,
+                                   patience=0)
+
+        cb.run = run_dummy
+        cb_val = ValidationCallback()
+        cb_val.run = run_dummy
+
+        run_dummy.callbacks = [cb_val, cb]  # make sure there are no default callbacks
+
+        with pytest.raises(EarlyStoppingException):
+            for method_name in ALL_METHODS:
+                getattr(run_dummy, method_name)(metadata_dummy)
+
+        cb.on_train_interrupt({'exception': EarlyStoppingException()})
 
 
 class TestMLFlowCallback:
@@ -82,6 +121,57 @@ class TestMLFlowCallback:
 
         for method_name in ALL_METHODS:
             getattr(run_dummy, method_name)(metadata_dummy)
+
+
+class TestModelCheckpointCallback(Callback):
+    def test_error(self, run_dummy, metadata_dummy, tmpdir):
+        dataloader_name = list(run_dummy.val_dataloaders.keys())[0]
+        metric_name = list(run_dummy.metrics.keys())[0]
+
+        folder_path = pathlib.Path(str(tmpdir))
+        some_file_path = folder_path / 'some_file.txt'
+        some_file_path.touch()
+
+        with pytest.raises(NotADirectoryError):
+            ModelCheckpointCallback(folder_path=some_file_path,
+                                    dataloader_name=dataloader_name,
+                                    metric_name=metric_name)
+
+        cb_wrong_dataloader = ModelCheckpointCallback(folder_path,
+                                                      dataloader_name='fake',
+                                                      metric_name=metric_name)
+        cb_wrong_metric = ModelCheckpointCallback(folder_path,
+                                                  dataloader_name=dataloader_name,
+                                                  metric_name='fake')
+
+        cb_wrong_dataloader.run = run_dummy
+        cb_wrong_metric.run = run_dummy
+
+        with pytest.raises(ValueError):
+            cb_wrong_dataloader.on_train_begin(metadata_dummy)
+
+        with pytest.raises(ValueError):
+            cb_wrong_metric.on_train_begin(metadata_dummy)
+
+    def test_basic(self, run_dummy, metadata_dummy, tmpdir):
+        dataloader_name = list(run_dummy.val_dataloaders.keys())[0]
+        metric_name = list(run_dummy.metrics.keys())[0]
+
+        cb = ModelCheckpointCallback(folder_path=pathlib.Path(str(tmpdir)),
+                                     dataloader_name=dataloader_name,
+                                     metric_name=metric_name,
+                                     verbose=True)
+
+        cb.run = run_dummy
+        cb_val = ValidationCallback()
+        cb_val.run = run_dummy
+
+        run_dummy.callbacks = [cb_val, cb]  # make sure there are no default callbacks
+
+        for method_name in ALL_METHODS:
+            getattr(run_dummy, method_name)(metadata_dummy)
+
+        cb.on_train_interrupt({'exception': EarlyStoppingException()})
 
 
 class TestProgressBarCallback:

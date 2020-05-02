@@ -103,7 +103,6 @@ class Callback:
 
 class EarlyStoppingException(Exception):
     """Custom exception raised by EarlyStoppingCallback to stop the training."""
-    pass
 
 
 class BenchmarkCallback(Callback):
@@ -206,6 +205,7 @@ class EarlyStoppingCallback(Callback):
         self.run = None  # will be injected with an instance of ``Run``.
 
     def on_train_begin(self, metadata):
+        """Check if dataloader name and metric name even exist."""
         if self.dataloader_name not in self.run.val_dataloaders:
             raise ValueError('Did not find the dataloader {}'.format(self.dataloader_name))
 
@@ -213,11 +213,12 @@ class EarlyStoppingCallback(Callback):
             raise ValueError('Did not find the metric {}'.format(self.metric_name))
 
     def on_epoch_end(self, metadata):
+        """Extract statistics and if necessary stop training."""
         epoch = metadata['epoch']
         stats = self.run.history.metrics_per_epoch(epoch)
 
         if not (len(stats['lookback'].unique()) == 1 and len(stats['model'].unique()) == 1):
-            raise ValueError('EarlyStoppingCallback needs to have a single lookback and model')
+            raise ValueError('EarlyStoppingCallback needs to have a single lookback and model')  # pragma: no cover
 
         stats_formatted = stats.groupby(['dataloader', 'metric'])['value'].mean().unstack(-1)
         current_metric = stats_formatted.loc[self.dataloader_name, self.metric_name]
@@ -226,12 +227,13 @@ class EarlyStoppingCallback(Callback):
             self.min = current_metric
             self.n_epochs_no_improvement = 0
         else:
-            self.n_epochs_no_improvement += 1
+            self.n_epochs_no_improvement += 1  # pragma: no cover
 
         if self.n_epochs_no_improvement >= self.patience:
             raise EarlyStoppingException()
 
     def on_train_interrupt(self, metadata):
+        """Handle ``EarlyStoppingException``."""
         ex = metadata['exception']
 
         if isinstance(ex, EarlyStoppingException):
@@ -382,6 +384,7 @@ class ModelCheckpointCallback(Callback):
         self.run = None  # will be injected with an instance of ``Run``.
 
     def on_train_begin(self, metadata):
+        """Check if dataloader name and metric name even exist."""
         self.folder_path.mkdir(parents=True, exist_ok=True)
 
         if self.dataloader_name not in self.run.val_dataloaders:
@@ -391,11 +394,12 @@ class ModelCheckpointCallback(Callback):
             raise ValueError('Did not find the metric {}'.format(self.metric_name))
 
     def on_epoch_end(self, metadata):
+        """Store checkpoint if metric is in its all time low."""
         epoch = metadata['epoch']
         stats = self.run.history.metrics_per_epoch(epoch)
 
         if not (len(stats['lookback'].unique()) == 1 and len(stats['model'].unique()) == 1):
-            raise ValueError('ModelCheckpointCallback needs to have a single lookback and model')
+            raise ValueError('ModelCheckpointCallback needs to have a single lookback and model')  # pragma: no cover
 
         stats_formatted = stats.groupby(['dataloader', 'metric'])['value'].mean().unstack(-1)
         current_metric = stats_formatted.loc[self.dataloader_name, self.metric_name]
@@ -403,7 +407,7 @@ class ModelCheckpointCallback(Callback):
         if current_metric < self.min:
             self.min = current_metric
 
-            checkpoint_path = self.folder_path / 'model_{:02d}-{:.4f}.pth'.format(epoch, current_metric)
+            checkpoint_path = self.folder_path / 'model_{:02d}__{:.4f}.pth'.format(epoch, current_metric)
             torch.save(self.run.network, str(checkpoint_path))
 
             if self.verbose:
