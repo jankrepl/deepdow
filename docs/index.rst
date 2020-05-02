@@ -18,7 +18,7 @@ DeepDow
    :caption: Contents:
 
    source/introduction
-   source/data
+   source/basics
    source/layers
    source/networks
    source/losses
