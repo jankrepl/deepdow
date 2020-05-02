@@ -25,10 +25,10 @@ def gradient_wrt_input(model, target_weights, initial_guess, n_iter=100, mask=No
     mask : None or torch.Tensor
         If specified, then boolean ``torch.Tensor`` of the same shape as `initial_guess` than
         one can elementwise choose what parts of the inputs to optimize (True) and which
-        keep the same as the initial guess.
+        keep the same as the initial guess (False).
 
     lr : float
-        Learning rate for the optimzer.
+        Learning rate for the optimizer.
 
     verbose : bool
         If True, then verbosity activated.
@@ -72,9 +72,10 @@ def gradient_wrt_input(model, target_weights, initial_guess, n_iter=100, mask=No
     model.eval()
 
     hist = []
-    for i in range(1, n_iter):
+    for i in range(n_iter):
         if i % 50 == 0 and verbose:
-            print('{}-th iteration, loss: {:.4f}'.format(i, hist[-1]))
+            msg = '{}-th iteration, loss: {:.4f}'.format(i, hist[-1]) if i != 0 else 'Starting optimization'
+            print(msg)
 
         loss_per_asset = (model((x * mask)[None, ...])[0] - target_weights) ** 2
         loss = loss_per_asset.mean()
