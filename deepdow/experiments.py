@@ -2,6 +2,7 @@
 
 import datetime
 import time
+import sys
 
 from diffcp import SolverError
 import numpy as np
@@ -9,7 +10,7 @@ import pandas as pd
 import torch
 
 from .benchmarks import Benchmark
-from .callbacks import BenchmarkCallback, ProgressBarCallback, ValidationCallback
+from .callbacks import BenchmarkCallback, EarlyStoppingException, ProgressBarCallback, ValidationCallback
 from .data import FlexibleDataLoader, RigidDataLoader
 from .losses import Loss
 
@@ -283,7 +284,8 @@ class Run:
             # Train end
             self.on_train_end()
 
-        except (KeyboardInterrupt, SolverError) as ex:
+        except (EarlyStoppingException, KeyboardInterrupt, SolverError) as ex:
+            sys.stdout.flush()
             print('Training interrupted')
             time.sleep(1)
 

@@ -101,6 +101,11 @@ class Callback:
         pass
 
 
+class EarlyStoppingException(Exception):
+    """Custom exception raised by EarlyStoppingCallback to stop the training."""
+    pass
+
+
 class BenchmarkCallback(Callback):
     """Computation of benchmarks performance over different metrics and dataloaders.
 
@@ -162,6 +167,77 @@ class BenchmarkCallback(Callback):
 
         if len(self.run.models) > 1:
             self.run.history.pretty_print(-1)
+
+
+class EarlyStoppingCallback(Callback):
+    """Early stopping callback.
+
+    In the background, we keep a running minimum of a metric of interest. If it does not change for more than
+    `patience` epochs the training is stopped.
+
+    Parameters
+    ----------
+    dataloader_name : str
+        Name of the dataloader, needs to correspond to a key in `val_dataloaders` in ``deepdow.experiments.Run``.
+
+    metric_name : str
+        Name of the metric to use (the lower the better),  needs to correspond to a key in `metrics` in
+        ``deepdow.experiments.Run``.
+
+    patience : int
+        Number of epochs without improvement before the training is stopped.
+
+    Attributes
+    ----------
+    min : float
+        Running minimum of the metric.
+
+    n_epochs_no_improvement : int
+        Number of epochs without improvement - not going below the previous minimum.
+    """
+
+    def __init__(self, dataloader_name, metric_name, patience=5):
+        self.dataloader_name = dataloader_name
+        self.metric_name = metric_name
+        self.patience = patience
+
+        self.min = np.inf
+        self.n_epochs_no_improvement = 0
+        self.run = None  # will be injected with an instance of ``Run``.
+
+    def on_train_begin(self, metadata):
+        if self.dataloader_name not in self.run.val_dataloaders:
+            raise ValueError('Did not find the dataloader {}'.format(self.dataloader_name))
+
+        if self.metric_name not in self.run.metrics:
+            raise ValueError('Did not find the metric {}'.format(self.metric_name))
+
+    def on_epoch_end(self, metadata):
+        epoch = metadata['epoch']
+        stats = self.run.history.metrics_per_epoch(epoch)
+
+        if not (len(stats['lookback'].unique()) == 1 and len(stats['model'].unique()) == 1):
+            raise ValueError('EarlyStoppingCallback needs to have a single lookback and model')
+
+        stats_formatted = stats.groupby(['dataloader', 'metric'])['value'].mean().unstack(-1)
+        current_metric = stats_formatted.loc[self.dataloader_name, self.metric_name]
+
+        if current_metric < self.min:
+            self.min = current_metric
+            self.n_epochs_no_improvement = 0
+        else:
+            self.n_epochs_no_improvement += 1
+
+        if self.n_epochs_no_improvement >= self.patience:
+            raise EarlyStoppingException()
+
+    def on_train_interrupt(self, metadata):
+        ex = metadata['exception']
+
+        if isinstance(ex, EarlyStoppingException):
+            msg = 'Training stopped early because there was no improvement in {}_{} for {} epochs'.format(
+                self.dataloader_name, self.metric_name, self.patience)
+            print(msg)
 
 
 class MLFlowCallback(Callback):
@@ -498,7 +574,7 @@ class TensorBoardCallback(Callback):
                 else:
                     for j, y in enumerate(x):
                         if y is None:
-                            continue   # pragma: no cover
+                            continue  # pragma: no cover
                         self.writer.add_histogram(s.__class__.__name__ + "_{}_{}".format('inp' if i == 0 else 'out', j),
                                                   y[ix],
                                                   global_step=self.counter)
