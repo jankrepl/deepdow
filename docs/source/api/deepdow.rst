@@ -7,6 +7,7 @@ deepdow package
    deepdow.callbacks
    deepdow.data
    deepdow.experiments
+   deepdow.explain
    deepdow.layers
    deepdow.losses
    deepdow.nn

@@ -41,6 +41,7 @@ extensions = [
 autodoc_mock_imports = [
     "cvxpy",
     "cvxpylayers",
+    "diffcp",
     "matplotlib",
     "mlflow",
     "numpy",
