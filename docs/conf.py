@@ -39,6 +39,7 @@ extensions = [
 
 # Import mocking
 autodoc_mock_imports = [
+    "cvxpy",
     "cvxpylayers",
     "matplotlib",
     "mlflow",
