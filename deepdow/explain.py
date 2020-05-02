@@ -66,10 +66,10 @@ def gradient_wrt_input(model, target_weights, initial_guess, n_iter=100, mask=No
     # casting
     mask = mask.to(dtype=torch.bool, device=device)
     model.to(device=device, dtype=dtype)
-    target_weights.to(device=device, dtype=dtype)
+    target_weights = target_weights.to(device=device, dtype=dtype)
 
     optimizer = torch.optim.Adam([x], lr=lr)
-    model.eval()
+    model.train()
 
     hist = []
     for i in range(n_iter):
