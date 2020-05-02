@@ -48,6 +48,7 @@ autodoc_mock_imports = [
     "pandas",
     "pillow",
     "torch",
+    "torch.nn",
     "tensorboard",
     "tqdm"
 ]
