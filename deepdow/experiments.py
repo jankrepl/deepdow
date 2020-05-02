@@ -2,7 +2,6 @@
 
 import datetime
 import time
-import sys
 
 from diffcp import SolverError
 import numpy as np
@@ -285,7 +284,6 @@ class Run:
             self.on_train_end()
 
         except (EarlyStoppingException, KeyboardInterrupt, SolverError) as ex:
-            sys.stdout.flush()
             print('Training interrupted')
             time.sleep(1)
 
