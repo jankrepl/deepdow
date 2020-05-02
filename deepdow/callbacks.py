@@ -101,6 +101,10 @@ class Callback:
         pass
 
 
+class EarlyStoppingException(Exception):
+    """Custom exception raised by EarlyStoppingCallback to stop the training."""
+
+
 class BenchmarkCallback(Callback):
     """Computation of benchmarks performance over different metrics and dataloaders.
 
@@ -162,6 +166,80 @@ class BenchmarkCallback(Callback):
 
         if len(self.run.models) > 1:
             self.run.history.pretty_print(-1)
+
+
+class EarlyStoppingCallback(Callback):
+    """Early stopping callback.
+
+    In the background, we keep a running minimum of a metric of interest. If it does not change for more than
+    `patience` epochs the training is stopped.
+
+    Parameters
+    ----------
+    dataloader_name : str
+        Name of the dataloader, needs to correspond to a key in `val_dataloaders` in ``deepdow.experiments.Run``.
+
+    metric_name : str
+        Name of the metric to use (the lower the better),  needs to correspond to a key in `metrics` in
+        ``deepdow.experiments.Run``.
+
+    patience : int
+        Number of epochs without improvement before the training is stopped.
+
+    Attributes
+    ----------
+    min : float
+        Running minimum of the metric.
+
+    n_epochs_no_improvement : int
+        Number of epochs without improvement - not going below the previous minimum.
+    """
+
+    def __init__(self, dataloader_name, metric_name, patience=5):
+        self.dataloader_name = dataloader_name
+        self.metric_name = metric_name
+        self.patience = patience
+
+        self.min = np.inf
+        self.n_epochs_no_improvement = 0
+        self.run = None  # will be injected with an instance of ``Run``.
+
+    def on_train_begin(self, metadata):
+        """Check if dataloader name and metric name even exist."""
+        if self.dataloader_name not in self.run.val_dataloaders:
+            raise ValueError('Did not find the dataloader {}'.format(self.dataloader_name))
+
+        if self.metric_name not in self.run.metrics:
+            raise ValueError('Did not find the metric {}'.format(self.metric_name))
+
+    def on_epoch_end(self, metadata):
+        """Extract statistics and if necessary stop training."""
+        epoch = metadata['epoch']
+        stats = self.run.history.metrics_per_epoch(epoch)
+
+        if not (len(stats['lookback'].unique()) == 1 and len(stats['model'].unique()) == 1):
+            raise ValueError('EarlyStoppingCallback needs to have a single lookback and model')  # pragma: no cover
+
+        stats_formatted = stats.groupby(['dataloader', 'metric'])['value'].mean().unstack(-1)
+        current_metric = stats_formatted.loc[self.dataloader_name, self.metric_name]
+
+        if current_metric < self.min:
+            self.min = current_metric
+            self.n_epochs_no_improvement = 0
+        else:
+            self.n_epochs_no_improvement += 1  # pragma: no cover
+
+        if self.n_epochs_no_improvement >= self.patience:
+            raise EarlyStoppingException()
+
+    def on_train_interrupt(self, metadata):
+        """Handle ``EarlyStoppingException``."""
+        ex = metadata['exception']
+
+        if isinstance(ex, EarlyStoppingException):
+            msg = 'Training stopped early because there was no improvement in {}_{} for {} epochs'.format(
+                self.dataloader_name, self.metric_name, self.patience)
+            print(msg)
 
 
 class MLFlowCallback(Callback):
@@ -264,6 +342,76 @@ class MLFlowCallback(Callback):
 
                 except KeyError:
                     return
+
+
+class ModelCheckpointCallback(Callback):
+    """Model checkpointing callback.
+
+    In the background, we keep a running minimum of a metric of interest.
+
+    Parameters
+    ----------
+    folder_path : str or pathlib.Path
+        Directory to which to save the checkpoints.
+
+    dataloader_name : str
+        Name of the dataloader, needs to correspond to a key in `val_dataloaders` in ``deepdow.experiments.Run``.
+
+    metric_name : str
+        Name of the metric to use (the lower the better),  needs to correspond to a key in `metrics` in
+        ``deepdow.experiments.Run``.
+
+    verbose : bool
+        If True, each checkpointing triggers a message.
+
+    Attributes
+    ----------
+    min : float
+        Running minimum of the metric.
+    """
+
+    def __init__(self, folder_path, dataloader_name, metric_name, verbose=False, save_best_only=False):
+        self.folder_path = pathlib.Path(folder_path)
+        if self.folder_path.is_file():
+            raise NotADirectoryError('The checkpointing path needs to be a folder.')
+
+        self.dataloader_name = dataloader_name
+        self.metric_name = metric_name
+        self.verbose = verbose
+        self.save_best_only = save_best_only
+
+        self.min = np.inf
+        self.run = None  # will be injected with an instance of ``Run``.
+
+    def on_train_begin(self, metadata):
+        """Check if dataloader name and metric name even exist."""
+        self.folder_path.mkdir(parents=True, exist_ok=True)
+
+        if self.dataloader_name not in self.run.val_dataloaders:
+            raise ValueError('Did not find the dataloader {}'.format(self.dataloader_name))
+
+        if self.metric_name not in self.run.metrics:
+            raise ValueError('Did not find the metric {}'.format(self.metric_name))
+
+    def on_epoch_end(self, metadata):
+        """Store checkpoint if metric is in its all time low."""
+        epoch = metadata['epoch']
+        stats = self.run.history.metrics_per_epoch(epoch)
+
+        if not (len(stats['lookback'].unique()) == 1 and len(stats['model'].unique()) == 1):
+            raise ValueError('ModelCheckpointCallback needs to have a single lookback and model')  # pragma: no cover
+
+        stats_formatted = stats.groupby(['dataloader', 'metric'])['value'].mean().unstack(-1)
+        current_metric = stats_formatted.loc[self.dataloader_name, self.metric_name]
+
+        if current_metric < self.min:
+            self.min = current_metric
+
+            checkpoint_path = self.folder_path / 'model_{:02d}__{:.4f}.pth'.format(epoch, current_metric)
+            torch.save(self.run.network, str(checkpoint_path))
+
+            if self.verbose:
+                print('Checkpointed {}'.format(checkpoint_path))
 
 
 class ProgressBarCallback(Callback):
@@ -498,7 +646,7 @@ class TensorBoardCallback(Callback):
                 else:
                     for j, y in enumerate(x):
                         if y is None:
-                            continue   # pragma: no cover
+                            continue  # pragma: no cover
                         self.writer.add_histogram(s.__class__.__name__ + "_{}_{}".format('inp' if i == 0 else 'out', j),
                                                   y[ix],
                                                   global_step=self.counter)
