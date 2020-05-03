@@ -19,6 +19,7 @@ DeepDow
 
    source/introduction
    source/basics
+   source/data_loading
    source/layers
    source/networks
    source/losses

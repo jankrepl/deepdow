@@ -1,3 +1,5 @@
+.. _basics:
+
 Basics
 ======
 This page introduces all the important concepts used within :code:`deepdow`.
