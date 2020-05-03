@@ -8,7 +8,7 @@ Name
 The name of the packages is inspired by the father of technical analysis—**Charles Dow**.
 
 
-Traditional Portfolio Optimization
+Traditional portfolio optimization
 ----------------------------------
 As described by Markowitz [MARK1952]_, portfolio optimization is commonly divided into 2 separate stages:
 
