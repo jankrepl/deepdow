@@ -504,9 +504,26 @@ class Quantile(Loss):
 
 
 class SharpeRatio(Loss):
-    """Negative Sharpe ratio."""
+    """Negative Sharpe ratio.
 
-    def __init__(self, returns_channel=0, input_type='log', output_type='simple'):
+    Parameters
+    ----------
+    rf : float
+        Risk-free rate.
+
+    returns_channel : int
+        Which channel of the `y` target represents returns.
+
+    input_type : str, {'log', 'simple'}
+        What type of returns are we dealing with in `y`.
+
+    output_type : str, {'log', 'simple'}
+        What type of returns are we dealing with in the output.
+
+    """
+
+    def __init__(self, rf=0, returns_channel=0, input_type='log', output_type='simple'):
+        self.rf = rf
         self.returns_channel = returns_channel
         self.input_type = input_type
         self.output_type = output_type
@@ -534,14 +551,15 @@ class SharpeRatio(Loss):
                                   input_type=self.input_type,
                                   output_type=self.output_type)
 
-        return -prets.mean(dim=1) / prets.std(dim=1)
+        return -(prets.mean(dim=1) - self.rf) / prets.std(dim=1)
 
     def __repr__(self):
         """Generate representation string."""
-        return "{}(returns_channel={}, input_type='{}', output_type='{}')".format(self.__class__.__name__,
-                                                                                  self.returns_channel,
-                                                                                  self.input_type,
-                                                                                  self.output_type)
+        return "{}(rf={}, returns_channel={}, input_type='{}', output_type='{}')".format(self.__class__.__name__,
+                                                                                         self.rf,
+                                                                                         self.returns_channel,
+                                                                                         self.input_type,
+                                                                                         self.output_type)
 
 
 class Softmax(Loss):

@@ -33,7 +33,7 @@ class Cov2Corr(nn.Module):
 class CovarianceMatrix(nn.Module):
     """Convariance matrix or its square root.
 
-    Attributes
+    Parameters
     ----------
     sqrt : bool
         If True, then returning the square root.
