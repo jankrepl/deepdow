@@ -76,7 +76,7 @@ Assumptions
 -----------
 Before finishing this chapter, let us summarize the important assumptions :code:`deepdow` is making
 
-- The time dimension is **contiguous** without any **gaps**
+- The time dimension is **contiguous** with a single frequency (i.e. daily)
 - The predicted weights **w** are turned into an actual investment that is **held** over :code:`horizon` time steps
 
 
