@@ -33,6 +33,7 @@ author = 'Jan Krepl'
 extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.autodoc',
+    'sphinx.ext.doctest',
     'sphinx.ext.napoleon',
     'sphinx.ext.viewcode',
 ]

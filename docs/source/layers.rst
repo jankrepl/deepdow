@@ -166,6 +166,23 @@ For the exact usage see :ref:`layers_misc_API`.
 
 Cov2Corr
 ********
+Conversion of a covariance matrix into a correlation matrix.
+
+
+.. testsetup::
+
+   import torch
+
+.. testcode::
+
+   from deepdow.layers import Cov2Corr
+
+   layer = Cov2Corr()
+   covmat = torch.tensor([[[4, 3], [3, 9.0]]])
+   corrmat = layer(covmat)
+
+   assert torch.allclose(corrmat, torch.tensor([[[1.0, 0.5], [0.5, 1.0]]]))
+
 
 CovarianceMatrix
 ****************
