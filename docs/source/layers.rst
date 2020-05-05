@@ -1,6 +1,11 @@
 Layers
 ======
 
+.. testsetup::
+
+   import torch
+
+
 Introduction
 ------------
 As described in :ref:`basics` our goal is to construct a network, that inputs a 3D tensor **x** of shape
@@ -39,7 +44,6 @@ with official PyTorch layers.
     All the :code:`deepdow` layers assume that the input and output tensors have an extra dimension
     in the front - the **sample** dimension. We omit this dimension on purpose to make the examples
     and sketches simpler.
-
 
 Transform layers
 ----------------
@@ -95,9 +99,9 @@ expected return vector :math:`\boldsymbol{\mu}` then it computes the **Tangency 
 
 .. math::
 
-    \textbf{w}_{\mbox{minvar}} =  \frac{\boldsymbol{\Sigma}^{-1} \textbf{1}}{\textbf{1}^{T} \boldsymbol{\Sigma}^{-1} \textbf{1}}
+    \textbf{w}_{\text{minvar}} =  \frac{\boldsymbol{\Sigma}^{-1} \textbf{1}}{\textbf{1}^{T} \boldsymbol{\Sigma}^{-1} \textbf{1}}
 
-    \textbf{w}_{\mbox{maxsharpe}} =  \frac{\boldsymbol{\Sigma}^{-1} \boldsymbol{\mu}}{\textbf{1}^{T} \boldsymbol{\Sigma}^{-1} \boldsymbol{\mu}}
+    \textbf{w}_{\text{maxsharpe}} =  \frac{\boldsymbol{\Sigma}^{-1} \boldsymbol{\mu}}{\textbf{1}^{T} \boldsymbol{\Sigma}^{-1} \boldsymbol{\mu}}
 
 
 Note that this allocator cannot enforce any additional constraints i.e. maximum weight per asset. For more details and
@@ -123,12 +127,12 @@ constraints. :code:`NumericalMarkowitz` is a generic convex optimization solver 
     \max_{\textbf{w}} \quad & \textbf{w}^{T}\boldsymbol{\mu} - \gamma {\textbf{w}}^{T}  \boldsymbol{\Sigma} \textbf{w} - \alpha \textbf{w}^{T} \textbf{w} \\
     \textrm{s.t.} \quad & \sum_{i=1}^{N}w_i = 1 \\
     \quad & w_i >= 0, i \in \{1,...,N\}\\
-    \quad & w_i <= w_{\mbox{max}}, i \in \{1,...,N\}\\
+    \quad & w_i <= w_{\text{max}}, i \in \{1,...,N\}\\
     \end{aligned}
 
 
 The user needs to provide :code:`n_assets` (:math:`N` in the above formulation) and :code:`max_weight`
-(:math:`w_{\mbox{max}}`) when constructing this layer. To perform a forward pass one passes the following
+(:math:`w_{\text{max}}`) when constructing this layer. To perform a forward pass one passes the following
 tensors (batched along the sample dimension):
 
 - :code:`rets` - Corresponds to the expected returns vector :math:`\boldsymbol{\mu}`
@@ -155,10 +159,10 @@ The premise of this metaallocator is that :math:`\boldsymbol{\mu}` and :math:`\b
 estimates of their population counterparts. Parametric boostrapping is therefore applied. We sample
 :code:`n_portfolios * n_draws` new vectors from the distribution
 :math:`\mathcal{N}(\boldsymbol{\mu}, \boldsymbol{\Sigma})`. We then create estimates
-:math:`\boldsymbol{\mu}_{1}, ...,\boldsymbol{\mu}_{\mbox{n_portfolios}}` and
-:math:`\boldsymbol{\Sigma}_{1}, ..., \boldsymbol{\Sigma}_{\mbox{n_portfolios}}` and run the base allocator for each of
-the pairs. This results in obtaining multiple allocations :math:`\textbf{w}_{1}, ...,\textbf{w}_{\mbox{n_portfolios}}`.
-The final allocation is simply an average :math:`\textbf{w} = \sum_{i=1}^{\mbox{n_portfolios}}\textbf{w}_i`.
+:math:`\boldsymbol{\mu}_{1}, ...,\boldsymbol{\mu}_{\text{n_portfolios}}` and
+:math:`\boldsymbol{\Sigma}_{1}, ..., \boldsymbol{\Sigma}_{\text{n_portfolios}}` and run the base allocator for each of
+the pairs. This results in obtaining multiple allocations :math:`\textbf{w}_{1}, ...,\textbf{w}_{\text{n_portfolios}}`.
+The final allocation is simply an average :math:`\textbf{w} = \sum_{i=1}^{\text{n_portfolios}}\textbf{w}_i`.
 
 Misc layers
 -----------
@@ -167,11 +171,6 @@ For the exact usage see :ref:`layers_misc_API`.
 Cov2Corr
 ********
 Conversion of a covariance matrix into a correlation matrix.
-
-
-.. testsetup::
-
-   import torch
 
 .. testcode::
 
@@ -186,7 +185,47 @@ Conversion of a covariance matrix into a correlation matrix.
 
 CovarianceMatrix
 ****************
+Computes a sample covariance matrix. One can also apply shrinkage, i.e.
 
+.. math::
+
+    \boldsymbol{\Sigma}_{\text{shrink}} = (1 - \delta) F + \delta S
+
+The :math:`F` is a highly structured matrix whereas :math:`S` is the sample covariance matrix.
+The constant :math:`\delta` (:code:`shrinkage_coef` in the constructor) determines how
+we weigh the two matrices. See [Ledoit2004]_ for additional background. :code:`deepdow` offers
+multiple preset matrices :math:`F` that can be controlled via the :code:`shrinkage_strategy` parameter.
+
+- :code:`None` - no shrinkage applied (can lead to non-PSD matrix)
+- :code:`diagonal` - diagonal of :math:`S` with off-diagonal elements being zero
+- :code:`identity` - identity matrix
+- :code:`scaled-identity` - diagonal filled with average variance in :math:`S` and off-diagonal elements set to zero
+
+After performing shrinkage, one can also compute the (matrix) square root of the shrinked matrix. This is controlled
+by the boolean :code:`sqrt`.
+
+
+.. note::
+
+    One can also omit the :code:`shrinkage_coef` in the constructor (:code:`shrinkage_coef=None`) and
+    pass it dynamically as a ``torch.Tensor`` during a forward pass.
+
+
+
+.. testcode::
+
+   from deepdow.layers import CovarianceMatrix
+
+   torch.manual_seed(3)
+
+   x = torch.rand(1, 10, 3) * 100
+   layer = CovarianceMatrix(sqrt=False)
+   layer_sqrt = CovarianceMatrix(sqrt=True)
+
+   covmat = layer(x)
+   covmat_sqrt = layer_sqrt(x)
+
+   assert torch.allclose(covmat[0], covmat_sqrt[0] @ covmat_sqrt[0], atol=1e-2)
 
 .. _kmeans:
 
@@ -207,6 +246,9 @@ References
 
 .. [Michaud2007]
    Michaud, Richard O., and Robert Michaud. "Estimation error and portfolio optimization: a resampling solution." Available at SSRN 2658657 (2007).
+
+.. [Ledoit2004]
+   Ledoit, Olivier, and Michael Wolf. "Honey, I shrunk the sample covariance matrix." The Journal of Portfolio Management 30.4 (2004): 110-119.
 
 .. [Bodnar2013]
    Bodnar, Taras, Nestor Parolya, and Wolfgang Schmid. "On the equivalence of quadratic optimization problems commonly used in portfolio theory." European Journal of Operational Research 229.3 (2013): 637-644.
