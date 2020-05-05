@@ -18,7 +18,7 @@ script:
     - flake8 deepdow
     - flake8 tests
     - pydocstyle deepdow
-    - sphinx-build -b doctest docs/ temp_doctest
+    - make doctest -C docs/ 
 
 after_success:
     - codecov
