@@ -144,7 +144,21 @@ tensors (batched along the sample dimension):
 
 Resample
 ********
+The :code:`Resample` layer is inspired by [Michaud2007]_. It is a **metallocator** that expects an instance
+**base** allocator as an input. Currently supported base allocators are:
 
+- :code:`AnalyticalMarkowitz`
+- :code:`NCO`
+- :code:`NumericalMarkowitz`
+
+The premise of this metaallocator is that :math:`\boldsymbol{\mu}` and :math:`\boldsymbol{\Sigma}` are just noisy
+estimates of their population counterparts. Parametric boostrapping is therefore applied. We sample
+:code:`n_portfolios * n_draws` new vectors from the distribution
+:math:`\mathcal{N}(\boldsymbol{\mu}, \boldsymbol{\Sigma})`. We then create estimates
+:math:`\boldsymbol{\mu}_{1}, ...,\boldsymbol{\mu}_{\mbox{n_portfolios}}` and
+:math:`\boldsymbol{\Sigma}_{1}, ..., \boldsymbol{\Sigma}_{\mbox{n_portfolios}}` and run the base allocator for each of
+the pairs. This results in obtaining multiple allocations :math:`\textbf{w}_{1}, ...,\textbf{w}_{\mbox{n_portfolios}}`.
+The final allocation is simply an average :math:`\textbf{w} = \sum_{i=1}^{\mbox{n_portfolios}}\textbf{w}_i`.
 
 Misc layers
 -----------
@@ -174,5 +188,9 @@ References
 .. [Agrawal2019]
    Agrawal, Akshay, et al. "Differentiable convex optimization layers." Advances in Neural Information Processing Systems. 2019.
 
+.. [Michaud2007]
+   Michaud, Richard O., and Robert Michaud. "Estimation error and portfolio optimization: a resampling solution." Available at SSRN 2658657 (2007).
+
 .. [Bodnar2013]
    Bodnar, Taras, Nestor Parolya, and Wolfgang Schmid. "On the equivalence of quadratic optimization problems commonly used in portfolio theory." European Journal of Operational Research 229.3 (2013): 637-644.
+
