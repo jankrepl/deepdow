@@ -1,3 +1,5 @@
+.. _layers_allocate_API:
+
 deepdow.layers.allocate module
 ==============================
 

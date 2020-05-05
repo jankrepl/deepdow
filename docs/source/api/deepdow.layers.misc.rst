@@ -1,3 +1,5 @@
+.. _layers_misc_API:
+
 deepdow.layers.misc module
 ==========================
 

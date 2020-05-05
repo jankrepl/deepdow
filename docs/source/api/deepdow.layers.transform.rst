@@ -1,3 +1,5 @@
+.. _layers_transform_API:
+
 deepdow.layers.transform module
 ===============================
 

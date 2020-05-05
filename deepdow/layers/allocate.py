@@ -204,7 +204,7 @@ class NumericalMarkowitz(nn.Module):
 
         self.cvxpylayer = CvxpyLayer(prob, parameters=[rets, covmat_sqrt, alpha], variables=[w])
 
-    def forward(self, rets, covmat_sqrt, gamma, alpha):
+    def forward(self, rets, covmat_sqrt, gamma_sqrt, alpha):
         """Perform forward pass.
 
         Parameters
@@ -216,7 +216,7 @@ class NumericalMarkowitz(nn.Module):
         covmat_sqrt : torch.Tensor
             Of shape (n_samples, n_assets, n_assets) representing the square of the covariance matrix.
 
-        gamma : torch.Tensor
+        gamma_sqrt : torch.Tensor
             Of shape (n_samples,) representing the tradeoff between risk and return - where on efficient frontier
             we are.
 
@@ -232,10 +232,10 @@ class NumericalMarkowitz(nn.Module):
 
         """
         n_samples, n_assets = rets.shape
-        gamma_ = gamma.repeat((1, n_assets * n_assets)).view(n_samples, n_assets, n_assets)
+        gamma_sqrt_ = gamma_sqrt.repeat((1, n_assets * n_assets)).view(n_samples, n_assets, n_assets)
         alpha_abs = torch.abs(alpha)  # it needs to be nonnegative
 
-        return self.cvxpylayer(rets, gamma_ * covmat_sqrt, alpha_abs)[0]
+        return self.cvxpylayer(rets, gamma_sqrt_ * covmat_sqrt, alpha_abs)[0]
 
 
 class Resample(nn.Module):
