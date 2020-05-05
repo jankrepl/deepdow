@@ -18,7 +18,7 @@ script:
     - flake8 deepdow
     - flake8 tests
     - pydocstyle deepdow
-    - make doctest -C docs/ 
+    - sphinx-build -b doctest -D "autodoc_mock_imports=[]" docs/ temp_doctest
 
 after_success:
     - codecov
