@@ -231,7 +231,24 @@ by the boolean :code:`sqrt`.
 
 KMeans
 ******
+A version of the well-known clustering algorithm. The :code:`deepdow` interface is very similar to the one of
+scikit-learn [sklearnkmeans]_. Most importantly, one needs to decide on the :code:`n_clusters`.
 
+
+.. testcode::
+
+   from deepdow.layers import KMeans
+
+   x = torch.tensor([[0, 0], [0.5, 0], [0.5, 1], [1, 1.0]])
+   manual_init = torch.tensor([[0, 0], [1, 1]])
+
+   kmeans_layer = KMeans(n_clusters=2, init='manual')
+   cluster_ixs, cluster_centers = kmeans_layer(x, manual_init=manual_init)
+
+   assert torch.allclose(cluster_ixs, torch.tensor([0, 0, 1, 1]))
+
+.. warning::
+    This layer does not include additional (sample) dimension.
 
 References
 ----------
@@ -250,6 +267,8 @@ References
 .. [Ledoit2004]
    Ledoit, Olivier, and Michael Wolf. "Honey, I shrunk the sample covariance matrix." The Journal of Portfolio Management 30.4 (2004): 110-119.
 
+.. [sklearnkmeans]
+   https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html
+
 .. [Bodnar2013]
    Bodnar, Taras, Nestor Parolya, and Wolfgang Schmid. "On the equivalence of quadratic optimization problems commonly used in portfolio theory." European Journal of Operational Research 229.3 (2013): 637-644.
-

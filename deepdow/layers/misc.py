@@ -183,7 +183,7 @@ class KMeans(torch.nn.Module):
     n_clusters : int
         Number of clusters to look for.
 
-    init : str, {'random, 'k-means++'}
+    init : str, {'random, 'k-means++', 'manual'}
         How to initialize the clusters at the beginning of the algorithm.
 
     n_init : int
