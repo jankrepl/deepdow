@@ -13,7 +13,7 @@ class Conv(nn.Module):
         Number of input channels.
 
     n_output_channels : int
-        Number of input channels.
+        Number of output channels.
 
     kernel_size : int
         Size of the kernel.
@@ -47,12 +47,13 @@ class Conv(nn.Module):
         ----------
         x : torch.Tensor
             Tensor of shape `(n_samples, n_input_channels, lookback, n_assets) if `self.method='2D'`. Otherwise
-            `(n_samples, n_input_channels, n_assets)`.
+            `(n_samples, n_input_channels, lookback)`.
 
         Returns
         -------
-            Tensor of shape `(n_samples, n_output_channels, lookback, n_assets)` if `self.method'2D'`. Otherwise
-            `(n_samples, n_output_channels, n_assets)`.
+        torch.Tensor
+            Tensor of shape `(n_samples, n_output_channels, lookback, n_assets)` if `self.method='2D'`. Otherwise
+            `(n_samples, n_output_channels, lookback)`.
 
         """
         return self.conv(x)

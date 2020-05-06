@@ -42,7 +42,7 @@ with official PyTorch layers.
 .. warning::
 
     All the :code:`deepdow` layers assume that the input and output tensors have an extra dimension
-    in the front - the **sample** dimension. We omit this dimension on purpose to make the examples
+    in the front—the **sample** dimension. We omit this dimension on purpose to make the examples
     and sketches simpler.
 
 Transform layers
@@ -52,7 +52,29 @@ Transform layers
 
 Conv
 ****
+This layer supports both :code:`1D` and :code:`2D` convolution controlled via the :code:`method` parameter.
+In the forward pass we need to provide tensors of shape :code:`(n_samples, n_input_channels, lookback)` resp.
+:code:`(n_samples, n_input_channels, lookback, n_assets)`. The padding is automatically implied by :code:`kernel_size`
+such that the output tensor has the **same** size (for odd :code:`kernel_size` exactly, for even approximately).
 
+
+.. testcode::
+
+    from deepdow.layers import Conv
+
+    n_samples, n_input_channels, lookback, n_assets = 2, 4, 20, 11
+    n_output_channels = 8
+    x = torch.rand(n_samples, n_input_channels, lookback, n_assets)
+
+    layer = Conv(n_input_channels=n_input_channels,
+                 n_output_channels=n_output_channels,
+                 kernel_size=3,
+                 method='1D')
+
+    # Apply the same Conv1D layer to all assets
+    result = torch.stack([layer(x[..., i]) for i in range(n_assets)], dim=-1)
+
+    assert result.shape == (n_samples, n_output_channels, lookback, n_assets)
 
 RNN
 ***
