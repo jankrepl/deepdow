@@ -78,6 +78,27 @@ such that the output tensor has the **same** size (for odd :code:`kernel_size` e
 
 RNN
 ***
+This layer runs the same recurrent network over all assets and then stacks the hidden layers back together.
+It provides both the standard :code:`RNN` as well as :code:`LSTM`. The choice is controlled
+via the parameter :code:`cell_type`. The user specifies the number of output channels via :code:`hidden_size`. This
+number corresponds to the actual hidden state dimensionality if :code:`bidirectional=False` otherwise it is one half of
+it.
+
+.. testcode::
+
+    from deepdow.layers import RNN
+
+    n_samples, n_input_channels, lookback, n_assets = 2, 4, 20, 11
+    hidden_size = 8
+    x = torch.rand(n_samples, n_input_channels, lookback, n_assets)
+
+    layer = RNN(n_channels=n_input_channels,
+                 hidden_size=hidden_size,
+                 cell_type='LSTM')
+
+    result = layer(x)
+
+    assert result.shape == (n_samples, n_output_channels, lookback, n_assets)
 
 
 Collapse layers
