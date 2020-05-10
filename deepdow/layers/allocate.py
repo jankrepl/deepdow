@@ -352,9 +352,22 @@ class Resample(nn.Module):
 
 
 class SoftmaxAllocator(torch.nn.Module):
-    """Dummy portfolio creation by computing a softmax over the asset dimension."""
+    """Portfolio creation by computing a softmax over the asset dimension with temperature.
 
-    def forward(self, x):
+    Parameters
+    ----------
+    temperature : None or float
+        If None, then needs to be provided per sample during forward pass. If ``float`` then assumed to be always
+        the same.
+
+    """
+
+    def __init__(self, temperature=1):
+        super().__init__()
+
+        self.temperature = temperature
+
+    def forward(self, x, temperature=None):
         """Perform forward pass.
 
         Parameters
@@ -362,10 +375,27 @@ class SoftmaxAllocator(torch.nn.Module):
         x : torch.Tensor
             Tensor of shape `(n_samples, n_assets`).
 
+        temperature : None or torch.Tensor
+            If None, then using the `temperature` provided at construction time. Otherwise a `torch.Tensor` of shape
+            `(n_samples,)` representing a per sample temperature.
+
         Returns
         -------
         weights : torch.Tensor
             Tensor of shape `(n_samples, n_assets`).
 
         """
-        return nn.functional.softmax(x, dim=1)
+        n_samples, _ = x.shape
+        device, dtype = x.device, x.dtype
+
+        if not ((temperature is None) ^ (self.temperature is None)):
+            raise ValueError('Not clear which temperature to use')
+
+        if temperature is not None:
+            temperature_ = temperature  # (n_samples,)
+        else:
+            temperature_ = self.temperature * torch.ones(n_samples, dtype=dtype, device=device)
+
+        inp = x / temperature_[..., None]
+
+        return nn.functional.softmax(inp, dim=1)

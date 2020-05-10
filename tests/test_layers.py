@@ -503,8 +503,16 @@ class TestSoftmax:
 
         rets = X.mean(dim=(1, 2))
 
-        weights = SoftmaxAllocator()(rets)
+        with pytest.raises(ValueError):
+            SoftmaxAllocator(temperature=None)(rets, temperature=None)
 
+        weights = SoftmaxAllocator(temperature=2)(rets)
+
+        assert torch.allclose(weights,
+                              SoftmaxAllocator(temperature=None)(rets,
+                                                                 2 * torch.ones(n_samples,
+                                                                                dtype=dtype,
+                                                                                device=device)))
         assert weights.shape == (n_samples, n_assets)
         assert weights.dtype == X.dtype
         assert weights.device == X.device
