@@ -1,3 +1,6 @@
+.. _layers:
+
+
 Layers
 ======
 
@@ -41,8 +44,8 @@ with official PyTorch layers.
 
 .. warning::
 
-    All the :code:`deepdow` layers assume that the input and output tensors have an extra dimension
-    in the front—the **sample** dimension. We omit this dimension on purpose to make the examples
+    Almost all :code:`deepdow` layers assume that the input and output tensors have an extra dimension
+    in the front—the **sample** dimension. We often omit this dimension on purpose to make the examples
     and sketches simpler.
 
 Transform layers
@@ -207,6 +210,34 @@ estimates of their population counterparts. Parametric boostrapping is therefore
 the pairs. This results in obtaining multiple allocations :math:`\textbf{w}_{1}, ...,\textbf{w}_{\text{n_portfolios}}`.
 The final allocation is simply an average :math:`\textbf{w} = \sum_{i=1}^{\text{n_portfolios}}\textbf{w}_i`.
 
+
+SoftmaxAllocator
+****************
+Inspired by portfolio optimization with reinforcement learning (i.e. [Jiang2017]_) the :code:`SoftmaxAllocator`
+performs a softmax over the input. Additionally, one can also provide custom :code:`temperature`.
+
+.. math::
+
+    w_j = \frac{e^{\frac{z_{j}}{\text{temperature}}}}{\sum_{i} e^{\frac{z_i}{\text{temperature}}}}
+
+
+Note that one can provide a single :code:`temperature` at construction that is shared across all samples. Alternatively,
+one can provide per sample temperature when performing the forward pass.
+
+.. testcode::
+
+   from deepdow.layers import SoftmaxAllocator
+
+   layer = SoftmaxAllocator(temperature=None)
+   x = torch.tensor([[1, 2.3], [2, 4.2]])
+   temperature = torch.tensor([0.2, 1])
+
+   w = layer(x, temperature=temperature)
+
+   assert w.shape == (2, 2)
+   assert torch.allclose(w.sum(1), torch.ones(2))
+
+
 Misc layers
 -----------
 For the exact usage see :ref:`layers_misc_API`.
@@ -254,7 +285,6 @@ by the boolean :code:`sqrt`.
     pass it dynamically as a ``torch.Tensor`` during a forward pass.
 
 
-
 .. testcode::
 
    from deepdow.layers import CovarianceMatrix
@@ -291,7 +321,9 @@ scikit-learn [sklearnkmeans]_. Most importantly, one needs to decide on the :cod
    assert torch.allclose(cluster_ixs, torch.tensor([0, 0, 1, 1]))
 
 .. warning::
-    This layer does not include additional (sample) dimension.
+
+    This layer does not include additional (sample) dimension. Batching can be implemented by a naive for loop
+    and stacking.
 
 References
 ----------
@@ -300,6 +332,9 @@ References
 
 .. [Prado2019]
    Lopez de Prado, M. (2019). A Robust Estimator of the Efficient Frontier. Available at SSRN 3469961.
+
+.. [Jiang2017]
+   Jiang, Zhengyao, and Jinjun Liang. "Cryptocurrency portfolio management with deep reinforcement learning." 2017 Intelligent Systems Conference (IntelliSys). IEEE, 2017
 
 .. [Agrawal2019]
    Agrawal, Akshay, et al. "Differentiable convex optimization layers." Advances in Neural Information Processing Systems. 2019.
