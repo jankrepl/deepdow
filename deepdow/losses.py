@@ -520,13 +520,16 @@ class SharpeRatio(Loss):
     output_type : str, {'log', 'simple'}
         What type of returns are we dealing with in the output.
 
+    eps : float
+        Additional constant added to the denominator to avoid division by zero.
     """
 
-    def __init__(self, rf=0, returns_channel=0, input_type='log', output_type='simple'):
+    def __init__(self, rf=0, returns_channel=0, input_type='log', output_type='simple', eps=1e-4):
         self.rf = rf
         self.returns_channel = returns_channel
         self.input_type = input_type
         self.output_type = output_type
+        self.eps = eps
 
     def __call__(self, weights, y):
         """Compute negative sharpe ratio.
@@ -551,15 +554,17 @@ class SharpeRatio(Loss):
                                   input_type=self.input_type,
                                   output_type=self.output_type)
 
-        return -(prets.mean(dim=1) - self.rf) / prets.std(dim=1)
+        return -(prets.mean(dim=1) - self.rf) / (prets.std(dim=1) + self.eps)
 
     def __repr__(self):
         """Generate representation string."""
-        return "{}(rf={}, returns_channel={}, input_type='{}', output_type='{}')".format(self.__class__.__name__,
-                                                                                         self.rf,
-                                                                                         self.returns_channel,
-                                                                                         self.input_type,
-                                                                                         self.output_type)
+        return "{}(rf={}, returns_channel={}, input_type='{}', output_type='{}', eps={})".format(
+            self.__class__.__name__,
+            self.rf,
+            self.returns_channel,
+            self.input_type,
+            self.output_type,
+            self.eps)
 
 
 class Softmax(Loss):
@@ -596,12 +601,32 @@ class Softmax(Loss):
 
 
 class SortinoRatio(Loss):
-    """Negative Sortino ratio."""
+    """Negative Sortino ratio.
 
-    def __init__(self, returns_channel=0, input_type='log', output_type='simple'):
+    Parameters
+    ----------
+    rf : float
+        Risk-free rate.
+
+    returns_channel : int
+        Which channel of the `y` target represents returns.
+
+    input_type : str, {'log', 'simple'}
+        What type of returns are we dealing with in `y`.
+
+    output_type : str, {'log', 'simple'}
+        What type of returns are we dealing with in the output.
+
+    eps : float
+        Additional constant added to the denominator to avoid division by zero.
+    """
+
+    def __init__(self, rf=0, returns_channel=0, input_type='log', output_type='simple', eps=1e-4):
+        self.rf = rf
         self.returns_channel = returns_channel
         self.input_type = input_type
         self.output_type = output_type
+        self.eps = eps
 
     def __call__(self, weights, y):
         """Compute negative Sortino ratio of portfolio return over the horizon.
@@ -626,14 +651,17 @@ class SortinoRatio(Loss):
                                   input_type=self.input_type,
                                   output_type=self.output_type)
 
-        return -prets.mean(dim=1) / (torch.sqrt(torch.mean(torch.relu(-prets) ** 2, dim=1)) + 1e-6)
+        return -(prets.mean(dim=1) - self.rf) / (torch.sqrt(torch.mean(torch.relu(-prets) ** 2, dim=1)) + self.eps)
 
     def __repr__(self):
         """Generate representation string."""
-        return "{}(returns_channel={}, input_type='{}', output_type='{}')".format(self.__class__.__name__,
-                                                                                  self.returns_channel,
-                                                                                  self.input_type,
-                                                                                  self.output_type)
+        return "{}(rf={}, returns_channel={}, input_type='{}', output_type='{}', eps={})".format(
+            self.__class__.__name__,
+            self.rf,
+            self.returns_channel,
+            self.input_type,
+            self.output_type,
+            self.eps)
 
 
 class SquaredWeights(Loss):

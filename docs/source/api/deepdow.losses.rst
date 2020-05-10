@@ -1,3 +1,5 @@
+.. _losses_API:
+
 deepdow.losses module
 =====================
 

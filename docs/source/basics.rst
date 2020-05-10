@@ -60,6 +60,8 @@ with parameters :math:`\theta`, the below image represents the high level predic
    :align: center
    :width: 500
 
+.. _basics_loss:
+
 Loss
 ----
 The last piece of the puzzle is definition of the loss function. In the most general terms, the per sample loss **L**
