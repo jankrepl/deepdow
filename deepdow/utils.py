@@ -131,7 +131,7 @@ def prices_to_returns(prices, use_log=True):
         can also be a ``pd.MultiIndex``.
 
     use_log : bool
-        If True, then logarithmic returns are use (natural logarithm. If False, then standard returns.
+        If True, then logarithmic returns are used (natural logarithm). If False, then simple returns.
 
     Returns
     -------
@@ -200,7 +200,8 @@ def returns_to_Xy(returns, lookback=10, horizon=10, gap=0):
     return X[:, np.newaxis, :, :], timestamps, y[:, np.newaxis, :, :]
 
 
-def raw_to_Xy(raw_data, lookback=10, horizon=10, gap=0, freq='B', included_assets=None, included_indicators=None):
+def raw_to_Xy(raw_data, lookback=10, horizon=10, gap=0, freq='B', included_assets=None, included_indicators=None,
+              use_log=True):
     """Convert raw data to features.
 
     Parameters
@@ -226,6 +227,9 @@ def raw_to_Xy(raw_data, lookback=10, horizon=10, gap=0, freq='B', included_asset
 
     included_indicators : None or list
         Indicators to be included. If None then all available.
+
+    use_log : bool
+        If True, then logarithmic returns are used (natural logarithm). If False, then simple returns.
 
     Returns
     -------
@@ -265,7 +269,7 @@ def raw_to_Xy(raw_data, lookback=10, horizon=10, gap=0, freq='B', included_asset
     absolute = new.iloc[:, new.columns.get_level_values(0).isin(asset_names)][asset_names]  # sort
     absolute = absolute.iloc[:, absolute.columns.get_level_values(1).isin(indicators)]
 
-    returns = prices_to_returns(absolute)
+    returns = prices_to_returns(absolute, use_log=use_log)
 
     X_list = []
     y_list = []

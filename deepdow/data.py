@@ -263,7 +263,7 @@ class RigidDataLoader(torch.utils.data.DataLoader):
     """Rigid data loader.
 
     Rigid data loader is well suited for validation purposes since all horizon, lookback and assets are frozen.
-    However, it is not good for training since it enforces the user to choose a single setup.
+    However, it might not be that good for training since it enforces the user to choose a single setup.
 
     Parameters
     ----------
