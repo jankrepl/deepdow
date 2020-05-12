@@ -4,7 +4,8 @@ import numpy as np
 import pytest
 import torch
 
-from deepdow.data import FlexibleDataLoader, InRAMDataset, RigidDataLoader, collate_uniform, scale_features
+from deepdow.data import (Compose, Dropout, FlexibleDataLoader, InRAMDataset, Multiply, RigidDataLoader,
+                          collate_uniform, scale_features)
 
 
 class TestCollateUniform:
@@ -163,6 +164,28 @@ class TestInRAMDataset:
 
             assert torch.allclose(X_sample, torch.ones_like(X_sample) * i)
             assert torch.allclose(y_sample, torch.ones_like(y_sample) * i)
+
+    def test_transforms(self):
+        n_samples = 13
+        n_channels = 2
+        lookback = 9
+        horizon = 10
+        n_assets = 6
+
+        X = np.random.normal(size=(n_samples, n_channels, lookback, n_assets)) / 100
+        y = np.random.normal(size=(n_samples, n_channels, horizon, n_assets)) / 100
+
+        dataset = InRAMDataset(X, y, transform=Compose([Dropout(p=0.5), Multiply(c=100)]))
+
+        X_sample, y_sample, timestamps_sample, asset_names = dataset[1]
+
+        assert (X_sample == 0).sum() > 0  # dropout
+        assert X_sample.max() > 1  # multiply 100
+        assert X_sample.min() < -1  # multiply 100
+
+        assert (y_sample == 0).sum() == 0
+        assert y_sample.max() < 1
+        assert y_sample.min() > -1
 
 
 @pytest.mark.parametrize('scaler', ['standard', 'percent', 'wrong'])

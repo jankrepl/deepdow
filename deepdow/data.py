@@ -41,6 +41,148 @@ def scale_features(X, approach='standard'):
     return X_scaled
 
 
+class Compose:
+    """Meta transform inspired by torchvision.
+
+    Parameters
+    ----------
+    transforms : list
+        List of callables that represent transforms to be composed.
+
+    """
+
+    def __init__(self, transforms):
+        self.transforms = transforms
+
+    def __call__(self, X_sample, y_sample, timestamps_sample, asset_names):
+        """Transform.
+
+        Parameters
+        ----------
+        X_sample : torch.Tensor
+            Feature vector of shape `(n_channels, lookback, n_assets)`.
+
+        y_sample : torch.Tesnor
+            Target vector of shape `(n_channels, horizon, n_assets)`.
+
+        timestamps_sample : datetime
+            Time stamp of the sample.
+
+        asset_names
+            Asset names corresponding to the last channel of `X_sample` and `y_sample`.
+
+        Returns
+        -------
+        X_sample_new : torch.Tensor
+            Transformed version of `X_sample`.
+
+        y_sample_new : torch.Tesnor
+            Transformed version of `y_sample`.
+
+        timestamps_sample_new : datetime
+            Transformed version of `timestamps_sample`.
+
+        asset_names_new
+            Transformed version of `asset_names`.
+        """
+        for t in self.transforms:
+            X_sample, y_sample, timestamps_sample, asset_names = t(X_sample, y_sample, timestamps_sample, asset_names)
+
+        return X_sample, y_sample, timestamps_sample, asset_names
+
+
+class Dropout:
+    """Set random elements of the input to zero with probability p.
+
+    Parameters
+    ----------
+    p : float
+        Probability of setting an element to zero.
+
+    training : bool
+        If False, then dropout disabled no matter what the `p` is.
+    """
+
+    def __init__(self, p=0.2, training=True):
+        self.p = p
+        self.training = training
+
+    def __call__(self, X_sample, y_sample, timestamps_sample, asset_names):
+        """Perform transform.
+
+        Parameters
+        ----------
+        X_sample : torch.Tensor
+            Feature vector of shape `(n_channels, lookback, n_assets)`.
+
+        y_sample : torch.Tesnor
+            Target vector of shape `(n_channels, horizon, n_assets)`.
+
+        timestamps_sample : datetime
+            Time stamp of the sample.
+
+        asset_names
+            Asset names corresponding to the last channel of `X_sample` and `y_sample`.
+
+        Returns
+        -------
+        X_sample_new : torch.Tensor
+            Feature vector of shape `(n_channels, lookback, n_assets)` with some elements being set to zero.
+
+        y_sample : torch.Tensor
+            Same as input.
+
+        timestamps_sample : datetime
+            Same as input.
+
+        asset_names
+            Same as input.
+        """
+        X_sample_new = torch.nn.functional.dropout(X_sample, p=self.p, training=self.training)
+
+        return X_sample_new, y_sample, timestamps_sample, asset_names
+
+
+class Multiply:
+    """Transform multiplying the feature tensor X with a constant."""
+
+    def __init__(self, c=100):
+        self.c = c
+
+    def __call__(self, X_sample, y_sample, timestamps_sample, asset_names):
+        """Perform transform.
+
+        Parameters
+        ----------
+        X_sample : torch.Tensor
+            Feature vector of shape `(n_channels, lookback, n_assets)`.
+
+        y_sample : torch.Tesnor
+            Target vector of shape `(n_channels, horizon, n_assets)`.
+
+        timestamps_sample : datetime
+            Time stamp of the sample.
+
+        asset_names
+            Asset names corresponding to the last channel of `X_sample` and `y_sample`.
+
+        Returns
+        -------
+        X_sample_new : torch.Tensor
+            Feature vector of shape `(n_channels, lookback, n_assets)` multiplied by a constant `self.c`.
+
+        y_sample : torch.Tesnor
+            Same as input.
+
+        timestamps_sample : datetime
+            Same as input.
+
+        asset_names
+            Same as input.
+        """
+        return self.c * X_sample, y_sample, timestamps_sample, asset_names
+
+
 class InRAMDataset(torch.utils.data.Dataset):
     """Dataset that lives entirely in RAM.
 
@@ -57,9 +199,12 @@ class InRAMDataset(torch.utils.data.Dataset):
 
     asset_names : None or array-like
         If not None then of shape `(n_assets, )` representing the names of assets.
+
+    transform : None or callable
+        If provided, then a callable that transforms a single sample.
     """
 
-    def __init__(self, X, y, timestamps=None, asset_names=None):
+    def __init__(self, X, y, timestamps=None, asset_names=None, transform=None):
         """Construct."""
         # checks
         if len(X) != len(y):
@@ -75,6 +220,7 @@ class InRAMDataset(torch.utils.data.Dataset):
         self.y = y
         self.timestamps = list(range(len(X))) if timestamps is None else timestamps
         self.asset_names = ['a_{}'.format(i) for i in range(X.shape[-1])] if asset_names is None else asset_names
+        self.transform = transform
 
         # utility
         self.n_channels, self.lookback, self.n_assets = X.shape[1:]
@@ -89,8 +235,15 @@ class InRAMDataset(torch.utils.data.Dataset):
         X_sample = torch.from_numpy(self.X[ix])
         y_sample = torch.from_numpy(self.y[ix])
         timestamps_sample = self.timestamps[ix]
+        asset_names = self.asset_names
 
-        return X_sample, y_sample, timestamps_sample, self.asset_names
+        if self.transform:
+            X_sample, y_sample, timestamps_sample, asset_names = self.transform(X_sample,
+                                                                                y_sample,
+                                                                                timestamps_sample,
+                                                                                asset_names)
+
+        return X_sample, y_sample, timestamps_sample, asset_names
 
 
 def collate_uniform(batch, n_assets_range=(5, 10), lookback_range=(1, 20), horizon_range=(3, 15), asset_ixs=None,

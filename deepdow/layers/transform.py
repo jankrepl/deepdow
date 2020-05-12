@@ -22,7 +22,7 @@ class Conv(nn.Module):
         What type of convolution is used in the background.
     """
 
-    def __init__(self, n_input_channels, n_output_channels, kernel_size=2, method='2D'):
+    def __init__(self, n_input_channels, n_output_channels, kernel_size=3, method='2D'):
         super().__init__()
 
         self.method = method

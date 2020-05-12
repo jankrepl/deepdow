@@ -253,7 +253,12 @@ per sample loading.
     assert timestamp_sample == timestamps[0]
 
 
-Now that we have the :code:`InRAMDataset` we can move to the final stage — dataloaders.
+Additionally, one can pass a transformation :code:`transform` that can serve as preprocessing or data augmentation.
+Currently implemented transforms under :code:`deepdow.data` are
+
+- :code:`Compose` - basically a copy of `Compose` from Torch Vision
+- :code:`Dropout` - randomly setting elements to zero (not in place)
+- :code:`Multiply` - multiplying all elements by a constant (not in place)
 
 
 RigidDataloader
