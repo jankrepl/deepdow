@@ -29,7 +29,7 @@ setup(
     license="Apache License 2.0",
     install_requires=INSTALL_REQUIRES,
     extras_require={
-        "dev": ["codecov", "flake8", "pydocstyle", "pytest>=3.6", "pytest-cov", "tox"],
+        "dev": ["codecov", "flake8==3.7.9", "pydocstyle", "pytest>=3.6", "pytest-cov", "tox"],
         "docs": ["sphinx", "sphinx_rtd_theme"],
     }
 )
