@@ -183,6 +183,54 @@ class Multiply:
         return self.c * X_sample, y_sample, timestamps_sample, asset_names
 
 
+class Noise:
+    """Add noise to each of the channels.
+
+    Random (Gaussian) noise is added to the original features X. One can control the standard deviation of the noise
+    via the `frac` parameter. Mathematically, `std(X_noise) = std(X) * frac` for each channel.
+
+
+    """
+
+    def __init__(self, frac=0.2):
+        self.frac = frac
+
+    def __call__(self, X_sample, y_sample, timestamps_sample, asset_names):
+        """Perform transform.
+
+        Parameters
+        ----------
+        X_sample : torch.Tensor
+            Feature vector of shape `(n_channels, lookback, n_assets)`.
+
+        y_sample : torch.Tensor
+            Target vector of shape `(n_channels, horizon, n_assets)`.
+
+        timestamps_sample : datetime
+            Time stamp of the sample.
+
+        asset_names
+            Asset names corresponding to the last channel of `X_sample` and `y_sample`.
+
+        Returns
+        -------
+        X_sample_new : torch.Tensor
+            Feature vector of shape `(n_channels, lookback, n_assets)` with some added noise.
+
+        y_sample : torch.Tesnor
+            Same as input.
+
+        timestamps_sample : datetime
+            Same as input.
+
+        asset_names
+            Same as input.
+        """
+        X_sample_new = self.frac * X_sample.std([1, 2], keepdim=True) * torch.randn_like(X_sample) + X_sample
+
+        return X_sample_new, y_sample, timestamps_sample, asset_names
+
+
 class InRAMDataset(torch.utils.data.Dataset):
     """Dataset that lives entirely in RAM.
 

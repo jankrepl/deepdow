@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 import torch
 
-from deepdow.data import (Compose, Dropout, FlexibleDataLoader, InRAMDataset, Multiply, RigidDataLoader,
+from deepdow.data import (Compose, Dropout, FlexibleDataLoader, InRAMDataset, Multiply, Noise, RigidDataLoader,
                           collate_uniform, scale_features)
 
 
@@ -175,7 +175,7 @@ class TestInRAMDataset:
         X = np.random.normal(size=(n_samples, n_channels, lookback, n_assets)) / 100
         y = np.random.normal(size=(n_samples, n_channels, horizon, n_assets)) / 100
 
-        dataset = InRAMDataset(X, y, transform=Compose([Dropout(p=0.5), Multiply(c=100)]))
+        dataset = InRAMDataset(X, y, transform=Compose([Noise(), Dropout(p=0.5), Multiply(c=100)]))
 
         X_sample, y_sample, timestamps_sample, asset_names = dataset[1]
 

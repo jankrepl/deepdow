@@ -259,6 +259,7 @@ Currently implemented transforms under :code:`deepdow.data` are
 - :code:`Compose` - basically a copy of `Compose` from Torch Vision
 - :code:`Dropout` - randomly setting elements to zero (not in place)
 - :code:`Multiply` - multiplying all elements by a constant (not in place)
+- :code:`Noise` - add Gaussian noise (not in place)
 
 
 RigidDataloader
