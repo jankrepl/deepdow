@@ -109,9 +109,9 @@ class TestCollateUniform:
 
         for _ in range(n_trials):
             X_batch, y_batch, timestamps_batch, asset_names_batch = collate_uniform(batch,
-                                                                                    n_assets_range=(1, max_n_assets),
-                                                                                    lookback_range=(1, max_lookback),
-                                                                                    horizon_range=(1, max_lookback))
+                                                                                    n_assets_range=(2, max_n_assets),
+                                                                                    lookback_range=(2, max_lookback),
+                                                                                    horizon_range=(2, max_lookback))
 
             n_assets_set.add(X_batch.shape[-1])
             lookback_set.add(X_batch.shape[-2])
@@ -209,6 +209,14 @@ class TestFlexibleDataLoader:
 
         with pytest.raises(ValueError):
             FlexibleDataLoader(dataset_dummy,
+                               indices=None,
+                               asset_ixs=list(range(len(dataset_dummy))),
+                               n_assets_range=(max_assets, max_assets + 1),
+                               lookback_range=(max_lookback, max_lookback + 1),
+                               horizon_range=(-2, max_horizon + 1))
+
+        with pytest.raises(ValueError):
+            FlexibleDataLoader(dataset_dummy,
                                indices=[-1],
                                n_assets_range=(max_assets, max_assets + 1),
                                lookback_range=(max_lookback, max_lookback + 1),
@@ -246,7 +254,16 @@ class TestFlexibleDataLoader:
                                 lookback_range=(max_lookback, max_lookback + 1),
                                 horizon_range=(max_horizon, max_horizon + 1))
 
+        dl = FlexibleDataLoader(dataset_dummy)
+
         assert isinstance(dl.hparams, dict)
+
+    def test_minimal(self, dataset_dummy):
+        dl = FlexibleDataLoader(dataset_dummy, batch_size=2)
+
+        res = next(iter(dl))
+
+        assert len(res) == 4
 
 
 class TestRidigDataLoader:

@@ -7,6 +7,7 @@ Data Loading
     from pandas import Timestamp
     import torch
 
+    from deepdow.data import InRAMDataset
     from deepdow.utils import raw_to_Xy
 
     dct = {('MSFT', 'Close'): {Timestamp('2016-01-04 00:00:00'): 54.79999923706055,
@@ -99,6 +100,7 @@ Data Loading
                                                           gap=gap,
                                                           horizon=horizon)
 
+    dataset = InRAMDataset(X, y, timestamps=timestamps, asset_names=asset_names)
 
 
 Introduction
@@ -262,10 +264,134 @@ Currently implemented transforms under :code:`deepdow.data` are
 - :code:`Noise` - add Gaussian noise (not in place)
 
 
-RigidDataloader
----------------
+Dataloaders
+-----------
+The last ingredient in the data pipeline are dataloaders. Their goal is to stream batches of samples for training and
+validation. :code:`deepdow` provides two options
+
+- **RigidDataLoader** - lookback, horizon and assets **are constant** over different batches
+- **FlexibleDataLoder** - lookback, horizon and asset **can change** over different batches
+
+Both of them are subclassing :code:`torch.utils.data.DataLoader` and therefore inherit its functionality. One important
+example is the :code:`batch_size` parameter. However, they also add new functionality. Notably one can use the
+parameter :code:`indices` to specify which samples of the original dataset are going to be streamed. The
+**train, validation and test split** can be performed via this parameter. Last but not least they both have its
+speficif parameters that we describe in the following subsections.
+
+RigidDataLoader
+****************
+This dataloader streams batches without making fundamental changes to :code:`X_batch` or :code:`y_batch`.
+
+    - The samples are shuffled
+    - The shapes are
+
+        - :code:`X_batch.shape = (batch_size, n_channels, lookback, n_assets)`
+        - :code:`y_batch.shape = (batch_size, n_channels, horizon, n_assets)`
+        - :code:`len(timestamps_batch) = batch_size`
+        - :code:`len(asset_names_batch) = n_assets`
 
 
-FlexibleDataloader
-------------------
+    - at construction one can redefine :code:`lookback`, :code:`horizon` and :code:`asset_ixs` to create a new subset
 
+
+
+.. testcode::
+
+    from deepdow.data import RigidDataLoader
+
+    torch.manual_seed(1)
+    batch_size = 4
+
+    dataloader = RigidDataLoader(dataset, batch_size=batch_size)
+
+    for X_batch, y_batch, timestamps_batch, asset_names_batch in dataloader:
+        print(X_batch.shape)
+        print(y_batch.shape)
+        print(asset_names_batch)
+        print(list(map(str, timestamps_batch)))
+        print()
+
+
+.. testoutput::
+    :options: +NORMALIZE_WHITESPACE
+
+
+    torch.Size([4, 2, 5, 2])
+    torch.Size([4, 2, 4, 2])
+    ['AAPL', 'MSFT']
+    ['2016-01-15 00:00:00', '2016-01-19 00:00:00', '2016-01-22 00:00:00', '2016-01-13 00:00:00']
+
+    torch.Size([4, 2, 5, 2])
+    torch.Size([4, 2, 4, 2])
+    ['AAPL', 'MSFT']
+    ['2016-01-14 00:00:00', '2016-01-12 00:00:00', '2016-01-11 00:00:00', '2016-01-20 00:00:00']
+
+    torch.Size([2, 2, 5, 2])
+    torch.Size([2, 2, 4, 2])
+    ['AAPL', 'MSFT']
+    ['2016-01-21 00:00:00', '2016-01-18 00:00:00']
+
+The big advantage of :code:`RigidDataloader` is that the one can use it easily for evaluation purposes since
+the shape of batches is always the same. For example, we can be sure the :code:`horizon` in the :code:`y_batch`
+is going to be identical and therefore the predicted portfolio will be always held for the :code:`horizon` number
+of timesteps.
+
+FlexibleDataLoader
+******************
+The goal of this dataloader is to introduce major structural changes to the streamed batches :code:`X_batch` or
+:code:`y_batch`. The goal is to randomly create subtensors of them. See below important features
+
+    - :code:`lookback_range` tuple specifies the min and max lookback a :code:`X_batch` can have. The actual lookback is sampled **uniformly** for every batch.
+    - :code:`horizon_range` tuple specifies the min and max horzion a :code:`y_batch` can have. Sampled **uniformly**.
+    - If :code:`asset_ixs` not specified then :code:`n_assets_range` tuple is the min and max number of assets in :code:`X_batch` and :code:`y_batch`. The actual assets sampled randomly.
+
+
+.. testcode::
+
+    from deepdow.data import FlexibleDataLoader
+
+    torch.manual_seed(3)
+    batch_size = 4
+
+    dataloader = FlexibleDataLoader(dataset,
+                                    batch_size=batch_size,
+                                    n_assets_range=(2, 3),  # keep n_assets = 2 but shuffle randomly
+                                    lookback_range=(2, 6),  # sampled uniformly from [2, 6)
+                                    horizon_range=(2, 5))   # sampled uniformly from [2, 5)
+
+    for X_batch, y_batch, timestamps_batch, asset_names_batch in dataloader:
+        print(X_batch.shape)
+        print(y_batch.shape)
+        print(asset_names_batch)
+        print(list(map(str, timestamps_batch)))
+        print()
+
+.. testoutput::
+    :options: +NORMALIZE_WHITESPACE
+
+    torch.Size([4, 2, 5, 2])
+    torch.Size([4, 2, 2, 2])
+    ['AAPL', 'MSFT']
+    ['2016-01-20 00:00:00', '2016-01-15 00:00:00', '2016-01-13 00:00:00', '2016-01-22 00:00:00']
+
+    torch.Size([4, 2, 4, 2])
+    torch.Size([4, 2, 2, 2])
+    ['MSFT', 'AAPL']
+    ['2016-01-12 00:00:00', '2016-01-18 00:00:00', '2016-01-11 00:00:00', '2016-01-21 00:00:00']
+
+    torch.Size([2, 2, 4, 2])
+    torch.Size([2, 2, 3, 2])
+    ['AAPL', 'MSFT']
+    ['2016-01-19 00:00:00', '2016-01-14 00:00:00']
+
+The main purpose of this dataloader is to use it for training. One can design networks that can perform
+a forward pass of an input :code:`X` with variable shapes (i.e. RNN over the time dimension). This is where
+:code:`FlexibleDataLoader` comes in handy because it can stream these variable inputs.
+
+.. warning::
+
+    As an example when **not** to use :code:`FlexibleDataLoader` let us consider a dummy network. This
+    network flattens the input tensor into a 1D vector of length :code:`n_channels * lookback * n_assets`. Afterwards,
+    it applies a linear layer and finally uses some allocation layer (softmax). In this case, one cannot just
+    stream tensors of different sizes. Additionally, if we randomly shuffle the order of assets (while keeping the overall
+    number equal to :code:`n_assets`) the linear model will have no way of learning asset specific features.
