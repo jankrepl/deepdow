@@ -127,9 +127,15 @@ To avoid confusion, all the available losses have the *"The lower the better"* l
 otherwise (i.e. :code:`MeanReturns`) a negative is computed instead. For the exact usage see :ref:`losses_API`.
 
 
+Alpha
+*****
+Negative alpha with respect to a predefined portfolio of assets. If :code:`benchmark_weights=None` then
+considering the equally weighted portfolio by default.
+
+
 CumulativeReturn
 ****************
-Simple cumulative of the buy and hold portfolio at the end of the :code:`horizon` steps.
+Negative simple cumulative of the buy and hold portfolio at the end of the :code:`horizon` steps.
 
 .. math::
 

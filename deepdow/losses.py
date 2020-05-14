@@ -7,6 +7,33 @@ from types import MethodType
 import torch
 
 
+def covariance(x, y):
+    """Compute covariance between two 2D tensors.
+
+    Parameters
+    ----------
+    x : torch.tensor
+        Torch tensor of shape `(n_samples, horizon)`
+
+    y : torch.tensor
+        Tensor of shape `(n_samples, horizon)`
+
+    Returns
+    -------
+    cov : torch.tensor
+        Torch tensor of shape `(n_samples,)`.
+    """
+    n_samples, horizon = x.shape
+    mean_x = x.mean(dim=1, keepdim=True)
+    mean_y = y.mean(dim=1, keepdim=True)
+    xm = x - mean_x  # (n_samples, horizon)
+    ym = y - mean_y  # (n_samples, horizon)
+
+    cov = (xm * ym).sum(dim=1) / horizon
+
+    return cov
+
+
 def log2simple(x):
     """Turn simple returns into log returns.
 
@@ -335,6 +362,77 @@ class Loss:
             return new_instance
         else:
             raise TypeError('Unsupported type: {}'.format(type(power)))
+
+
+class Alpha(Loss):
+    """Negative alpha with respect to a selected portfolio.
+
+    Parameters
+    ----------
+    benchmark_weights : torch.tensor or None
+        Weights of the benchmark portfolio of shape `(n_assets,). Note that this loss assumes it will be always located
+        under this index in the `y` tensor. If None then equally weighted portfolio.
+
+    returns_channel : int
+        Which channel of the `y` target represents returns.
+
+    input_type : str, {'log', 'simple'}
+        What type of returns are we dealing with in `y`.
+
+    """
+
+    def __init__(self, benchmark_weights=None, returns_channel=0, input_type='log'):
+        self.benchmark_weights = benchmark_weights
+        self.returns_channel = returns_channel
+        self.input_type = input_type
+
+    def __call__(self, weights, y):
+        """Compute negative alpha with respect to the benchmark portfolio.
+
+        Parameters
+        ----------
+        weights : torch.Tensor
+            Tensor of shape `(n_samples, n_assets)` representing the predicted weights by our portfolio optimizer.
+
+        y : torch.Tensor
+            Tensor of shape `(n_samples, n_channels, horizon, n_assets)` representing the evolution over the next
+            `horizon` timesteps.
+
+        Returns
+        -------
+        torch.Tensor
+            Tensor of shape `(n_samples,)` representing the per sample negative alpha.
+
+        """
+        n_samples, n_assets = weights.shape
+        device, dtype = weights.device, weights.dtype
+        portfolio_rets = portfolio_returns(weights,
+                                           y[:, self.returns_channel, ...],
+                                           input_type=self.input_type,
+                                           output_type='simple')  # (n_samples, horizon)
+
+        if self.benchmark_weights is None:
+            benchmark_weights = torch.ones(n_samples, n_assets, dtype=dtype, device=device) / n_assets
+        else:
+            benchmark_weights = self.benchmark_weights[None, :].repeat(n_samples, 1).to(device=device, dtype=dtype)
+
+        benchmark_rets = portfolio_returns(benchmark_weights,
+                                           y[:, self.returns_channel, ...],
+                                           input_type=self.input_type,
+                                           output_type='simple')  # (n_samples, horizon)
+
+        cov = covariance(benchmark_rets, portfolio_rets)
+        beta = cov / benchmark_rets.var(dim=1)
+        alpha = portfolio_rets.mean(dim=1) - beta * benchmark_rets.mean(dim=1)
+
+        return -alpha
+
+    def __repr__(self):
+        """Generate representation string."""
+        return "{}(benchmark_weights={},returns_channel={}, input_type='{}')".format(self.__class__.__name__,
+                                                                                     self.benchmark_weights,
+                                                                                     self.returns_channel,
+                                                                                     self.input_type)
 
 
 class CumulativeReturn(Loss):

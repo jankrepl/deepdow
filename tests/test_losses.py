@@ -1,12 +1,12 @@
 import pytest
 import torch
 
-from deepdow.losses import (CumulativeReturn, LargestWeight, Loss, MaximumDrawdown, MeanReturns, Quantile, SharpeRatio,
-                            Softmax, SortinoRatio, SquaredWeights, StandardDeviation, TargetMeanReturn,
+from deepdow.losses import (Alpha, CumulativeReturn, LargestWeight, Loss, MaximumDrawdown, MeanReturns, Quantile,
+                            SharpeRatio, Softmax, SortinoRatio, SquaredWeights, StandardDeviation, TargetMeanReturn,
                             TargetStandardDeviation, WorstReturn, log2simple, portfolio_returns,
                             portfolio_cumulative_returns, simple2log)
 
-ALL_LOSSES = [CumulativeReturn, LargestWeight, MaximumDrawdown, MeanReturns, Quantile, SharpeRatio, Softmax,
+ALL_LOSSES = [Alpha, CumulativeReturn, LargestWeight, MaximumDrawdown, MeanReturns, Quantile, SharpeRatio, Softmax,
               SortinoRatio, SquaredWeights, StandardDeviation, TargetMeanReturn, TargetStandardDeviation, WorstReturn]
 
 
@@ -195,12 +195,12 @@ class TestAllLosses:
         assert losses.dtype == y_dummy.dtype
         assert losses.device == y_dummy.device
 
-    @pytest.mark.parametrize('loss_class_l', ALL_LOSSES, ids=[x.__name__ for x in ALL_LOSSES])
     @pytest.mark.parametrize('loss_class_r', ALL_LOSSES + [3], ids=[x.__name__ for x in ALL_LOSSES] + ['constant'])
     @pytest.mark.parametrize('op', ['sum', 'div', 'mul', 'pow'])
-    def test_arithmetic(self, loss_class_l, loss_class_r, op, Xy_dummy):
+    def test_arithmetic(self, loss_class_r, op, Xy_dummy):
         _, y_dummy, _, _ = Xy_dummy
         n_samples, n_channels, horizon, n_assets = y_dummy.shape
+        loss_class_l = SharpeRatio
 
         loss_instance_l = loss_class_l()
         loss_instance_r = loss_class_r() if not isinstance(loss_class_r, int) else loss_class_r
@@ -312,6 +312,24 @@ class TestAllLosses:
         losses_recreated = mixed_recreated(weights, y)
 
         assert torch.allclose(losses_orig, losses_recreated)
+
+
+class TestAlpha:
+    def test_manual(self, Xy_dummy):
+        X, y, _, _ = Xy_dummy
+
+        device, dtype = y.device, y.dtype
+        n_samples, n_channels, horizon, n_assets = y.shape
+
+        benchmark_weights = torch.zeros(n_assets, dtype=dtype, device=device)
+        benchmark_weights[0] = 1
+        weights = benchmark_weights[None, :].repeat(n_samples, 1).to(device=device, dtype=dtype)
+
+        loss = Alpha(benchmark_weights=benchmark_weights)
+
+        loss = loss(weights, y)
+
+        assert torch.allclose(loss, torch.zeros(n_samples, dtype=dtype, device=device), atol=1e-3)
 
 
 class TestMaximumDrawdown:
