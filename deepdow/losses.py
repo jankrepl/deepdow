@@ -337,6 +337,54 @@ class Loss:
             raise TypeError('Unsupported type: {}'.format(type(power)))
 
 
+class CumulativeReturn(Loss):
+    """Negative cumulative returns.
+
+    Parameters
+    ----------
+    returns_channel : int
+        Which channel of the `y` target represents returns.
+
+    input_type : str, {'log', 'simple'}
+        What type of returns are we dealing with in `y`.
+    """
+
+    def __init__(self, returns_channel=0, input_type='log'):
+        self.returns_channel = returns_channel
+        self.input_type = input_type
+
+    def __call__(self, weights, y):
+        """Compute negative simple cumulative returns.
+
+        Parameters
+        ----------
+        weights : torch.Tensor
+            Tensor of shape `(n_samples, n_assets)` representing the predicted weights by our portfolio optimizer.
+
+        y : torch.Tensor
+            Tensor of shape `(n_samples, n_channels, horizon, n_assets)` representing the evolution over the next
+            `horizon` timesteps.
+
+        Returns
+        -------
+        torch.Tensor
+            Tensor of shape `(n_samples,)` representing the per sample negative simple cumulative returns.
+
+        """
+        crets = portfolio_cumulative_returns(weights,
+                                             y[:, self.returns_channel, ...],
+                                             input_type=self.input_type,
+                                             output_type='simple')
+
+        return -crets[:, -1]
+
+    def __repr__(self):
+        """Generate representation string."""
+        return "{}(returns_channel={}, input_type='{}')".format(self.__class__.__name__,
+                                                                self.returns_channel,
+                                                                self.input_type)
+
+
 class LargestWeight(Loss):
     """Largest weight loss.
 

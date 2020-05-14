@@ -270,7 +270,7 @@ The last ingredient in the data pipeline are dataloaders. Their goal is to strea
 validation. :code:`deepdow` provides two options
 
 - **RigidDataLoader** - lookback, horizon and assets **are constant** over different batches
-- **FlexibleDataLoder** - lookback, horizon and asset **can change** over different batches
+- **FlexibleDataLoder** - lookback, horizon and assets **can change** over different batches
 
 Both of them are subclassing :code:`torch.utils.data.DataLoader` and therefore inherit its functionality. One important
 example is the :code:`batch_size` parameter. However, they also add new functionality. Notably one can use the

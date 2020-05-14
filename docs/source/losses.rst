@@ -127,6 +127,15 @@ To avoid confusion, all the available losses have the *"The lower the better"* l
 otherwise (i.e. :code:`MeanReturns`) a negative is computed instead. For the exact usage see :ref:`losses_API`.
 
 
+CumulativeReturn
+****************
+Simple cumulative of the buy and hold portfolio at the end of the :code:`horizon` steps.
+
+.. math::
+
+     \frac{p^{\textbf{w}}_{t + \text{horizon}}}{p^{\textbf{w}}_{t}} - 1
+
+
 LargestWeight
 *************
 Loss function independent of :code:`y`, only taking into account the :code:`weights`.

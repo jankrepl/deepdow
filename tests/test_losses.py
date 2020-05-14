@@ -1,14 +1,13 @@
 import pytest
 import torch
 
-from deepdow.losses import (LargestWeight, Loss, MaximumDrawdown, MeanReturns, Quantile, SharpeRatio, Softmax,
-                            SortinoRatio,
-                            SquaredWeights,
-                            StandardDeviation, TargetMeanReturn, TargetStandardDeviation, WorstReturn, log2simple,
-                            portfolio_returns, portfolio_cumulative_returns, simple2log)
+from deepdow.losses import (CumulativeReturn, LargestWeight, Loss, MaximumDrawdown, MeanReturns, Quantile, SharpeRatio,
+                            Softmax, SortinoRatio, SquaredWeights, StandardDeviation, TargetMeanReturn,
+                            TargetStandardDeviation, WorstReturn, log2simple, portfolio_returns,
+                            portfolio_cumulative_returns, simple2log)
 
-ALL_LOSSES = [LargestWeight, MaximumDrawdown, MeanReturns, Quantile, SharpeRatio, Softmax, SortinoRatio, SquaredWeights,
-              StandardDeviation, TargetMeanReturn, TargetStandardDeviation, WorstReturn]
+ALL_LOSSES = [CumulativeReturn, LargestWeight, MaximumDrawdown, MeanReturns, Quantile, SharpeRatio, Softmax,
+              SortinoRatio, SquaredWeights, StandardDeviation, TargetMeanReturn, TargetStandardDeviation, WorstReturn]
 
 
 class TestHelpers:
