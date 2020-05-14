@@ -467,8 +467,8 @@ class FlexibleDataLoader(torch.utils.data.DataLoader):
     def hparams(self):
         """Generate dictionary of relevant parameters."""
         return {
-            'lookback_range': self.lookback_range,
-            'horizon_range': self.horizon_range,
+            'lookback_range': str(self.lookback_range),
+            'horizon_range': str(self.horizon_range),
             'batch_size': self.batch_size}
 
 
