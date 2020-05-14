@@ -2,7 +2,8 @@
 import torch
 
 from .benchmarks import Benchmark
-from .layers import AttentionCollapse, AverageCollapse, CovarianceMatrix, NumericalMarkowitz, MultiplyByConstant, RNN
+from .layers import (AttentionCollapse, AverageCollapse, CovarianceMatrix, Conv, NumericalMarkowitz, MultiplyByConstant,
+                     RNN, SoftmaxAllocator)
 
 
 class DummyNet(torch.nn.Module, Benchmark):
@@ -154,6 +155,96 @@ class BachelierNet(torch.nn.Module, Benchmark):
 
         # weights
         weights = self.portfolio_opt_layer(exp_rets, covmat, gamma_all, alpha_all)
+
+        return weights
+
+    @property
+    def hparams(self):
+        """Hyperparamters relevant to construction of the model."""
+        return {k: v if isinstance(v, (int, float, str)) else str(v) for k, v in self._hparams.items() if k != 'self'}
+
+
+class LinearNet(torch.nn.Module, Benchmark):
+    """Network with one layer.
+
+    Parameters
+    ----------
+    n_channels : int
+        Number of channels, needs to be fixed for each input tensor.
+
+    lookback : int
+        Lookback, needs to be fixed for each input tensor.
+
+    n_assets : int
+        Number of assets, needs to be fixed for each input tensor.
+
+    p : float
+        Dropout probability.
+
+    Attributes
+    ----------
+    norm_layer : torch.nn.InstanceNorm2d
+        Instance normalization (per channel) with learnable paramters.
+
+    dropout_layer : torch.nn.Dropout
+        Dropout layer with probability `p`.
+
+    linear : torch.nn.Linear
+        One dense layer with `n_assets` outputs and the flattened input tensor `(n_channels, lookback, n_assets)`.
+
+    temperature : torch.Parameter
+        Learnable parameter for representing the final softmax allocator temperature.
+
+    allocate_layer : SoftmaxAllocator
+        Softmax allocator with a per sample temperature.
+
+    """
+
+    def __init__(self, n_channels, lookback, n_assets, p=0.5):
+        self._hparams = locals().copy()
+        super().__init__()
+
+        self.n_channels = n_channels
+        self.lookback = lookback
+        self.n_assets = n_assets
+
+        n_features = self.n_channels * self.lookback * self.n_assets
+
+        self.norm_layer = torch.nn.InstanceNorm2d(self.n_channels, affine=True)
+        self.dropout_layer = torch.nn.Dropout(p=p)
+        self.linear = torch.nn.Linear(n_features, n_assets, bias=True)
+
+        self.temperature = torch.nn.Parameter(torch.ones(1), requires_grad=True)
+        self.allocate_layer = SoftmaxAllocator(temperature=None)
+
+    def forward(self, x):
+        """Perform forward pass.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Of shape (n_samples, n_channels, lookback, n_assets). The last 3 dimensions need to be of the same
+            size as specified in the constructor. They cannot vary.
+
+        Returns
+        -------
+        weights : torch.Torch
+            Tensor of shape (n_samples, n_assets).
+
+        """
+        if x.shape[1:] != (self.n_channels, self.lookback, self.n_assets):
+            raise ValueError('Input x has incorrect shape {}'.format(x.shape))
+
+        n_samples, _, _, _ = x.shape
+
+        # Normalize
+        x = self.norm_layer(x)
+        x = self.dropout_layer(x)
+        x = x.view(n_samples, -1)  # flatten
+        x = self.linear(x)
+
+        temperatures = torch.ones(n_samples).to(device=x.device, dtype=x.dtype) * self.temperature
+        weights = self.allocate_layer(x, temperatures)
 
         return weights
 

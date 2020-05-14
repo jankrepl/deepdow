@@ -145,7 +145,7 @@ class Run:
                  benchmarks=None, device=None, dtype=None, optimizer=None, callbacks=None):
         # checks
         if not isinstance(train_dataloader, (FlexibleDataLoader, RigidDataLoader)):
-            raise TypeError('The train_dataloader needs to be an instance of TrainDataLoader.')
+            raise TypeError('The train_dataloader needs to be an instance of RigidDataLoader or FlexibleDataLoadeer.')
 
         if not isinstance(loss, Loss):
             raise TypeError('The loss needs to be an instance of Loss.')
