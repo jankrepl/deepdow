@@ -64,7 +64,8 @@ Once we construct the :code:`Run`, we can start the training and evaluation loop
             loss      -1     val          -0.331080
 
 We get results on the benchmarks in the standard output (see above).
-Additionally, progress bar is sent to the standard error. It monitors progress of our network.
+Additionally, progress bar is sent to the standard error. It monitors progress of our network. To read more
+details on the :code:`Run` class see :ref:`experiments_API`.
 
 .. _callbacks:
 
