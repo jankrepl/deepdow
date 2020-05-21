@@ -31,9 +31,9 @@ class Cov2Corr(nn.Module):
 
 
 class CovarianceMatrix(nn.Module):
-    """Convariance matrix or its square root.
+    """Covariance matrix or its square root.
 
-    Attributes
+    Parameters
     ----------
     sqrt : bool
         If True, then returning the square root.
@@ -41,9 +41,10 @@ class CovarianceMatrix(nn.Module):
     shrinkage_strategy : None or {'diagonal', 'identity', 'scaled_identity'}
         Strategy of combining the sample covariance matrix with some more stable matrix.
 
-    shrinkage_coef : float
-        A float in the range [0, 1] representing the weight of the linear combination. If `shrinkage_coef=1` then
-        using purely the sample covariance matrix. If `shrinkage_coef=0` then using purely the stable matrix.
+    shrinkage_coef : float or None
+        If ``float`` then in the range [0, 1] representing the weight of the convex combination. If `shrinkage_coef=1`
+        then using purely the sample covariance matrix. If `shrinkage_coef=0` then using purely the stable matrix.
+        If None then needs to be provided dynamically when performing forward pass.
     """
 
     def __init__(self, sqrt=True, shrinkage_strategy='diagonal', shrinkage_coef=0.5):
@@ -59,13 +60,17 @@ class CovarianceMatrix(nn.Module):
         self.shrinkage_strategy = shrinkage_strategy
         self.shrinkage_coef = shrinkage_coef
 
-    def forward(self, x):
+    def forward(self, x, shrinkage_coef=None):
         """Perform forward pass.
 
         Parameters
         ----------
         x : torch.Tensor
             Of shape (n_samples, n_channels, n_assets).
+
+        shrinkage_coef : None or torch.Tensor
+            If None then using the `self.shrinkage_coef` supplied at construction for each sample. Otherwise a
+            tensor of shape `(n_shapes,)`.
 
         Returns
         -------
@@ -74,12 +79,21 @@ class CovarianceMatrix(nn.Module):
 
         """
         n_samples = x.shape[0]
+        dtype, device = x.dtype, x.device
+
+        if not ((shrinkage_coef is None) ^ (self.shrinkage_coef is None)):
+            raise ValueError('Not clear which shrinkage coefficient to use')
+
+        if shrinkage_coef is not None:
+            shrinkage_coef_ = shrinkage_coef  # (n_samples,)
+        else:
+            shrinkage_coef_ = self.shrinkage_coef * torch.ones(n_samples, dtype=dtype, device=device)
 
         wrapper = self.compute_sqrt if self.sqrt else lambda h: h
 
         return torch.stack([wrapper(self.compute_covariance(x[i].T.clone(),
                                                             shrinkage_strategy=self.shrinkage_strategy,
-                                                            shrinkage_coef=self.shrinkage_coef))
+                                                            shrinkage_coef=shrinkage_coef_[i]))
                             for i in range(n_samples)], dim=0)
 
     @staticmethod
@@ -94,9 +108,9 @@ class CovarianceMatrix(nn.Module):
         shrinkage_strategy : None or {'diagonal', 'identity', 'scaled_identity'}
             Strategy of combining the sample covariance matrix with some more stable matrix.
 
-        shrinkage_coef : float
-            A float in the range [0, 1] representing the weight of the linear combination. If `shrinkage_coef=1` then
-            using purely the sample covariance matrix. If `shrinkage_coef=0` then using purely the stable matrix.
+        shrinkage_coef : torch.Tensor
+            A ``torch.Tensor`` scalar (probably in the range [0, 1]) representing the weight of the
+            convex combination.
 
         Returns
         -------
@@ -109,7 +123,6 @@ class CovarianceMatrix(nn.Module):
         mt = m.t()
 
         s = fact * m.matmul(mt)  # sample covariance matrix
-        s += torch.eye(len(s), dtype=s.dtype, device=s.device) * 0.001  # prevent numerical issues
 
         if shrinkage_strategy is None:
             return s
@@ -170,7 +183,7 @@ class KMeans(torch.nn.Module):
     n_clusters : int
         Number of clusters to look for.
 
-    init : str, {'random, 'k-means++'}
+    init : str, {'random, 'k-means++', 'manual'}
         How to initialize the clusters at the beginning of the algorithm.
 
     n_init : int

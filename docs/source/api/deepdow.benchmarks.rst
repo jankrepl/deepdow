@@ -1,3 +1,5 @@
+.. _benchmarks_API:
+
 deepdow.benchmarks module
 =========================
 

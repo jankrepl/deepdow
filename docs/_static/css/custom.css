@@ -1,5 +1,6 @@
-.wy-side-nav-search{ background-color: #F05025 }
-.caption-text{ color: #F05025 }
-.rst-content dl:not(.docutils) dt{ background: #FDE4DA;
-                                   color: #F15A24;
-                                   border-top-color: #000000}
+.wy-side-nav-search{ background-color: #F05025 } /*sidebar background color*/
+.caption-text{ color: #F05025 } /*Sidebar heading font color*/
+.rst-content dl:not(.docutils) dt{ background: #FDE4DA; /* docstring background color */
+                                   color: #F15A24; /* docstring font color*/
+                                   border-top-color: #000000  /* docstring separating line color */
+                                  }

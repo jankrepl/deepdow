@@ -4,7 +4,8 @@ import numpy as np
 import pytest
 import torch
 
-from deepdow.data import FlexibleDataLoader, InRAMDataset, RigidDataLoader, collate_uniform, scale_features
+from deepdow.data import (Compose, Dropout, FlexibleDataLoader, InRAMDataset, Multiply, Noise, RigidDataLoader,
+                          collate_uniform, scale_features)
 
 
 class TestCollateUniform:
@@ -108,9 +109,9 @@ class TestCollateUniform:
 
         for _ in range(n_trials):
             X_batch, y_batch, timestamps_batch, asset_names_batch = collate_uniform(batch,
-                                                                                    n_assets_range=(1, max_n_assets),
-                                                                                    lookback_range=(1, max_lookback),
-                                                                                    horizon_range=(1, max_lookback))
+                                                                                    n_assets_range=(2, max_n_assets),
+                                                                                    lookback_range=(2, max_lookback),
+                                                                                    horizon_range=(2, max_lookback))
 
             n_assets_set.add(X_batch.shape[-1])
             lookback_set.add(X_batch.shape[-2])
@@ -164,6 +165,28 @@ class TestInRAMDataset:
             assert torch.allclose(X_sample, torch.ones_like(X_sample) * i)
             assert torch.allclose(y_sample, torch.ones_like(y_sample) * i)
 
+    def test_transforms(self):
+        n_samples = 13
+        n_channels = 2
+        lookback = 9
+        horizon = 10
+        n_assets = 6
+
+        X = np.random.normal(size=(n_samples, n_channels, lookback, n_assets)) / 100
+        y = np.random.normal(size=(n_samples, n_channels, horizon, n_assets)) / 100
+
+        dataset = InRAMDataset(X, y, transform=Compose([Noise(), Dropout(p=0.5), Multiply(c=100)]))
+
+        X_sample, y_sample, timestamps_sample, asset_names = dataset[1]
+
+        assert (X_sample == 0).sum() > 0  # dropout
+        assert X_sample.max() > 1  # multiply 100
+        assert X_sample.min() < -1  # multiply 100
+
+        assert (y_sample == 0).sum() == 0
+        assert y_sample.max() < 1
+        assert y_sample.min() > -1
+
 
 @pytest.mark.parametrize('scaler', ['standard', 'percent', 'wrong'])
 def test_scale_features(scaler):
@@ -183,6 +206,14 @@ class TestFlexibleDataLoader:
         max_assets = dataset_dummy.n_assets
         max_lookback = dataset_dummy.lookback
         max_horizon = dataset_dummy.horizon
+
+        with pytest.raises(ValueError):
+            FlexibleDataLoader(dataset_dummy,
+                               indices=None,
+                               asset_ixs=list(range(len(dataset_dummy))),
+                               n_assets_range=(max_assets, max_assets + 1),
+                               lookback_range=(max_lookback, max_lookback + 1),
+                               horizon_range=(-2, max_horizon + 1))
 
         with pytest.raises(ValueError):
             FlexibleDataLoader(dataset_dummy,
@@ -223,7 +254,16 @@ class TestFlexibleDataLoader:
                                 lookback_range=(max_lookback, max_lookback + 1),
                                 horizon_range=(max_horizon, max_horizon + 1))
 
+        dl = FlexibleDataLoader(dataset_dummy)
+
         assert isinstance(dl.hparams, dict)
+
+    def test_minimal(self, dataset_dummy):
+        dl = FlexibleDataLoader(dataset_dummy, batch_size=2)
+
+        res = next(iter(dl))
+
+        assert len(res) == 4
 
 
 class TestRidigDataLoader:

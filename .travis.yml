@@ -10,13 +10,15 @@ python:
     - "3.7"
 
 install:
-    - pip install .[dev]
+    - pip install .[dev,docs]
 
 script:
     - pip freeze
     - pytest
     - flake8 deepdow
+    - flake8 tests
     - pydocstyle deepdow
+    - sphinx-build -b doctest -D "autodoc_mock_imports=[]" docs/ temp_doctest
 
 after_success:
     - codecov

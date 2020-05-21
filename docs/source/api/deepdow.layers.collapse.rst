@@ -1,3 +1,5 @@
+.. _layers_collapse_API:
+
 deepdow.layers.collapse module
 ==============================
 

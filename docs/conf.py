@@ -10,9 +10,14 @@
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 #
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
+import os
+import pathlib
+import sys
+
+some_path = pathlib.Path(os.path.abspath('.'))
+parent_some_path = some_path.parent
+sys.path.insert(0, str(some_path))
+sys.path.insert(0, str(parent_some_path))
 
 # -- Project information -----------------------------------------------------
 
@@ -28,8 +33,25 @@ author = 'Jan Krepl'
 extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.autodoc',
+    'sphinx.ext.doctest',
     'sphinx.ext.napoleon',
     'sphinx.ext.viewcode',
+]
+
+# Import mocking
+autodoc_mock_imports = [
+    "cvxpy",
+    "cvxpylayers",
+    "diffcp",
+    "matplotlib",
+    "mlflow",
+    "numpy",
+    "pandas",
+    "pillow",
+    "torch",
+    "torch.nn",
+    "tensorboard",
+    "tqdm"
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -41,6 +63,8 @@ templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 # -- Options for HTML output -------------------------------------------------
+# Set the welcome page for readthedocs
+master_doc = 'index'
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.

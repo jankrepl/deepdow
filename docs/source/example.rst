@@ -1,2 +1,2 @@
-Example
-=======
+Examples
+========

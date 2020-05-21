@@ -135,6 +135,10 @@ class TestCovarianceMatrix:
         with pytest.raises(ValueError):
             CovarianceMatrix(shrinkage_strategy='fake')
 
+        with pytest.raises(ValueError):
+            layer = CovarianceMatrix(shrinkage_coef=None)
+            layer(torch.ones(1, 5, 2))
+
     @pytest.mark.parametrize('shrinkage_strategy', ['diagonal', 'identity', 'scaled_identity', None])
     @pytest.mark.parametrize('sqrt', [True, False], ids=['sqrt', 'nosqrt'])
     def test_basic(self, Xy_dummy, sqrt, shrinkage_strategy):
@@ -173,6 +177,33 @@ class TestCovarianceMatrix:
 
         for i in range(n_samples):
             assert torch.allclose(cov[i], cov_sqrt[i] @ cov_sqrt[i], atol=1e-2)
+
+    def test_shrinkage_coef(self):
+        """Dynamic vs at construction."""
+        n_samples = 3
+        n_channels = 4
+        n_assets = 5
+
+        x = torch.rand((n_samples, n_channels, n_assets)) * 100
+
+        layer_1 = CovarianceMatrix(sqrt=False, shrinkage_strategy='diagonal', shrinkage_coef=0.3)
+        layer_2 = CovarianceMatrix(sqrt=False, shrinkage_strategy='diagonal', shrinkage_coef=None)
+
+        assert torch.allclose(layer_1(x), layer_2(x, 0.3 * torch.ones(n_samples, dtype=x.dtype)))
+
+        x_ = torch.rand((n_channels, n_assets)) * 100
+        x_stacked = torch.stack([x_, x_, x_], dim=0)
+
+        res_1 = layer_1(x_stacked)
+        res_2 = layer_2(x_stacked, torch.tensor([0.2, 0.3, 0.6]))
+
+        assert torch.allclose(res_1[0], res_1[1])
+        assert torch.allclose(res_1[1], res_1[2])
+        assert torch.allclose(res_1[2], res_1[0])
+
+        assert not torch.allclose(res_2[0], res_2[1])
+        assert not torch.allclose(res_2[1], res_2[2])
+        assert not torch.allclose(res_2[2], res_2[0])
 
 
 class TestKMeans:
@@ -472,8 +503,16 @@ class TestSoftmax:
 
         rets = X.mean(dim=(1, 2))
 
-        weights = SoftmaxAllocator()(rets)
+        with pytest.raises(ValueError):
+            SoftmaxAllocator(temperature=None)(rets, temperature=None)
 
+        weights = SoftmaxAllocator(temperature=2)(rets)
+
+        assert torch.allclose(weights,
+                              SoftmaxAllocator(temperature=None)(rets,
+                                                                 2 * torch.ones(n_samples,
+                                                                                dtype=dtype,
+                                                                                device=device)))
         assert weights.shape == (n_samples, n_assets)
         assert weights.dtype == X.dtype
         assert weights.device == X.device

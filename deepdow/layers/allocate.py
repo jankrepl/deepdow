@@ -204,7 +204,7 @@ class NumericalMarkowitz(nn.Module):
 
         self.cvxpylayer = CvxpyLayer(prob, parameters=[rets, covmat_sqrt, alpha], variables=[w])
 
-    def forward(self, rets, covmat_sqrt, gamma, alpha):
+    def forward(self, rets, covmat_sqrt, gamma_sqrt, alpha):
         """Perform forward pass.
 
         Parameters
@@ -216,7 +216,7 @@ class NumericalMarkowitz(nn.Module):
         covmat_sqrt : torch.Tensor
             Of shape (n_samples, n_assets, n_assets) representing the square of the covariance matrix.
 
-        gamma : torch.Tensor
+        gamma_sqrt : torch.Tensor
             Of shape (n_samples,) representing the tradeoff between risk and return - where on efficient frontier
             we are.
 
@@ -232,10 +232,10 @@ class NumericalMarkowitz(nn.Module):
 
         """
         n_samples, n_assets = rets.shape
-        gamma_ = gamma.repeat((1, n_assets * n_assets)).view(n_samples, n_assets, n_assets)
+        gamma_sqrt_ = gamma_sqrt.repeat((1, n_assets * n_assets)).view(n_samples, n_assets, n_assets)
         alpha_abs = torch.abs(alpha)  # it needs to be nonnegative
 
-        return self.cvxpylayer(rets, gamma_ * covmat_sqrt, alpha_abs)[0]
+        return self.cvxpylayer(rets, gamma_sqrt_ * covmat_sqrt, alpha_abs)[0]
 
 
 class Resample(nn.Module):
@@ -352,9 +352,22 @@ class Resample(nn.Module):
 
 
 class SoftmaxAllocator(torch.nn.Module):
-    """Dummy portfolio creation by computing a softmax over the asset dimension."""
+    """Portfolio creation by computing a softmax over the asset dimension with temperature.
 
-    def forward(self, x):
+    Parameters
+    ----------
+    temperature : None or float
+        If None, then needs to be provided per sample during forward pass. If ``float`` then assumed to be always
+        the same.
+
+    """
+
+    def __init__(self, temperature=1):
+        super().__init__()
+
+        self.temperature = temperature
+
+    def forward(self, x, temperature=None):
         """Perform forward pass.
 
         Parameters
@@ -362,10 +375,27 @@ class SoftmaxAllocator(torch.nn.Module):
         x : torch.Tensor
             Tensor of shape `(n_samples, n_assets`).
 
+        temperature : None or torch.Tensor
+            If None, then using the `temperature` provided at construction time. Otherwise a `torch.Tensor` of shape
+            `(n_samples,)` representing a per sample temperature.
+
         Returns
         -------
         weights : torch.Tensor
             Tensor of shape `(n_samples, n_assets`).
 
         """
-        return nn.functional.softmax(x, dim=1)
+        n_samples, _ = x.shape
+        device, dtype = x.device, x.dtype
+
+        if not ((temperature is None) ^ (self.temperature is None)):
+            raise ValueError('Not clear which temperature to use')
+
+        if temperature is not None:
+            temperature_ = temperature  # (n_samples,)
+        else:
+            temperature_ = self.temperature * torch.ones(n_samples, dtype=dtype, device=device)
+
+        inp = x / temperature_[..., None]
+
+        return nn.functional.softmax(inp, dim=1)
