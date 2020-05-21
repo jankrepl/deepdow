@@ -5,6 +5,9 @@ Networks
 
    import torch
 
+   torch.manual_seed(2)
+
+
 
 The main goal of :code:`deepdow` is to provide easy access to building end-to-end differentiable portfolio allocation
 neural networks. This section proposes multiple different networks and shows how to create new ones. To better understand
@@ -244,5 +247,92 @@ semi-definite.
 
 Writing custom networks
 -----------------------
-One can create infinitely many architectures using :code:`deepdow` and :code:`torch` layers.
+One can create infinitely many architectures using :code:`deepdow` and :code:`torch` layers. The bare minimum is to
+subclass :code:`torch.nn.Module` and :code:`deepdow.benchmarks.Benchmark` and implement the :code:`forward` method.
+
+See below an example
+
+
+.. testcode::
+
+    from deepdow.benchmarks import Benchmark
+
+    class AmazingNetwork(torch.nn.Module, Benchmark):
+        """Amazing network.
+
+        Parameters
+        ----------
+        hyper_param : float
+            A hyperparameter.
+
+
+        Attributes
+        ----------
+        learnable_param : torch.tensor
+            A parameter to be learned during training.
+
+        """
+        def __init__(self, hyper_param):
+            super().__init__()
+
+            self.hyper_param = hyper_param
+            self.learnable_param = torch.nn.Parameter(torch.ones(1), requires_grad=True)
+
+        def forward(self, x):
+            """Perform forward pass.
+
+            Parameters
+            ----------
+            x : torch.Tensor
+                Tensor of shape `(n_samples, n_channels, lookback, n_assets)` representing the input features.
+
+            Returns
+            -------
+            weights : torch.Tensor
+                Tensor of shape `(n_samples, n_assets)` representing the final allocation.
+            """
+            x = self.learnable_param * torch.sin(x + self.hyper_param)
+            means = abs(x.mean([1, 2])) +  1e-6
+
+            weights = means / means.sum(dim=1, keepdim=True)
+
+            return weights
+
+        def hparams(self):
+            return {'hyper_param': self.hyper_param}
+
+
+    network = AmazingNetwork(2.4)
+
+    n_samples, n_channels, lookback, n_assets = 10, 2, 20, 5
+    x = torch.randn(n_samples, n_channels, lookback, n_assets)
+    weights = network(x)
+
+    print(weights)
+
+    assert sum(p.numel() for p in network.parameters() if p.requires_grad) == 1
+
+
+.. testoutput::
+    :options: +NORMALIZE_WHITESPACE
+
+    tensor([[0.2186, 0.1135, 0.2441, 0.2321, 0.1917],
+                [0.2096, 0.1877, 0.1719, 0.2010, 0.2297],
+                [0.1996, 0.2330, 0.1879, 0.1923, 0.1871],
+                [0.1911, 0.2407, 0.1675, 0.2020, 0.1986],
+                [0.2495, 0.1988, 0.1833, 0.1703, 0.1981],
+                [0.2418, 0.1710, 0.1773, 0.1950, 0.2149],
+                [0.1715, 0.2285, 0.3046, 0.0921, 0.2034],
+                [0.1825, 0.1882, 0.1603, 0.2631, 0.2058],
+                [0.2012, 0.1889, 0.1665, 0.2128, 0.2306],
+                [0.1924, 0.2749, 0.1898, 0.1486, 0.1942]], grad_fn=<DivBackward0>)
+
+
+
+
+Note that one needs to always implement the :code:`forward` assuming the input shape is
+:code:`(n_samples, n_channels, lookback, n_assets)`. The sample dimension should always be independent.
+Meaning that shuffling the input **x** along the sample dimension only results in shuffling the output
+**weights**.
+
 
