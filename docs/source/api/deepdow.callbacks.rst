@@ -1,3 +1,5 @@
+.. _callbacks_API:
+
 deepdow.callbacks module
 ========================
 

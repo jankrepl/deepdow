@@ -85,7 +85,7 @@ class History:
         else:
             df = self.metrics_per_epoch(epoch)
 
-        print(df.groupby(['model', 'metric', 'epoch', 'dataloader'])['value'].mean())
+        print(df.groupby(['model', 'metric', 'epoch', 'dataloader'])['value'].mean().to_string())
 
 
 class Run:
@@ -124,6 +124,9 @@ class Run:
     optimizer : None or torch.optim.Optimizer
         Optimizer to be used. If None then using Adam with lr=0.01.
 
+    callbacks : list
+        List of callbacks to be used.
+
 
     Attributes
     ----------
@@ -138,6 +141,10 @@ class Run:
     models : dict
         Keys represent model names and values are either `Benchmark` or `torch.nn.Module`. Note that it always
         has an element called `main` representing the main network.
+
+    callbacks : list
+        Full list of callbacks. There are three defaults ones `BenchmarkCallback`, `ValidationCallback` and
+        `ProgressBarCallback`. On top of them there are the manually selected callbacks from `callbacks`.
 
     """
 
@@ -217,7 +224,7 @@ class Run:
 
         self.loss = loss
         self.device = device or torch.device('cpu')
-        self.dtype = dtype or torch.double
+        self.dtype = dtype or torch.float
         self.optimizer = torch.optim.Adam(self.network.parameters(), lr=1e-2) if optimizer is None else optimizer
 
     def launch(self, n_epochs=1, starting_epoch=0):
