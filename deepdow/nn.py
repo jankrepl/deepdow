@@ -164,6 +164,101 @@ class BachelierNet(torch.nn.Module, Benchmark):
         return {k: v if isinstance(v, (int, float, str)) else str(v) for k, v in self._hparams.items() if k != 'self'}
 
 
+class KeynesNet(torch.nn.Module, Benchmark):
+    """Connection of multiple different modules.
+
+    Parameters
+    ----------
+    n_input_channels : int
+        Number of input channels.
+
+    hidden_size : int
+        Number of features the transform layer will create.
+
+    transform_type : str, {'RNN', 'Conv'}
+        If 'RNN' then one directional LSTM that is shared across all assets. If `Conv` then 1D convolution that
+        is shared among all assets.
+
+    n_groups : int
+        Number of groups to split the `hidden_size` channels into. This is used in the Group Normalization.
+        Note that `hidden_size % n_groups ==0 ` needs to hold.
+
+    Attributes
+    ----------
+    norm_layer_1 : torch.nn.InstanceNorm2d
+        Instance normalization layer with learnable parameters (2 per channel). Applied to the input.
+
+    transform_layer : torch.nn.Module
+        Depends on the `transform_type`. The goal is two exctract features from the input tensor by
+        considering the time dimension.
+
+    norm_layer_2 : torch.nn.GroupNorm
+        Group normalization with `n_groups` groups. It is applied to the features extracted by `time_collapse_layer`.
+
+    time_collapse_layer, channel_collapse_layer : deepdow.layers.AverageCollapse
+        Removing of respective dimensions by the means of averaging.
+
+    temperature : torch.Tensor
+        Learnable parameter representing the temperature for the softmax applied to all inputs.
+
+    portfolio_opt_layer : deepdow.layers.SoftmaxAllocator
+        Portfolio allocation layer. Uses learned `temperature`.
+    """
+
+    def __init__(self, n_input_channels, hidden_size=32, transform_type='RNN', n_groups=4):
+        self._hparams = locals().copy()
+        super().__init__()
+
+        self.transform_type = transform_type
+
+        if self.transform_type == 'RNN':
+            self.transform_layer = RNN(n_input_channels, hidden_size=hidden_size, bidirectional=False,
+                                       cell_type='LSTM')
+
+        elif self.transform_type == 'Conv':
+            self.transform_layer = Conv(n_input_channels, n_output_channels=hidden_size, method='1D',
+                                        kernel_size=3)
+
+        else:
+            raise ValueError('Unsupported transform_type: {}'.format(transform_type))
+
+        if hidden_size % n_groups != 0:
+            raise ValueError('The hidden_size needs to be divisible by the n_groups.')
+
+        self.norm_layer_1 = torch.nn.InstanceNorm2d(n_input_channels, affine=True)
+        self.temperature = torch.nn.Parameter(torch.ones(1), requires_grad=True)
+        self.norm_layer_2 = torch.nn.GroupNorm(n_groups, hidden_size, affine=True)
+        self.time_collapse_layer = AverageCollapse(collapse_dim=2)
+        self.channel_collapse_layer = AverageCollapse(collapse_dim=1)
+
+        self.portfolio_opt_layer = SoftmaxAllocator(temperature=None)
+
+    def __call__(self, x):
+        n_samples, n_channels, lookback, n_assets = x.shape
+
+        x = self.norm_layer_1(x)
+        if self.transform_type == 'RNN':
+            x = self.transform_layer(x)
+        else:
+            x = torch.stack([self.transform_layer(x[..., i]) for i in range(n_assets)], dim=-1)
+
+        x = self.norm_layer_2(x)
+        x = torch.nn.functional.relu(x)
+        x = self.time_collapse_layer(x)
+        x = self.channel_collapse_layer(x)
+
+        temperatures = torch.ones(n_samples).to(device=x.device, dtype=x.dtype) * self.temperature
+
+        weights = self.portfolio_opt_layer(x, temperatures)
+
+        return weights
+
+    @property
+    def hparams(self):
+        """Hyperparamters relevant to construction of the model."""
+        return {k: v if isinstance(v, (int, float, str)) else str(v) for k, v in self._hparams.items() if k != 'self'}
+
+
 class LinearNet(torch.nn.Module, Benchmark):
     """Network with one layer.
 
