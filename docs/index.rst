@@ -21,6 +21,7 @@ DeepDow
    source/basics
    source/data_loading
    source/layers
+   source/benchmarks
    source/networks
    source/losses
    source/experiments

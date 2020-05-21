@@ -119,7 +119,7 @@ class BachelierNet(torch.nn.Module, Benchmark):
         self.covariance_layer = CovarianceMatrix(sqrt=False, shrinkage_strategy=shrinkage_strategy)
         self.channel_collapse_layer = AverageCollapse(collapse_dim=1)
         self.portfolio_opt_layer = NumericalMarkowitz(n_assets, max_weight=max_weight)
-        self.gamma = torch.nn.Parameter(torch.ones(1), requires_grad=True)
+        self.gamma_sqrt = torch.nn.Parameter(torch.ones(1), requires_grad=True)
         self.alpha = torch.nn.Parameter(torch.ones(1), requires_grad=True)
 
     def forward(self, x):
@@ -150,11 +150,11 @@ class BachelierNet(torch.nn.Module, Benchmark):
         exp_rets = self.channel_collapse_layer(x)
 
         # gamma
-        gamma_all = torch.ones(len(x)).to(device=x.device, dtype=x.dtype) * self.gamma
+        gamma_sqrt_all = torch.ones(len(x)).to(device=x.device, dtype=x.dtype) * self.gamma_sqrt
         alpha_all = torch.ones(len(x)).to(device=x.device, dtype=x.dtype) * self.alpha
 
         # weights
-        weights = self.portfolio_opt_layer(exp_rets, covmat, gamma_all, alpha_all)
+        weights = self.portfolio_opt_layer(exp_rets, covmat, gamma_sqrt_all, alpha_all)
 
         return weights
 
@@ -181,7 +181,7 @@ class KeynesNet(torch.nn.Module, Benchmark):
 
     n_groups : int
         Number of groups to split the `hidden_size` channels into. This is used in the Group Normalization.
-        Note that `hidden_size % n_groups ==0 ` needs to hold.
+        Note that `hidden_size % n_groups == 0` needs to hold.
 
     Attributes
     ----------
@@ -234,6 +234,19 @@ class KeynesNet(torch.nn.Module, Benchmark):
         self.portfolio_opt_layer = SoftmaxAllocator(temperature=None)
 
     def __call__(self, x):
+        """Perform forward pass.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Of shape (n_samples, n_channels, lookback, n_assets).
+
+        Returns
+        -------
+        weights : torch.Torch
+            Tensor of shape (n_samples, n_assets).
+
+        """
         n_samples, n_channels, lookback, n_assets = x.shape
 
         x = self.norm_layer_1(x)
@@ -374,7 +387,7 @@ class ThorpNet(torch.nn.Module, Benchmark):
     exp_returns : torch.nn.Parameter
         A learnable vector of shape `(n_assets,)`.
 
-    gamma : torch.nn.Parameter
+    gamma_sqrt : torch.nn.Parameter
         A single learnable parameter that will be used for all samples. It represents the tradoff between risk and
         return. If equal to zero only expected returns are considered.
 
@@ -384,14 +397,14 @@ class ThorpNet(torch.nn.Module, Benchmark):
 
     """
 
-    def __init__(self, n_assets, max_weight=1, force_symmetric=False):
+    def __init__(self, n_assets, max_weight=1, force_symmetric=True):
         self._hparams = locals().copy()
         super().__init__()
 
         self.force_symmetric = force_symmetric
         self.matrix = torch.nn.Parameter(torch.eye(n_assets), requires_grad=True)
         self.exp_returns = torch.nn.Parameter(torch.zeros(n_assets), requires_grad=True)
-        self.gamma = torch.nn.Parameter(torch.ones(1), requires_grad=True)
+        self.gamma_sqrt = torch.nn.Parameter(torch.ones(1), requires_grad=True)
         self.alpha = torch.nn.Parameter(torch.ones(1), requires_grad=True)
 
         self.portfolio_opt_layer = NumericalMarkowitz(n_assets, max_weight=max_weight)
@@ -416,7 +429,7 @@ class ThorpNet(torch.nn.Module, Benchmark):
 
         exp_returns_all = torch.repeat_interleave(self.exp_returns[None, ...], repeats=n, dim=0)
         covariance_all = torch.repeat_interleave(covariance[None, ...], repeats=n, dim=0)
-        gamma_all = torch.ones(len(x)).to(device=x.device, dtype=x.dtype) * self.gamma
+        gamma_all = torch.ones(len(x)).to(device=x.device, dtype=x.dtype) * self.gamma_sqrt
         alpha_all = torch.ones(len(x)).to(device=x.device, dtype=x.dtype) * self.alpha
 
         weights = self.portfolio_opt_layer(exp_returns_all, covariance_all, gamma_all, alpha_all)

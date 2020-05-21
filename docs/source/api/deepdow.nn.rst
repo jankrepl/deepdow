@@ -1,3 +1,5 @@
+.. _networks_API:
+
 deepdow.nn module
 =================
 
