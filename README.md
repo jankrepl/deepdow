@@ -2,3 +2,4 @@
 
 [![Build Status](https://travis-ci.com/jankrepl/deepdow.svg?branch=master)](https://travis-ci.com/jankrepl/deepdow)
 [![codecov](https://codecov.io/gh/jankrepl/deepdow/branch/master/graph/badge.svg)](https://codecov.io/gh/jankrepl/deepdow)
+[![Documentation Status](https://readthedocs.org/projects/deepdow/badge/?version=latest)](https://deepdow.readthedocs.io/en/latest/?badge=latest)
