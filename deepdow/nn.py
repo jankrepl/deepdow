@@ -292,7 +292,7 @@ class LinearNet(torch.nn.Module, Benchmark):
     Attributes
     ----------
     norm_layer : torch.nn.BatchNorm1d
-        Batch normalization with learnable paramters.
+        Batch normalization with learnable parameters.
 
     dropout_layer : torch.nn.Dropout
         Dropout layer with probability `p`.
