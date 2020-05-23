@@ -291,8 +291,8 @@ class LinearNet(torch.nn.Module, Benchmark):
 
     Attributes
     ----------
-    norm_layer : torch.nn.InstanceNorm2d
-        Instance normalization (per channel) with learnable paramters.
+    norm_layer : torch.nn.BatchNorm1d
+        Batch normalization with learnable paramters.
 
     dropout_layer : torch.nn.Dropout
         Dropout layer with probability `p`.
@@ -318,7 +318,7 @@ class LinearNet(torch.nn.Module, Benchmark):
 
         n_features = self.n_channels * self.lookback * self.n_assets
 
-        self.norm_layer = torch.nn.InstanceNorm2d(self.n_channels, affine=True)
+        self.norm_layer = torch.nn.BatchNorm1d(n_features, affine=True)
         self.dropout_layer = torch.nn.Dropout(p=p)
         self.linear = torch.nn.Linear(n_features, n_assets, bias=True)
 
@@ -346,9 +346,9 @@ class LinearNet(torch.nn.Module, Benchmark):
         n_samples, _, _, _ = x.shape
 
         # Normalize
+        x = x.view(n_samples, -1)  # flatten
         x = self.norm_layer(x)
         x = self.dropout_layer(x)
-        x = x.view(n_samples, -1)  # flatten
         x = self.linear(x)
 
         temperatures = torch.ones(n_samples).to(device=x.device, dtype=x.dtype) * self.temperature
