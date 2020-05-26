@@ -3,15 +3,39 @@
 Vector autoregression
 =====================
 
-This example demonstrates how one can validate deepdow on synthetic data.
-We choose to model our returns with the vector autoregression model.
-Specifically, it links future returns to lagged returns with a linear
-model. See [Lütkepohl2005]_ for more details.
+This example demonstrates how one can validate :code:`deepdow` on synthetic data.
+We choose to model our returns with the vector autoregression model (VAR).
+This model links future returns to lagged returns with a linear
+model. See [Lütkepohl2005]_ for more details. We use a stable VAR
+process with 12 lags and 8 assets, that is
+
+.. math::
+
+    r_t = A_1 r_{t-1} + ... +  A_{12} r_{t-12}
+
+
+For this specific task, we use the :code:`LinearNet` network. It is very similar to VAR since it tries to find a linear
+model of all lagged variables. However, it also has purely deep learning components like dropout, batch
+normalization and softmax allocator.
+
+To put the performance of our network into context, we create a benchmark **VARTrue** that has access to the true
+parameters of the VAR process. We create a simple investment rule of investing all resources into the asset with the
+highest future returns. Additionally, we also consider other benchmarks
+
+- equally weighted portfolio
+- inverse volatility
+- random allocation
+
 
 References
 ----------
 .. [Lütkepohl2005]
     Lütkepohl, Helmut. New introduction to multiple time series analysis. Springer Science & Business Media, 2005.
+
+
+.. warning::
+
+    Note that we are using the :code:`statsmodels` package to simulate the VAR process.
 
 """
 
@@ -30,12 +54,20 @@ from deepdow.experiments import Run
 
 
 class VARTrue(Benchmark):
-    """Benchmark representing the ground truth return process."""
+    """Benchmark representing the ground truth return process.
+
+    Parameters
+    ----------
+    process : statsmodels.tsa.vector_ar.var_model.VARProcess
+        The ground truth VAR process that generates the returns.
+
+    """
 
     def __init__(self, process):
         self.process = process
 
     def __call__(self, x):
+        """Invest all money into the asset with the highest return over the horizon."""
         n_samples, n_channels, lookback, n_assets = x.shape
 
         assert n_channels == 1
@@ -51,16 +83,19 @@ class VARTrue(Benchmark):
         return result
 
 
-coefs = np.load('../examples/var_coefs.npy')  # (lookback=12, n_assets=8)
+coefs = np.load('../examples/var_coefs.npy')  # (lookback, n_assets, n_assets) = (12, 8, 8)
 
-_, _, n_assets = coefs.shape
+# Parameters
+lookback, _, n_assets = coefs.shape
+gap, horizon = 0, 1
+batch_size = 256
+
+# Simulate returns
 process = VARProcess(coefs, None, np.eye(n_assets) * 1e-5)
-
 data = process.simulate_var(10000)
-
 n_timesteps = len(data)
-lookback, gap, horizon = 12, 0, 1
 
+# Create features and targets
 X_list, y_list = [], []
 
 for i in range(lookback, n_timesteps - horizon - gap + 1):
@@ -70,19 +105,18 @@ for i in range(lookback, n_timesteps - horizon - gap + 1):
 X = np.stack(X_list, axis=0)[:, None, ...]
 y = np.stack(y_list, axis=0)[:, None, ...]
 
+# Setup deepdow framework
 dataset = InRAMDataset(X, y)
 
-lookback = 12
-network = LinearNet(1, lookback, 8, p=0.5)
-network.to(torch.float)
+network = LinearNet(1, lookback, n_assets, p=0.5)
 dataloader = RigidDataLoader(dataset,
                              indices=list(range(5000)),
-                             batch_size=256,
+                             batch_size=batch_size,
                              lookback=lookback)
 val_dataloaders = {'train': dataloader,
                    'val': RigidDataLoader(dataset,
-                                          indices=list(range(5000, 9800)),
-                                          batch_size=128,
+                                          indices=list(range(5020, 9800)),
+                                          batch_size=batch_size,
                                           lookback=lookback)}
 
 run = Run(network,
@@ -104,12 +138,12 @@ fig, ax = plt.subplots(1, 1)
 ax.set_title('Validation loss')
 
 per_epoch_results = history.metrics.groupby(['dataloader', 'metric', 'model', 'epoch'])['value'].mean()['val']['loss']
-network = per_epoch_results['network']
-network.plot(ax=ax, label='network')
+our = per_epoch_results['network']
+our.plot(ax=ax, label='network')
 
-ax.hlines(y=per_epoch_results['VAR'], xmin=0, xmax=len(network), color='red', label='VAR')
-ax.hlines(y=per_epoch_results['1overN'], xmin=0, xmax=len(network), color='green', label='1overN')
-ax.hlines(y=per_epoch_results['Random'], xmin=0, xmax=len(network), color='yellow', label='Random')
-ax.hlines(y=per_epoch_results['InverseVol'], xmin=0, xmax=len(network), color='black', label='InverseVol')
+ax.hlines(y=per_epoch_results['VAR'], xmin=0, xmax=len(our), color='red', label='VAR')
+ax.hlines(y=per_epoch_results['1overN'], xmin=0, xmax=len(our), color='green', label='1overN')
+ax.hlines(y=per_epoch_results['Random'], xmin=0, xmax=len(our), color='yellow', label='Random')
+ax.hlines(y=per_epoch_results['InverseVol'], xmin=0, xmax=len(our), color='black', label='InverseVol')
 
 plt.legend()
