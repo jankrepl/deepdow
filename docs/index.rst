@@ -25,7 +25,7 @@ DeepDow
    source/networks
    source/losses
    source/experiments
-   source/example
+   auto_examples/index
 
 .. toctree::
    :maxdepth: 2
