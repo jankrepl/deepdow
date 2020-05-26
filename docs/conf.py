@@ -39,20 +39,20 @@ extensions = [
 ]
 
 # Import mocking
-autodoc_mock_imports = [
-    "cvxpy",
-    "cvxpylayers",
-    "diffcp",
-    "matplotlib",
-    "mlflow",
-    "numpy",
-    "pandas",
-    "pillow",
-    "torch",
-    "torch.nn",
-    "tensorboard",
-    "tqdm"
-]
+# autodoc_mock_imports = [
+#     "cvxpy",
+#     "cvxpylayers",
+#     "diffcp",
+#     "matplotlib",
+#     "mlflow",
+#     "numpy",
+#     "pandas",
+#     "pillow",
+#     "torch",
+#     "torch.nn",
+#     "tensorboard",
+#     "tqdm"
+# ]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
