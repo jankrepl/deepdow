@@ -181,7 +181,7 @@ The activations have the following shape (ommiting the sample dimension).
 .. testoutput::
 
     LinearNet(
-      (norm_layer): InstanceNorm2d(2, eps=1e-05, momentum=0.1, affine=True, track_running_stats=False)
+      (norm_layer): BatchNorm1d(600, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
       (dropout_layer): Dropout(p=0.5, inplace=False)
       (linear): Linear(in_features=600, out_features=10, bias=True)
       (allocate_layer): SoftmaxAllocator()

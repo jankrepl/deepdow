@@ -84,7 +84,7 @@ class History:
 
         else:
             df = self.metrics_per_epoch(epoch)
-
+        pd.options.display.float_format = '{:,.3f}'.format
         print(df.groupby(['model', 'metric', 'epoch', 'dataloader'])['value'].mean().to_string())
 
 
