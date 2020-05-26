@@ -36,22 +36,7 @@ extensions = [
     'sphinx.ext.doctest',
     'sphinx.ext.napoleon',
     'sphinx.ext.viewcode',
-]
-
-# Import mocking
-autodoc_mock_imports = [
-    "cvxpy",
-    "cvxpylayers",
-    "diffcp",
-    "matplotlib",
-    "mlflow",
-    "numpy",
-    "pandas",
-    "pillow",
-    "torch",
-    "torch.nn",
-    "tensorboard",
-    "tqdm"
+    'sphinx_gallery.gen_gallery'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -100,3 +85,11 @@ def skip(app, what, name, obj, would_skip, options):
 def setup(app):
     app.add_stylesheet('css/custom.css')  # adding custom styling
     app.connect("autodoc-skip-member", skip)  # making sure __call__ is shown when implemented in child class
+
+
+# sphinx gallery
+sphinx_gallery_conf = {
+    'examples_dirs': '../examples',  # path to your example scripts
+    'gallery_dirs': 'auto_examples',  # path to where to save gallery generated output
+    'filename_pattern': ''  # include everything
+}

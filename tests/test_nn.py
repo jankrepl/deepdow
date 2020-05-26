@@ -137,7 +137,7 @@ class TestLinear:
 
         n_features = n_channels * lookback * n_assets
         expected = 0
-        expected += n_channels * 2  # instance norm
+        expected += n_features * 2  # batch norm
         expected += n_features * n_assets + n_assets  # dense
         expected += 1  # temperature
 

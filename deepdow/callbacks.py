@@ -452,6 +452,7 @@ class ProgressBarCallback(Callback):
         """Initialize tqdm bar and metric lists."""
         self.bar = tqdm.tqdm(total=len(self.run.train_dataloader),
                              leave=True,
+                             desc='Epoch {}'.format(metadata['epoch']),
                              file=self.output)
         self.metrics = {metric: [] for metric in self.run.metrics.keys()}
 

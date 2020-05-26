@@ -347,7 +347,7 @@ def collate_uniform(batch, n_assets_range=(5, 10), lookback_range=(2, 20), horiz
     if not lookback_range[1] > lookback_range[0] >= 2:
         raise ValueError('Incorrect lookback range.')
 
-    if not horizon_range[1] > horizon_range[0] >= 2:
+    if not horizon_range[1] > horizon_range[0] >= 1:
         raise ValueError('Incorrect horizon range.')
 
     if random_state is not None:
@@ -431,7 +431,7 @@ class FlexibleDataLoader(torch.utils.data.DataLoader):
         if lookback_range is not None and not (2 <= lookback_range[0] <= lookback_range[1] <= dataset.lookback + 1):
             raise ValueError('Invalid lookback_range.')
 
-        if horizon_range is not None and not (2 <= horizon_range[0] <= horizon_range[1] <= dataset.horizon + 1):
+        if horizon_range is not None and not (1 <= horizon_range[0] <= horizon_range[1] <= dataset.horizon + 1):
             raise ValueError('Invalid horizon_range.')
 
         if indices is not None and not (0 <= min(indices) <= max(indices) <= len(dataset) - 1):

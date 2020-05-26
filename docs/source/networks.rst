@@ -163,9 +163,9 @@ Note that his network learns the :code:`temperature` parameter to be used inside
 The activations have the following shape (ommiting the sample dimension).
 
 1. input **x** :code:`(n_channels, lookback, n_assets)`
-2. normalized :code:`(n_channels, lookback, n_assets)`
-3. dropped out :code:`(n_channels, lookback, n_assets)`
-4. flattened :code:`(n_channels * lookback * n_assets,)`
+2. flattened :code:`(n_channels * lookback * n_assets,)`
+3. normalized :code:`(n_channels, lookback, n_assets)`
+4. dropped out :code:`(n_channels, lookback, n_assets)`
 5. after dense layer (multivariate linear model) :code:`(n_assets,)`
 6. after allocation :code:`(n_assets,)`
 
@@ -181,7 +181,7 @@ The activations have the following shape (ommiting the sample dimension).
 .. testoutput::
 
     LinearNet(
-      (norm_layer): InstanceNorm2d(2, eps=1e-05, momentum=0.1, affine=True, track_running_stats=False)
+      (norm_layer): BatchNorm1d(600, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
       (dropout_layer): Dropout(p=0.5, inplace=False)
       (linear): Linear(in_features=600, out_features=10, bias=True)
       (allocate_layer): SoftmaxAllocator()

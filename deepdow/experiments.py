@@ -84,7 +84,7 @@ class History:
 
         else:
             df = self.metrics_per_epoch(epoch)
-
+        pd.options.display.float_format = '{:,.3f}'.format
         print(df.groupby(['model', 'metric', 'epoch', 'dataloader'])['value'].mean().to_string())
 
 
@@ -226,32 +226,32 @@ class Run:
         self.device = device or torch.device('cpu')
         self.dtype = dtype or torch.float
         self.optimizer = torch.optim.Adam(self.network.parameters(), lr=1e-2) if optimizer is None else optimizer
+        self.current_epoch = -1
 
-    def launch(self, n_epochs=1, starting_epoch=0):
+    def launch(self, n_epochs=1):
         """Launch the training and logging loop.
 
         Parameters
         ----------
         n_epochs : int
             Number of epochs.
-
-        starting_epoch : int
-            Initial epoch to start with (just for notation purposes - no model loading).
         """
         try:
             self.network.to(device=self.device, dtype=self.dtype)
             # Train begin
-            self.on_train_begin(metadata={'n_epochs': n_epochs})
+            if self.current_epoch == -1:
+                self.on_train_begin(metadata={'n_epochs': n_epochs})
 
-            for e in range(starting_epoch, starting_epoch + n_epochs):
+            for _ in range(n_epochs):
+                self.current_epoch += 1
                 # Epoch begin
-                self.on_epoch_begin(metadata={'epoch': e})
+                self.on_epoch_begin(metadata={'epoch': self.current_epoch})
 
                 for batch_ix, (X_batch, y_batch, timestamps, asset_names) in enumerate(self.train_dataloader):
                     # Batch begin
                     self.on_batch_begin(metadata={'asset_names': asset_names,
                                                   'batch': batch_ix,
-                                                  'epoch': e,
+                                                  'epoch': self.current_epoch,
                                                   'timestamps': timestamps,
                                                   'X_batch': X_batch,
                                                   'y_batch': y_batch})
@@ -277,14 +277,14 @@ class Run:
                     self.on_batch_end(metadata={'asset_names': asset_names,
                                                 'batch': batch_ix,
                                                 'batch_loss': loss.item(),
-                                                'epoch': e,
+                                                'epoch': self.current_epoch,
                                                 'timestamps': timestamps,
                                                 'weights': weights,
                                                 'X_batch': X_batch,
                                                 'y_batch': y_batch})
 
                 # Epoch end
-                self.on_epoch_end(metadata={'epoch': e,
+                self.on_epoch_end(metadata={'epoch': self.current_epoch,
                                             'n_epochs': n_epochs})
 
             # Train end

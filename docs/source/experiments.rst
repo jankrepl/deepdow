@@ -60,8 +60,8 @@ Once we construct the :code:`Run`, we can start the training and evaluation loop
 .. testoutput::
 
     model   metric    epoch  dataloader
-    1overN  drawdown  -1     val           0.282885
-            loss      -1     val          -0.331080
+    1overN  drawdown  -1     val           0.283
+            loss      -1     val          -0.331
 
 We get results on the benchmarks in the standard output (see above).
 Additionally, progress bar is sent to the standard error. It monitors progress of our network. To read more
