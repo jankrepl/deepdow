@@ -17,6 +17,7 @@ DeepDow
    :maxdepth: 2
    :caption: Contents:
 
+   source/installation
    source/introduction
    source/basics
    source/data_loading
