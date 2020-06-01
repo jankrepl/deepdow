@@ -1,13 +1,16 @@
 import pytest
 import torch
 
-from deepdow.layers import (AverageCollapse, AttentionCollapse, ElementCollapse, ExponentialCollapse, MaxCollapse,
+from deepdow.layers import (AverageCollapse, AttentionCollapse, ElementCollapse,
+                            ExponentialCollapse, MaxCollapse,
                             SumCollapse)
-from deepdow.layers import AnalyticalMarkowitz, NCO, NumericalMarkowitz, Resample, SoftmaxAllocator
+from deepdow.layers import (AnalyticalMarkowitz, NCO, NumericalMarkowitz, Resample,
+                            SoftmaxAllocator, SparsemaxAllocator)
 from deepdow.layers import Cov2Corr, CovarianceMatrix, KMeans, MultiplyByConstant
 from deepdow.layers import Conv, RNN
 
-ALL_COLLAPSE = [AverageCollapse, AttentionCollapse, ElementCollapse, ExponentialCollapse, MaxCollapse, SumCollapse]
+ALL_COLLAPSE = [AverageCollapse, AttentionCollapse, ElementCollapse, ExponentialCollapse,
+                MaxCollapse, SumCollapse]
 ALL_TRANSFORM = [Conv]
 
 
@@ -517,4 +520,50 @@ class TestSoftmax:
         assert weights.dtype == X.dtype
         assert weights.device == X.device
         assert torch.all(-eps <= weights) and torch.all(weights <= 1 + eps)
-        assert torch.allclose(weights.sum(dim=1), torch.ones(n_samples).to(dtype=dtype, device=device), atol=eps)
+        assert torch.allclose(weights.sum(dim=1), torch.ones(n_samples).to(dtype=dtype,
+                                                                           device=device),
+                              atol=eps)
+
+
+class TestSparsemax:
+    def test_basic(self, Xy_dummy):
+        eps = 1e-5
+        X, _, _, _ = Xy_dummy
+        dtype, device = X.dtype, X.device
+        n_samples, n_channels, lookback, n_assets = X.shape
+
+        rets = X.mean(dim=(1, 2))
+
+        with pytest.raises(ValueError):
+            SparsemaxAllocator(n_assets, temperature=None)(rets, temperature=None)
+
+        weights = SparsemaxAllocator(n_assets, temperature=2)(rets)
+
+        assert torch.allclose(weights,
+                              SparsemaxAllocator(n_assets, temperature=None)(rets,
+                                                                             2 * torch.ones(
+                                                                                 n_samples,
+                                                                                 dtype=dtype,
+                                                                                 device=device)))
+        assert weights.shape == (n_samples, n_assets)
+        assert weights.dtype == X.dtype
+        assert weights.device == X.device
+        assert torch.all(-eps <= weights) and torch.all(weights <= 1 + eps)
+        assert torch.allclose(weights.sum(dim=1), torch.ones(n_samples).to(dtype=dtype,
+                                                                           device=device),
+                              atol=eps)
+
+    def test_uniform(self):
+        rets = torch.ones(2, 5)
+        weights = SparsemaxAllocator(5, temperature=1)(rets)
+
+        assert torch.allclose(weights, rets / 5)
+
+    def test_known(self):
+        rets = torch.tensor([[1.7909, 0.3637, -0.6818, -0.4972, 0.0333],
+                             [0.6655, -0.9960, 1.1463, 1.9849, -0.1662]])
+
+        true_weights = torch.tensor([[1.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+                                     [0.0000, 0.0000, 0.0807, 0.9193, 0.0000]])
+
+        assert torch.allclose(SparsemaxAllocator(5, temperature=1)(rets), true_weights)

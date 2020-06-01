@@ -237,6 +237,45 @@ one can provide per sample temperature when performing the forward pass.
    assert w.shape == (2, 2)
    assert torch.allclose(w.sum(1), torch.ones(2))
 
+SparsemaxAllocator
+******************
+Suggested in [Martins2016]_. It is similar to Softmax but enforces sparsity. It currently uses
+:code:`cvxpylayers` as a backend. See below a mathematical formulation. note that **x** represents
+the logits.
+
+.. math::
+
+    \begin{aligned}
+    \min_{\textbf{w}} \quad & {\vert \vert \textbf{w} - \textbf{x} \vert \vert}^2_{2} \\
+    \textrm{s.t.} \quad & \sum_{i=1}^{N}w_i = 1 \\
+    \quad & w_i >= 0, i \in \{1,...,N\}\\
+    \end{aligned}
+
+Similarly to :code:`SoftmaxAllocator` one can provide temperature either per sample or a single
+one at construction. However, one imporant difference is that one
+needs to provide :code:`n_assets` at construction.
+
+.. testcode::
+
+   from deepdow.layers import SparsemaxAllocator
+
+   n_assets = 3
+   layer = SparsemaxAllocator(n_assets, temperature=1)
+   x = torch.tensor([[1, 2.3, 2.1], [2, 4.2, -1.1]])
+
+   w = layer(x)
+
+   assert w.shape == (2, 3)
+   assert torch.allclose(w.sum(1), torch.ones(2))
+
+   print(w)
+
+
+.. testoutput::
+
+    tensor([[-1.2650e-10,  6.0000e-01,  4.0000e-01],
+            [-2.9905e-10,  1.0000e+00,  4.2659e-10]])
+
 
 Misc layers
 -----------
@@ -341,6 +380,9 @@ References
 
 .. [Michaud2007]
    Michaud, Richard O., and Robert Michaud. "Estimation error and portfolio optimization: a resampling solution." Available at SSRN 2658657 (2007).
+
+.. [Martins2016]
+   Martins, Andre, and Ramon Astudillo. "From softmax to sparsemax: A sparse model of attention and multi-label classification." International Conference on Machine Learning. 2016.
 
 .. [Ledoit2004]
    Ledoit, Olivier, and Michael Wolf. "Honey, I shrunk the sample covariance matrix." The Journal of Portfolio Management 30.4 (2004): 110-119.

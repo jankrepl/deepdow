@@ -399,3 +399,74 @@ class SoftmaxAllocator(torch.nn.Module):
         inp = x / temperature_[..., None]
 
         return nn.functional.softmax(inp, dim=1)
+
+
+class SparsemaxAllocator(torch.nn.Module):
+    """Portfolio creation by computing a sparsemax over the asset dimension with temperature.
+
+    Parameters
+    ----------
+    n_assets : int
+        Number of assets. Note that we require this quantity at construction to make sure
+        the underlying cvxpylayer does not need to be reinitialized every forward pass.
+
+    temperature : None or float
+        If None, then needs to be provided per sample during forward pass. If ``float`` then
+        assumed to be always the same.
+
+    References
+    ----------
+    Martins, Andre, and Ramon Astudillo. "From softmax to sparsemax: A sparse model of attention
+    and multi-label classification." International Conference on Machine Learning. 2016.
+
+    """
+
+    def __init__(self, n_assets, temperature=1):
+        super().__init__()
+
+        self.n_assets = n_assets
+        self.temperature = temperature
+
+        # Construct convex optimization problem
+        x = cp.Parameter(n_assets)
+        w = cp.Variable(n_assets)
+        obj = cp.sum_squares(x - w)
+        cons = [cp.sum(w) == 1,
+                0. <= w,
+                w <= 1.]
+        prob = cp.Problem(cp.Minimize(obj), cons)
+
+        self.layer = CvxpyLayer(prob, parameters=[x], variables=[w])
+
+    def forward(self, x, temperature=None):
+        """Perform forward pass.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Tensor of shape `(n_samples, n_assets`).
+
+        temperature : None or torch.Tensor
+            If None, then using the `temperature` provided at construction time. Otherwise a
+            `torch.Tensor` of shape `(n_samples,)` representing a per sample temperature.
+
+        Returns
+        -------
+        weights : torch.Tensor
+            Tensor of shape `(n_samples, n_assets`).
+
+        """
+        n_samples, _ = x.shape
+        device, dtype = x.device, x.dtype
+
+        if not ((temperature is None) ^ (self.temperature is None)):
+            raise ValueError('Not clear which temperature to use')
+
+        if temperature is not None:
+            temperature_ = temperature  # (n_samples,)
+        else:
+            temperature_ = self.temperature * torch.ones(n_samples, dtype=dtype, device=device)
+
+        inp = x / temperature_[..., None]
+
+        return self.layer(inp)[0]
