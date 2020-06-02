@@ -414,15 +414,23 @@ class SparsemaxAllocator(torch.nn.Module):
         If None, then needs to be provided per sample during forward pass. If ``float`` then
         assumed to be always the same.
 
+    max_weight : float
+        A float between (0, 1] representing the maximum weight per asset.
+
     References
     ----------
-    Martins, Andre, and Ramon Astudillo. "From softmax to sparsemax: A sparse model of attention
+    [1] Martins, Andre, and Ramon Astudillo. "From softmax to sparsemax: A sparse model of attention
     and multi-label classification." International Conference on Machine Learning. 2016.
 
+    [2] Malaviya, Chaitanya, Pedro Ferreira, and André FT Martins. "Sparse and constrained attention
+    for neural machine translation." arXiv preprint arXiv:1805.08241 (2018)
     """
 
-    def __init__(self, n_assets, temperature=1):
+    def __init__(self, n_assets, temperature=1, max_weight=1):
         super().__init__()
+
+        if n_assets * max_weight < 1:
+            raise ValueError('One cannot create fully invested portfolio with the given max_weight')
 
         self.n_assets = n_assets
         self.temperature = temperature
@@ -433,7 +441,7 @@ class SparsemaxAllocator(torch.nn.Module):
         obj = cp.sum_squares(x - w)
         cons = [cp.sum(w) == 1,
                 0. <= w,
-                w <= 1.]
+                w <= max_weight]
         prob = cp.Problem(cp.Minimize(obj), cons)
 
         self.layer = CvxpyLayer(prob, parameters=[x], variables=[w])

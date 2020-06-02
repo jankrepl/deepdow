@@ -249,6 +249,7 @@ the logits.
     \min_{\textbf{w}} \quad & {\vert \vert \textbf{w} - \textbf{x} \vert \vert}^2_{2} \\
     \textrm{s.t.} \quad & \sum_{i=1}^{N}w_i = 1 \\
     \quad & w_i >= 0, i \in \{1,...,N\}\\
+    \quad & w_i <= w_{\text{max}}, i \in \{1,...,N\}\\
     \end{aligned}
 
 Similarly to :code:`SoftmaxAllocator` one can provide temperature either per sample or a single

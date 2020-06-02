@@ -526,6 +526,10 @@ class TestSoftmax:
 
 
 class TestSparsemax:
+    def test_errors(self):
+        with pytest.raises(ValueError):
+            SparsemaxAllocator(n_assets=2, max_weight=0.3)
+
     def test_basic(self, Xy_dummy):
         eps = 1e-5
         X, _, _, _ = Xy_dummy
@@ -567,3 +571,13 @@ class TestSparsemax:
                                      [0.0000, 0.0000, 0.0807, 0.9193, 0.0000]])
 
         assert torch.allclose(SparsemaxAllocator(5, temperature=1)(rets), true_weights)
+
+    @pytest.mark.parametrize('max_weight', [0.2, 0.25, 0.34])
+    def test_contstrained(self, max_weight):
+        rets = torch.tensor([[1.7909, -2, -0.6818, -0.4972, 0.0333]])
+
+        w_const = SparsemaxAllocator(5, temperature=1, max_weight=max_weight)(rets)
+        w_unconst = SparsemaxAllocator(5, temperature=1)(rets)
+
+        assert not torch.allclose(w_const, w_unconst)
+        assert w_const.max().item() == pytest.approx(max_weight, abs=1e-5)
