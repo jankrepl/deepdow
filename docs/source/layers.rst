@@ -283,17 +283,12 @@ parameter.
    x = torch.tensor([[1, 2.3, 2.1], [2, 4.2, -1.1]])
 
    w = layer(x)
+   w_true = torch.tensor([[-1.2650e-10,  6.0000e-01,  4.0000e-01],
+                          [-2.9905e-10,  1.0000e+00,  4.2659e-10]])
 
    assert w.shape == (2, 3)
    assert torch.allclose(w.sum(1), torch.ones(2))
-
-   print(w)
-
-
-.. testoutput::
-
-    tensor([[-1.2650e-10,  6.0000e-01,  4.0000e-01],
-            [-2.9905e-10,  1.0000e+00,  4.2659e-10]])
+   assert torch.allclose(w, w_true, atol=1e-5)
 
 
 Misc layers

@@ -563,7 +563,7 @@ class TestSoftmax:
         assert weights_analytical.dtype == weights_variational.dtype
         assert weights_analytical.device == weights_variational.device
 
-        assert torch.allclose(weights_analytical, weights_variational)
+        assert torch.allclose(weights_analytical, weights_variational, atol=1e-5)
 
     @pytest.mark.parametrize('formulation', ['analytical', 'variational'])
     def test_uniform(self, formulation):
@@ -572,7 +572,7 @@ class TestSoftmax:
                                    n_assets=5,
                                    temperature=1)(rets)
 
-        assert torch.allclose(weights, rets / 5)
+        assert torch.allclose(weights, rets / 5, atol=1e-5)
 
     @pytest.mark.parametrize('max_weight', [0.2, 0.25, 0.34])
     def test_contstrained(self, max_weight):
@@ -636,7 +636,7 @@ class TestSparsemax:
         true_weights = torch.tensor([[1.0000, 0.0000, 0.0000, 0.0000, 0.0000],
                                      [0.0000, 0.0000, 0.0807, 0.9193, 0.0000]])
 
-        assert torch.allclose(SparsemaxAllocator(5, temperature=1)(rets), true_weights)
+        assert torch.allclose(SparsemaxAllocator(5, temperature=1)(rets), true_weights, atol=1e-5)
 
     @pytest.mark.parametrize('max_weight', [0.2, 0.25, 0.34])
     def test_contstrained(self, max_weight):

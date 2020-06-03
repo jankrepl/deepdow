@@ -149,7 +149,9 @@ The activations have the following shape (ommiting the sample dimension).
       (norm_layer_2): GroupNorm(4, 32, eps=1e-05, affine=True)
       (time_collapse_layer): AverageCollapse()
       (channel_collapse_layer): AverageCollapse()
-      (portfolio_opt_layer): SoftmaxAllocator()
+      (portfolio_opt_layer): SoftmaxAllocator(
+        (layer): Softmax(dim=1)
+      )
     )
 
 
@@ -184,7 +186,9 @@ The activations have the following shape (ommiting the sample dimension).
       (norm_layer): BatchNorm1d(600, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
       (dropout_layer): Dropout(p=0.5, inplace=False)
       (linear): Linear(in_features=600, out_features=10, bias=True)
-      (allocate_layer): SoftmaxAllocator()
+      (allocate_layer): SoftmaxAllocator(
+        (layer): Softmax(dim=1)
+      )
     )
 
 
