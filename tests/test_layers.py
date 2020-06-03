@@ -636,7 +636,7 @@ class TestSparsemax:
         true_weights = torch.tensor([[1.0000, 0.0000, 0.0000, 0.0000, 0.0000],
                                      [0.0000, 0.0000, 0.0807, 0.9193, 0.0000]])
 
-        assert torch.allclose(SparsemaxAllocator(5, temperature=1)(rets), true_weights, atol=1e-5)
+        assert torch.allclose(SparsemaxAllocator(5, temperature=1)(rets), true_weights, atol=1e-4)
 
     @pytest.mark.parametrize('max_weight', [0.2, 0.25, 0.34])
     def test_contstrained(self, max_weight):
