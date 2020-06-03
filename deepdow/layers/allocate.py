@@ -430,7 +430,7 @@ class SoftmaxAllocator(torch.nn.Module):
         if temperature is not None:
             temperature_ = temperature  # (n_samples,)
         else:
-            temperature_ = self.temperature * torch.ones(n_samples, dtype=dtype, device=device)
+            temperature_ = float(self.temperature) * torch.ones(n_samples, dtype=dtype, device=device)
 
         inp = x / temperature_[..., None]
 
@@ -509,7 +509,7 @@ class SparsemaxAllocator(torch.nn.Module):
         if temperature is not None:
             temperature_ = temperature  # (n_samples,)
         else:
-            temperature_ = self.temperature * torch.ones(n_samples, dtype=dtype, device=device)
+            temperature_ = float(self.temperature) * torch.ones(n_samples, dtype=dtype, device=device)
 
         inp = x / temperature_[..., None]
 
