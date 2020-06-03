@@ -1,7 +1,9 @@
 """Collection of layers."""
 
-from .collapse import AttentionCollapse, AverageCollapse, ElementCollapse, ExponentialCollapse, MaxCollapse, SumCollapse
-from .allocate import AnalyticalMarkowitz, NCO, NumericalMarkowitz, Resample, SoftmaxAllocator
+from .collapse import (AttentionCollapse, AverageCollapse, ElementCollapse, ExponentialCollapse,
+                       MaxCollapse, SumCollapse)
+from .allocate import (AnalyticalMarkowitz, NCO, NumericalMarkowitz, Resample, SoftmaxAllocator,
+                       SparsemaxAllocator)
 from .misc import Cov2Corr, CovarianceMatrix, KMeans, MultiplyByConstant
 from .transform import Conv, RNN
 
@@ -21,4 +23,5 @@ __all__ = ['AnalyticalMarkowitz',
            'Resample',
            'RNN',
            'SoftmaxAllocator',
+           'SparsemaxAllocator',
            'SumCollapse']

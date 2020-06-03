@@ -1,13 +1,16 @@
 import pytest
 import torch
 
-from deepdow.layers import (AverageCollapse, AttentionCollapse, ElementCollapse, ExponentialCollapse, MaxCollapse,
+from deepdow.layers import (AverageCollapse, AttentionCollapse, ElementCollapse,
+                            ExponentialCollapse, MaxCollapse,
                             SumCollapse)
-from deepdow.layers import AnalyticalMarkowitz, NCO, NumericalMarkowitz, Resample, SoftmaxAllocator
+from deepdow.layers import (AnalyticalMarkowitz, NCO, NumericalMarkowitz, Resample,
+                            SoftmaxAllocator, SparsemaxAllocator)
 from deepdow.layers import Cov2Corr, CovarianceMatrix, KMeans, MultiplyByConstant
 from deepdow.layers import Conv, RNN
 
-ALL_COLLAPSE = [AverageCollapse, AttentionCollapse, ElementCollapse, ExponentialCollapse, MaxCollapse, SumCollapse]
+ALL_COLLAPSE = [AverageCollapse, AttentionCollapse, ElementCollapse, ExponentialCollapse,
+                MaxCollapse, SumCollapse]
 ALL_TRANSFORM = [Conv]
 
 
@@ -495,6 +498,104 @@ class TestRNN:
 
 
 class TestSoftmax:
+
+    def test_errors(self):
+        with pytest.raises(ValueError):
+            SoftmaxAllocator(formulation='wrong')
+
+        with pytest.raises(ValueError):
+            SoftmaxAllocator(formulation='variational', n_assets=None)
+
+        with pytest.raises(ValueError):
+            SoftmaxAllocator(formulation='analytical', max_weight=0.3)
+
+        with pytest.raises(ValueError):
+            SoftmaxAllocator(formulation='variational', max_weight=0.09, n_assets=10)
+
+    @pytest.mark.parametrize('formulation', ['analytical', 'variational'])
+    def test_basic(self, Xy_dummy, formulation):
+        eps = 1e-5
+        X, _, _, _ = Xy_dummy
+        dtype, device = X.dtype, X.device
+        n_samples, n_channels, lookback, n_assets = X.shape
+
+        rets = X.mean(dim=(1, 2))
+
+        with pytest.raises(ValueError):
+            SoftmaxAllocator(temperature=None,
+                             formulation=formulation,
+                             n_assets=n_assets)(rets, temperature=None)
+
+        weights = SoftmaxAllocator(temperature=2,
+                                   formulation=formulation,
+                                   n_assets=n_assets)(rets)
+
+        assert torch.allclose(weights,
+                              SoftmaxAllocator(temperature=None,
+                                               formulation=formulation,
+                                               n_assets=n_assets)(rets,
+                                                                  2 * torch.ones(n_samples,
+                                                                                 dtype=dtype,
+                                                                                 device=device)))
+        assert weights.shape == (n_samples, n_assets)
+        assert weights.dtype == X.dtype
+        assert weights.device == X.device
+        assert torch.all(-eps <= weights) and torch.all(weights <= 1 + eps)
+        assert torch.allclose(weights.sum(dim=1), torch.ones(n_samples).to(dtype=dtype,
+                                                                           device=device),
+                              atol=eps)
+
+    def test_equality_formulations(self, dtype_device):
+        dtype, device = dtype_device
+        n_samples, n_assets = 3, 6
+
+        layer_analytical = SoftmaxAllocator(formulation='analytical')
+        layer_variational = SoftmaxAllocator(formulation='variational', n_assets=n_assets)
+
+        torch.manual_seed(2)
+        rets = torch.randint(10, size=(n_samples, n_assets)) + torch.rand(size=(n_samples, n_assets))
+        rets = rets.to(device=device, dtype=dtype)
+
+        weights_analytical = layer_analytical(rets)
+        weights_variational = layer_variational(rets)
+
+        assert weights_analytical.shape == weights_variational.shape
+        assert weights_analytical.dtype == weights_variational.dtype
+        assert weights_analytical.device == weights_variational.device
+
+        assert torch.allclose(weights_analytical, weights_variational, atol=1e-4)
+
+    @pytest.mark.parametrize('formulation', ['analytical', 'variational'])
+    def test_uniform(self, formulation):
+        rets = torch.ones(2, 5)
+        weights = SoftmaxAllocator(formulation=formulation,
+                                   n_assets=5,
+                                   temperature=1)(rets)
+
+        assert torch.allclose(weights, rets / 5, atol=1e-4)
+
+    @pytest.mark.parametrize('max_weight', [0.2, 0.25, 0.34])
+    def test_contstrained(self, max_weight):
+        rets = torch.tensor([[1.7909, -2, -0.6818, -0.4972, 0.0333]])
+
+        w_const = SoftmaxAllocator(n_assets=5,
+                                   temperature=1,
+                                   max_weight=max_weight,
+                                   formulation='variational')(rets)
+        w_unconst = SoftmaxAllocator(n_assets=5,
+                                     temperature=1,
+                                     max_weight=1,
+                                     formulation='variational')(rets)
+
+        assert not torch.allclose(w_const, w_unconst)
+        assert w_const.max().item() == pytest.approx(max_weight, abs=1e-4)
+
+
+class TestSparsemax:
+    def test_errors(self):
+        with pytest.raises(ValueError):
+            SparsemaxAllocator(n_assets=2, max_weight=0.3)
+
     def test_basic(self, Xy_dummy):
         eps = 1e-5
         X, _, _, _ = Xy_dummy
@@ -504,17 +605,45 @@ class TestSoftmax:
         rets = X.mean(dim=(1, 2))
 
         with pytest.raises(ValueError):
-            SoftmaxAllocator(temperature=None)(rets, temperature=None)
+            SparsemaxAllocator(n_assets, temperature=None)(rets, temperature=None)
 
-        weights = SoftmaxAllocator(temperature=2)(rets)
+        weights = SparsemaxAllocator(n_assets, temperature=2)(rets)
 
         assert torch.allclose(weights,
-                              SoftmaxAllocator(temperature=None)(rets,
-                                                                 2 * torch.ones(n_samples,
-                                                                                dtype=dtype,
-                                                                                device=device)))
+                              SparsemaxAllocator(n_assets, temperature=None)(rets,
+                                                                             2 * torch.ones(
+                                                                                 n_samples,
+                                                                                 dtype=dtype,
+                                                                                 device=device)))
         assert weights.shape == (n_samples, n_assets)
         assert weights.dtype == X.dtype
         assert weights.device == X.device
         assert torch.all(-eps <= weights) and torch.all(weights <= 1 + eps)
-        assert torch.allclose(weights.sum(dim=1), torch.ones(n_samples).to(dtype=dtype, device=device), atol=eps)
+        assert torch.allclose(weights.sum(dim=1), torch.ones(n_samples).to(dtype=dtype,
+                                                                           device=device),
+                              atol=eps)
+
+    def test_uniform(self):
+        rets = torch.ones(2, 5)
+        weights = SparsemaxAllocator(5, temperature=1)(rets)
+
+        assert torch.allclose(weights, rets / 5)
+
+    def test_known(self):
+        rets = torch.tensor([[1.7909, 0.3637, -0.6818, -0.4972, 0.0333],
+                             [0.6655, -0.9960, 1.1463, 1.9849, -0.1662]])
+
+        true_weights = torch.tensor([[1.0000, 0.0000, 0.0000, 0.0000, 0.0000],
+                                     [0.0000, 0.0000, 0.0807, 0.9193, 0.0000]])
+
+        assert torch.allclose(SparsemaxAllocator(5, temperature=1)(rets), true_weights, atol=1e-4)
+
+    @pytest.mark.parametrize('max_weight', [0.2, 0.25, 0.34])
+    def test_contstrained(self, max_weight):
+        rets = torch.tensor([[1.7909, -2, -0.6818, -0.4972, 0.0333]])
+
+        w_const = SparsemaxAllocator(5, temperature=1, max_weight=max_weight)(rets)
+        w_unconst = SparsemaxAllocator(5, temperature=1)(rets)
+
+        assert not torch.allclose(w_const, w_unconst)
+        assert w_const.max().item() == pytest.approx(max_weight, abs=1e-5)

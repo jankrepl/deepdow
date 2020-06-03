@@ -224,6 +224,24 @@ performs a softmax over the input. Additionally, one can also provide custom :co
 Note that one can provide a single :code:`temperature` at construction that is shared across all samples. Alternatively,
 one can provide per sample temperature when performing the forward pass.
 
+The above formulation (:code:`formulation`) is **analytical**. One can also obtain the same weights
+via solving a convex optimization problem (**variational** formulation). See [Agrawal2019]_  and
+[Martins2017]_ for more details.
+
+.. math::
+
+    \begin{aligned}
+    \min_{\textbf{w}} \quad & - \textbf{x}^T \textbf{w} - H(\textbf{w}) \\
+    \textrm{s.t.} \quad & \sum_{i=1}^{N}w_i = 1 \\
+    \quad & w_i >= 0, i \in \{1,...,N\}\\
+    \quad & w_i <= w_{\text{max}}, i \in \{1,...,N\}\\
+    \end{aligned}
+
+where :math:`H(\textbf{w})=-\sum_{i=1}^{N} w_i \log(w_i)` is the entropy. Note that if
+:code:`max_weight` is set to 1 then one gets the unconstrained (analytical) softmax. The benefit of
+using the variational formulation is the fact that the user can decide on any :code:`max_weight`
+from :code:`(0, 1]`.
+
 .. testcode::
 
    from deepdow.layers import SoftmaxAllocator
@@ -236,6 +254,41 @@ one can provide per sample temperature when performing the forward pass.
 
    assert w.shape == (2, 2)
    assert torch.allclose(w.sum(1), torch.ones(2))
+
+SparsemaxAllocator
+******************
+Suggested in [Martins2016]_. It is similar to Softmax but enforces sparsity. It currently uses
+:code:`cvxpylayers` as a backend. See below a mathematical formulation. note that **x** represents
+the logits.
+
+.. math::
+
+    \begin{aligned}
+    \min_{\textbf{w}} \quad & {\vert \vert \textbf{w} - \textbf{x} \vert \vert}^2_{2} \\
+    \textrm{s.t.} \quad & \sum_{i=1}^{N}w_i = 1 \\
+    \quad & w_i >= 0, i \in \{1,...,N\}\\
+    \quad & w_i <= w_{\text{max}}, i \in \{1,...,N\}\\
+    \end{aligned}
+
+Similarly to :code:`SoftmaxAllocator` one can provide temperature either per sample or a single
+one at construction. Additionally, one can control the maximum weight via the :code:`max_weight`
+parameter.
+
+.. testcode::
+
+   from deepdow.layers import SparsemaxAllocator
+
+   n_assets = 3
+   layer = SparsemaxAllocator(n_assets, temperature=1)
+   x = torch.tensor([[1, 2.3, 2.1], [2, 4.2, -1.1]])
+
+   w = layer(x)
+   w_true = torch.tensor([[-1.2650e-10,  6.0000e-01,  4.0000e-01],
+                          [-2.9905e-10,  1.0000e+00,  4.2659e-10]])
+
+   assert w.shape == (2, 3)
+   assert torch.allclose(w.sum(1), torch.ones(2))
+   assert torch.allclose(w, w_true, atol=1e-5)
 
 
 Misc layers
@@ -342,11 +395,17 @@ References
 .. [Michaud2007]
    Michaud, Richard O., and Robert Michaud. "Estimation error and portfolio optimization: a resampling solution." Available at SSRN 2658657 (2007).
 
+.. [Martins2016]
+   Martins, Andre, and Ramon Astudillo. "From softmax to sparsemax: A sparse model of attention and multi-label classification." International Conference on Machine Learning. 2016.
+
 .. [Ledoit2004]
    Ledoit, Olivier, and Michael Wolf. "Honey, I shrunk the sample covariance matrix." The Journal of Portfolio Management 30.4 (2004): 110-119.
 
 .. [sklearnkmeans]
    https://scikit-learn.org/stable/modules/generated/sklearn.cluster.KMeans.html
+
+.. [Martins2017]
+   Martins, André FT, and Julia Kreutzer. "Learning what’s easy: Fully differentiable neural easy-first taggers." Proceedings of the 2017 conference on empirical methods in natural language processing. 2017.
 
 .. [Bodnar2013]
    Bodnar, Taras, Nestor Parolya, and Wolfgang Schmid. "On the equivalence of quadratic optimization problems commonly used in portfolio theory." European Journal of Operational Research 229.3 (2013): 637-644.
