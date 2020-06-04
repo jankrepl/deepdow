@@ -397,7 +397,7 @@ class SoftmaxAllocator(torch.nn.Module):
         else:
             x = cp.Parameter(n_assets)
             w = cp.Variable(n_assets)
-            obj = -x * w - cp.sum(cp.entr(w))
+            obj = -x @ w - cp.sum(cp.entr(w))
             cons = [cp.sum(w) == 1.,
                     w <= max_weight]
             prob = cp.Problem(cp.Minimize(obj), cons)
