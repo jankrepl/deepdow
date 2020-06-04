@@ -13,8 +13,6 @@
 import os
 import pathlib
 import sys
-import warnings
-warnings.filterwarnings("ignore")
 
 some_path = pathlib.Path(os.path.abspath('.'))
 parent_some_path = some_path.parent
