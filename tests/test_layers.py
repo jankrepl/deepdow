@@ -5,7 +5,7 @@ from deepdow.layers import (AverageCollapse, AttentionCollapse, ElementCollapse,
                             ExponentialCollapse, MaxCollapse,
                             SumCollapse)
 from deepdow.layers import (AnalyticalMarkowitz, NCO, NumericalMarkowitz, Resample,
-                            SoftmaxAllocator, SparsemaxAllocator)
+                            SoftmaxAllocator, SparsemaxAllocator, WeightNorm)
 from deepdow.layers import Cov2Corr, CovarianceMatrix, KMeans, MultiplyByConstant
 from deepdow.layers import Conv, RNN
 
@@ -647,3 +647,27 @@ class TestSparsemax:
 
         assert not torch.allclose(w_const, w_unconst)
         assert w_const.max().item() == pytest.approx(max_weight, abs=1e-5)
+
+
+class TestWeightNorm:
+    def test_basic(self, Xy_dummy):
+        eps = 1e-5
+        X, _, _, _ = Xy_dummy
+        dtype, device = X.dtype, X.device
+        n_samples, _, _, n_assets = X.shape
+        layer = WeightNorm(n_assets=n_assets)
+        layer.to(dtype=dtype, device=device)
+
+        weights = layer(X)
+
+        assert torch.is_tensor(weights)
+        assert weights.shape == (n_samples, n_assets)
+        assert torch.allclose(weights.sum(dim=1), torch.ones(n_samples).to(dtype=dtype,
+                                                                           device=device),
+                              atol=eps)
+
+    @pytest.mark.parametrize('n_assets', [2, 5, 10])
+    def test_n_parameters(self, n_assets):
+        n_parameters = sum(p.numel() for p in WeightNorm(n_assets).parameters() if p.requires_grad)
+
+        assert n_parameters == n_assets
