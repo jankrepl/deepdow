@@ -4,8 +4,9 @@ import numpy as np
 import pytest
 import torch
 
-from deepdow.data import (Compose, Dropout, FlexibleDataLoader, InRAMDataset, Multiply, Noise, RigidDataLoader,
-                          collate_uniform, scale_features)
+from deepdow.data import (Compose, Dropout, FlexibleDataLoader, InRAMDataset, Multiply, Noise,
+                          RigidDataLoader)
+from deepdow.data.load import collate_uniform, scale_features
 
 
 class TestCollateUniform:
