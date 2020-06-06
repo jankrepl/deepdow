@@ -5,16 +5,79 @@ from itertools import cycle
 from matplotlib import cm
 from matplotlib.animation import FuncAnimation
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import torch
+
+from .benchmarks import Benchmark
+from .data import RigidDataLoader
 
 
-def portfolio_evolution(weights, always_visible=None, n_displayed_assets=None, n_seconds=3, figsize=(10, 10),
-                        colors=None, autopct='%1.1f%%'):
+def generate_weights_table(network, dataloader, device=None, dtype=None):
+    """Generate a pd.DataFrame with predicted weights over all indices.
+
+    Parameters
+    ----------
+    network : deepdow.benchmarks.Benchmark
+        Any benchmark that is performing portfolio optimization via the `__call__` magic method.
+
+    dataloader : deepdow.data.RigidDataLoader
+        Dataloader that we will fully iterate over.
+
+    device : torch.device or None
+        Device to be used. If not specified defaults to `torch.device('cpu')`.
+
+    dtype : torch.dtype or None
+        Dtype to be used. If not specified defaults to `torch.float`.
+
+    Returns
+    -------
+    weights_table : pd.DataFrame
+        Index represents the timestep and column are different assets. The values are allocations.
+    """
+    if not isinstance(network, Benchmark):
+        raise TypeError('The network needs to be an instance of a Benchmark')
+
+    if not isinstance(dataloader, RigidDataLoader):
+        raise TypeError('The network needs to be an instance of a RigidDataloader')
+
+    device = device or torch.device('cpu')
+    dtype = dtype or torch.float
+
+    if isinstance(network, torch.nn.Module):
+        network.to(device=device, dtype=dtype)
+        network.eval()
+
+    all_batches = []
+    all_timestamps = []
+
+    for X_batch, _, timestamps, _ in dataloader:
+        X_batch = X_batch.to(device=device, dtype=dtype)
+        weights_batch = network(X_batch).cpu().detach().numpy()
+
+        all_batches.append(weights_batch)
+        all_timestamps.extend(timestamps)
+
+    weights = np.concatenate(all_batches, axis=0)
+    asset_names = [dataloader.dataset.asset_names[asset_ix] for asset_ix in dataloader.asset_ixs]
+
+    weights_table = pd.DataFrame(weights,
+                                 index=all_timestamps,
+                                 columns=asset_names)
+
+    return weights_table.sort_index()
+
+
+def create_weight_anim(weights, always_visible=None, n_displayed_assets=None, n_seconds=3, figsize=(10, 10),
+                       colors=None, autopct='%1.1f%%'):
     """Visualize portfolio evolution over time with pie charts.
 
     Parameters
     ----------
     weights : pd.DataFrame
-        The index is a ``pd.DateTimeIndex`` and the columns are different assets.
+        The index is a represents the timestamps and the columns are asset names. Values are
+        weights.
 
     always_visible : None or list
         List of assets to always include no matter how big the weights are. Passing None is identical to passing
@@ -103,3 +166,78 @@ def portfolio_evolution(weights, always_visible=None, n_displayed_assets=None, n
                         interval=interval)
 
     return ani
+
+
+def create_weight_heatmap(weights, add_sum_column=False, cmap="YlGnBu", ax=None, always_visible=None,
+                          asset_skips=1, time_skips=1, time_format='%d-%m-%Y', vmin=0, vmax=1):
+    """Create a heatmap out of the weights.
+
+    Parameters
+    ----------
+    weights : pd.DataFrame
+        The index is a represents the timestamps and the columns are asset names. Values are
+        weights.
+
+    add_sum_column : bool
+        If True, appending last colum representing the sum of all assets.
+
+    cmap : str
+        Matplotlib cmap.
+
+    always_visible : None or list
+        List of assets that are always annotated. Passing None is identical to passing
+        an emtpy list - no forcing of any asset. Overrides the `asset_skips=None`.
+
+    asset_skips : int or None
+        Displaying every `asset_skips` asset names. If None then asset names not shown.
+
+    time_skips : int or None
+        Displaying every `time_skips` time steps. If None then time steps not shown.
+
+    time_format : None or str
+        If None, then no special formatting applied. Otherwise a string that determines the
+        formatting of the ``datetime``.
+
+    vmin, vmax : float
+        Min resp. max of the colorbar.
+
+    Returns
+    -------
+    return_ax : 'matplotlib.axes._subplots.AxesSubplot
+        Axes with a heatmap plot.
+
+    """
+    displayed_table = weights
+    always_visible = always_visible or []
+
+    if add_sum_column:
+        displayed_table['sum'] = displayed_table.sum(axis=1)
+        always_visible.append('sum')
+
+    xlab = [str(c) if ((asset_skips and i % asset_skips == 0) or c in always_visible) else "" for i, c in
+            enumerate(weights.columns)]
+
+    def formatter(x):
+        """Format row index."""
+        if time_format is not None:
+            return x.strftime(time_format)
+        else:
+            return x
+
+    ylab = [formatter(ix) if (time_skips and i % time_skips == 0) else "" for i, ix in
+            enumerate(weights.index)]
+
+    return_ax = sns.heatmap(displayed_table,
+                            vmin=vmin,
+                            vmax=vmax,
+                            cmap=cmap,
+                            ax=ax,
+                            xticklabels=xlab,
+                            yticklabels=ylab,
+                            )
+
+    return_ax.xaxis.set_ticks_position('top')
+    return_ax.tick_params(axis='x', rotation=75, length=0)
+    return_ax.tick_params(axis='y', rotation=0, length=0)
+
+    return return_ax
