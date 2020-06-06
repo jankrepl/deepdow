@@ -192,6 +192,40 @@ The activations have the following shape (ommiting the sample dimension).
     )
 
 
+MinimalNet
+**********
+:code:`MinimalNet` is the simplest network. It does not pay any attention to input features
+and only learns a fixed weight vector that is predicted for all samples. It is a wrapper
+around the :ref:`weight_norm` layer.
+
+The activations have the following shape (ommiting the sample dimension).
+
+1. input **x** :code:`(n_channels, lookback, n_assets)`
+2. output **w** :code:`(n_assets,)`
+
+
+.. note::
+
+    The reason why we still need to feed the feature tensor **x** during the forward is to extract
+    the required number of samples (:code:`x.shape[0]`).
+
+.. testcode::
+
+    from deepdow.nn import MinimalNet
+
+    n_assets = 10
+    network = MinimalNet(n_assets)
+
+    print(network)
+
+    assert sum(p.numel() for p in network.parameters() if p.requires_grad) == n_assets
+
+.. testoutput::
+
+    MinimalNet(
+      (allocate_layer): WeightNorm()
+    )
+
 
 
 ThorpeNet

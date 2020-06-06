@@ -532,7 +532,7 @@ class WeightNorm(torch.nn.Module):
         Parameters
         ----------
         x : torch.Tensor
-            Tensor of shape `(n_samples, dim_1, ...., dim_N).
+            Tensor of shape `(n_samples, dim_1, ...., dim_N)`.
 
         Returns
         -------
