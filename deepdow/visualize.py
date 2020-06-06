@@ -7,6 +7,7 @@ from matplotlib.animation import FuncAnimation
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 import torch
 
 from .benchmarks import Benchmark
@@ -165,3 +166,78 @@ def create_weight_anim(weights, always_visible=None, n_displayed_assets=None, n_
                         interval=interval)
 
     return ani
+
+
+def create_weight_heatmap(weights, add_sum_column=False, cmap="YlGnBu", ax=None, always_visible=None,
+                          asset_skips=1, time_skips=1, time_format='%d-%m-%Y', vmin=0, vmax=1):
+    """Create a heatmap out of the weights.
+
+    Parameters
+    ----------
+    weights : pd.DataFrame
+        The index is a represents the timestamps and the columns are asset names. Values are
+        weights.
+
+    add_sum_column : bool
+        If True, appending last colum representing the sum of all assets.
+
+    cmap : str
+        Matplotlib cmap.
+
+    always_visible : None or list
+        List of assets that are always annotated. Passing None is identical to passing
+        an emtpy list - no forcing of any asset. Overrides the `asset_skips=None`.
+
+    asset_skips : int or None
+        Displaying every `asset_skips` asset names. If None then asset names not shown.
+
+    time_skips : int or None
+        Displaying every `time_skips` time steps. If None then time steps not shown.
+
+    time_format : None or str
+        If None, then no special formatting applied. Otherwise a string that determines the
+        formatting of the ``datetime``.
+
+    vmin, vmax : float
+        Min resp. max of the colorbar.
+
+    Returns
+    -------
+    return_ax : 'matplotlib.axes._subplots.AxesSubplot
+        Axes with a heatmap plot.
+
+    """
+    displayed_table = weights
+    always_visible = always_visible or []
+
+    if add_sum_column:
+        displayed_table['sum'] = displayed_table.sum(axis=1)
+        always_visible.append('sum')
+
+    xlab = [str(c) if ((asset_skips and i % asset_skips == 0) or c in always_visible) else "" for i, c in
+            enumerate(weights.columns)]
+
+    def formatter(x):
+        """Format row index."""
+        if time_format is not None:
+            return x.strftime(time_format)
+        else:
+            return x
+
+    ylab = [formatter(ix) if (time_skips and i % time_skips == 0) else "" for i, ix in
+            enumerate(weights.index)]
+
+    return_ax = sns.heatmap(displayed_table,
+                            vmin=vmin,
+                            vmax=vmax,
+                            cmap=cmap,
+                            ax=ax,
+                            xticklabels=xlab,
+                            yticklabels=ylab,
+                            )
+
+    return_ax.xaxis.set_ticks_position('top')
+    return_ax.tick_params(axis='x', rotation=75, length=0)
+    return_ax.tick_params(axis='y', rotation=0, length=0)
+
+    return return_ax

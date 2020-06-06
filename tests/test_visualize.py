@@ -1,12 +1,13 @@
 from unittest.mock import Mock
 
 from matplotlib.animation import FuncAnimation
+from matplotlib.axes import Axes
 from matplotlib.colors import ListedColormap
 import numpy as np
 import pandas as pd
 import pytest
 
-from deepdow.visualize import create_weight_anim, generate_weights_table
+from deepdow.visualize import create_weight_anim, create_weight_heatmap, generate_weights_table
 
 
 class TestGenerateWeightsTable:
@@ -51,7 +52,10 @@ class TestCreateWeightAnim:
 
         weights['asset_0'] = 0  # the smallest but we will force its display anyway
 
-        monkeypatch.setattr('deepdow.visualize.FuncAnimation', lambda *args, **kwargs: Mock(spec=FuncAnimation))
+        fake_functanim = Mock()
+        fake_functanim.return_value = Mock(spec=FuncAnimation)
+
+        monkeypatch.setattr('deepdow.visualize.FuncAnimation', fake_functanim)
         plt_mock = Mock()
         plt_mock.subplots = Mock(return_value=[Mock(), Mock()])
 
@@ -64,3 +68,32 @@ class TestCreateWeightAnim:
                                  colors=colors)
 
         assert isinstance(ani, FuncAnimation)
+
+
+class TestCreateWeightHeatmap:
+    @pytest.mark.parametrize('add_sum_column', [True, False])
+    @pytest.mark.parametrize('time_format', [None, '%d-%m-%Y'])
+    def test_basic(self, time_format, add_sum_column, monkeypatch):
+        n_timesteps = 20
+        n_assets = 10
+        index = list(range(n_timesteps)) if time_format is None else pd.date_range('1/1/2000',
+                                                                                   periods=n_timesteps)
+
+        weights = pd.DataFrame(np.random.random(size=(n_timesteps, n_assets)),
+                               index=index)
+
+        fake_axes = Mock(spec=Axes)
+        fake_axes.xaxis = Mock()
+
+        fake_sns = Mock()
+        fake_sns.heatmap.return_value = fake_axes
+
+        monkeypatch.setattr('deepdow.visualize.sns', fake_sns)
+        ax = create_weight_heatmap(weights,
+                                   time_format=time_format,
+                                   add_sum_column=add_sum_column)
+
+        assert isinstance(ax, Axes)
+        assert fake_sns.heatmap.call_count == 1
+        assert fake_axes.tick_params.call_count == 2
+4
