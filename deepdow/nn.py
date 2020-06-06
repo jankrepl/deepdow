@@ -3,7 +3,7 @@ import torch
 
 from .benchmarks import Benchmark
 from .layers import (AttentionCollapse, AverageCollapse, CovarianceMatrix, Conv, NumericalMarkowitz, MultiplyByConstant,
-                     RNN, SoftmaxAllocator)
+                     RNN, SoftmaxAllocator, WeightNorm)
 
 
 class DummyNet(torch.nn.Module, Benchmark):
@@ -268,7 +268,7 @@ class KeynesNet(torch.nn.Module, Benchmark):
 
     @property
     def hparams(self):
-        """Hyperparamters relevant to construction of the model."""
+        """Hyperparameters relevant to construction of the model."""
         return {k: v if isinstance(v, (int, float, str)) else str(v) for k, v in self._hparams.items() if k != 'self'}
 
 
@@ -358,8 +358,50 @@ class LinearNet(torch.nn.Module, Benchmark):
 
     @property
     def hparams(self):
-        """Hyperparamters relevant to construction of the model."""
+        """Hyperparameters relevant to construction of the model."""
         return {k: v if isinstance(v, (int, float, str)) else str(v) for k, v in self._hparams.items() if k != 'self'}
+
+
+class MinimalNet(torch.nn.Module, Benchmark):
+    """Minimal network that learns per asset weights.
+
+    Parameters
+    ----------
+    n_assets : int
+        Number of assets.
+
+    Attributes
+    ----------
+    allocate_layer : deepdow.allocate.WeightNorm
+        Layer whose goal is to learn each weight and make sure they sum up to one via normalization.
+
+    """
+
+    def __init__(self, n_assets):
+        super().__init__()
+        self.n_assets = n_assets
+        self.allocate_layer = WeightNorm(n_assets)
+
+    def forward(self, x):
+        """Perform forward pass.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Tensor of shape `(n_samples, dim_1, ...., dim_N).
+
+        Returns
+        -------
+        weights : torch.Tensor
+            Tensor of shape `(n_samples, n_assets`).
+
+        """
+        return self.allocate_layer(x)
+
+    @property
+    def hparams(self):
+        """Hyperparameters relevant to construction of the model."""
+        return {'n_assets': self.n_assets}
 
 
 class ThorpNet(torch.nn.Module, Benchmark):
@@ -438,5 +480,5 @@ class ThorpNet(torch.nn.Module, Benchmark):
 
     @property
     def hparams(self):
-        """Hyperparamters relevant to construction of the model."""
+        """Hyperparameters relevant to construction of the model."""
         return {k: v if isinstance(v, (int, float, str)) else str(v) for k, v in self._hparams.items() if k != 'self'}

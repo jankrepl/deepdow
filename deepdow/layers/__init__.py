@@ -3,7 +3,7 @@
 from .collapse import (AttentionCollapse, AverageCollapse, ElementCollapse, ExponentialCollapse,
                        MaxCollapse, SumCollapse)
 from .allocate import (AnalyticalMarkowitz, NCO, NumericalMarkowitz, Resample, SoftmaxAllocator,
-                       SparsemaxAllocator)
+                       SparsemaxAllocator, WeightNorm)
 from .misc import Cov2Corr, CovarianceMatrix, KMeans, MultiplyByConstant
 from .transform import Conv, RNN
 
@@ -24,4 +24,5 @@ __all__ = ['AnalyticalMarkowitz',
            'RNN',
            'SoftmaxAllocator',
            'SparsemaxAllocator',
-           'SumCollapse']
+           'SumCollapse',
+           'WeightNorm']

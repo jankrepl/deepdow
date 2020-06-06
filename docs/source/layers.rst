@@ -291,6 +291,33 @@ parameter.
    assert torch.allclose(w, w_true, atol=1e-5)
 
 
+.. _weight_norm:
+
+WeightNorm
+**********
+This allocation layer is supposed to be the simplest layer that could be used as a benchmark.
+The goal is to fix the number of assets :code:`n_assets` and for each of them learn a non-negative
+value :math:`w\_` that represents the unnormalized weight. The final allocation is then simply
+computed as
+
+.. math::
+
+    \textbf{w} = \frac{\textbf{w}\_}{\sum_{i=1}^{\text{n_assets}}w\_}
+
+.. testcode::
+
+   from deepdow.layers import WeightNorm
+
+   n_assets = 5
+   layer = WeightNorm(n_assets)
+   x = torch.tensor([[1, 2.3, 2.1], [2, 4.2, -1.1]])
+
+   w = layer(x)
+
+   assert torch.allclose(w.sum(1), torch.ones(2))
+   assert torch.allclose(w[0], w[1])
+
+
 Misc layers
 -----------
 For the exact usage see :ref:`layers_misc_API`.

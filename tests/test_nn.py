@@ -2,7 +2,7 @@
 import pytest
 import torch
 
-from deepdow.nn import BachelierNet, DummyNet, KeynesNet, LinearNet, ThorpNet
+from deepdow.nn import BachelierNet, DummyNet, KeynesNet, LinearNet, MinimalNet, ThorpNet
 
 
 class TestDummyNetwork:
@@ -144,6 +144,38 @@ class TestLinear:
         actual = sum(p.numel() for p in network.parameters() if p.requires_grad)
 
         assert expected == actual
+
+
+class TestMinimal:
+    def test_basic(self, Xy_dummy):
+        eps = 1e-4
+
+        X, _, _, _ = Xy_dummy
+        n_samples, n_channels, lookback, n_assets = X.shape
+        dtype = X.dtype
+        device = X.device
+
+        network = MinimalNet(n_assets)
+        network.to(device=device, dtype=dtype)
+
+        weights = network(X)
+
+        assert isinstance(network.hparams, dict)
+        assert 'n_assets' in network.hparams
+        assert torch.is_tensor(weights)
+        assert weights.shape == (n_samples, n_assets)
+        assert X.device == weights.device
+        assert X.dtype == weights.dtype
+        assert torch.allclose(weights.sum(dim=1),
+                              torch.ones(n_samples).to(dtype=dtype, device=device), atol=eps)
+
+    @pytest.mark.parametrize('n_assets', [40, 4])
+    def test_n_params(self, n_assets):
+        network = MinimalNet(n_assets)
+
+        actual = sum(p.numel() for p in network.parameters() if p.requires_grad)
+
+        assert n_assets == actual
 
 
 class TestThorpNet:

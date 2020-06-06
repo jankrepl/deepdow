@@ -514,3 +514,34 @@ class SparsemaxAllocator(torch.nn.Module):
         inp = x / temperature_[..., None]
 
         return self.layer(inp)[0]
+
+
+class WeightNorm(torch.nn.Module):
+    """Allocation via weight normalization.
+
+    We learn a single weight for each asset and make sure that they sum up to one.
+    """
+
+    def __init__(self, n_assets):
+        super().__init__()
+        self.asset_weights = torch.nn.Parameter(torch.ones(n_assets), requires_grad=True)
+
+    def forward(self, x):
+        """Perform forward pass.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Tensor of shape `(n_samples, dim_1, ...., dim_N)`.
+
+        Returns
+        -------
+        weights : torch.Tensor
+            Tensor of shape `(n_samples, n_assets`).
+
+        """
+        n_samples = x.shape[0]
+        clamped = torch.clamp(self.asset_weights, min=0)
+        normalized = clamped / clamped.sum()
+
+        return torch.stack(n_samples * [normalized], dim=0)
