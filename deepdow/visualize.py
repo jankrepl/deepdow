@@ -5,16 +5,78 @@ from itertools import cycle
 from matplotlib import cm
 from matplotlib.animation import FuncAnimation
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import torch
+
+from .benchmarks import Benchmark
+from .data import RigidDataLoader
 
 
-def portfolio_evolution(weights, always_visible=None, n_displayed_assets=None, n_seconds=3, figsize=(10, 10),
-                        colors=None, autopct='%1.1f%%'):
+def generate_weights_table(network, dataloader, device=None, dtype=None):
+    """Generate a pd.DataFrame with predicted weights over all indices.
+
+    Parameters
+    ----------
+    network : deepdow.benchmarks.Benchmark
+        Any benchmark that is performing portfolio optimization via the `__call__` magic method.
+
+    dataloader : deepdow.data.RigidDataLoader
+        Dataloader that we will fully iterate over.
+
+    device : torch.device or None
+        Device to be used. If not specified defaults to `torch.device('cpu')`.
+
+    dtype : torch.dtype or None
+        Dtype to be used. If not specified defaults to `torch.float`.
+
+    Returns
+    -------
+    weights_table : pd.DataFrame
+        Index represents the timestep and column are different assets. The values are allocations.
+    """
+    if not isinstance(network, Benchmark):
+        raise TypeError('The network needs to be an instance of a Benchmark')
+
+    if not isinstance(dataloader, RigidDataLoader):
+        raise TypeError('The network needs to be an instance of a RigidDataloader')
+
+    device = device or torch.device('cpu')
+    dtype = dtype or torch.float
+
+    if isinstance(network, torch.nn.Module):
+        network.to(device=device, dtype=dtype)
+        network.eval()
+
+    all_batches = []
+    all_timestamps = []
+
+    for X_batch, _, timestamps, _ in dataloader:
+        X_batch = X_batch.to(device=device, dtype=dtype)
+        weights_batch = network(X_batch).cpu().detach().numpy()
+
+        all_batches.append(weights_batch)
+        all_timestamps.extend(timestamps)
+
+    weights = np.concatenate(all_batches, axis=0)
+    asset_names = [dataloader.dataset.asset_names[asset_ix] for asset_ix in dataloader.asset_ixs]
+
+    weights_table = pd.DataFrame(weights,
+                                 index=all_timestamps,
+                                 columns=asset_names)
+
+    return weights_table.sort_index()
+
+
+def create_weight_anim(weights, always_visible=None, n_displayed_assets=None, n_seconds=3, figsize=(10, 10),
+                       colors=None, autopct='%1.1f%%'):
     """Visualize portfolio evolution over time with pie charts.
 
     Parameters
     ----------
     weights : pd.DataFrame
-        The index is a ``pd.DateTimeIndex`` and the columns are different assets.
+        The index is a represents the timestamps and the columns are asset names. Values are
+        weights.
 
     always_visible : None or list
         List of assets to always include no matter how big the weights are. Passing None is identical to passing
