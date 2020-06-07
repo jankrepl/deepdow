@@ -139,7 +139,8 @@ class Dropout:
         Probability of setting an element to zero.
 
     training : bool
-        If False, then dropout disabled no matter what the `p` is.
+        If False, then dropout disabled no matter what the `p` is. Note that if True then
+        dropout enabled and at the same time all the elements are scaled by `1/p`.
     """
 
     def __init__(self, p=0.2, training=True):

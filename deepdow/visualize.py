@@ -12,6 +12,103 @@ import torch
 
 from .benchmarks import Benchmark
 from .data import RigidDataLoader
+from .losses import Loss
+
+
+def generate_metrics_table(benchmarks, dataloader, metrics, device=None, dtype=None):
+    """Generate metrics table for all benchmarks.
+
+    Parameters
+    ----------
+    benchmarks : dict
+        Dictionary where keys are benchmark names and values are instances of `Benchmark` (possible
+        also `torch.nn.Network`).
+
+    dataloader : deepdow.data.RigidDataLoader
+        Dataloader that we will fully iterate over.
+
+    metrics : dict
+        Keys are metric names and values are instances of `deepdow.loss.Loss` representing. They
+        all have the logic the lower the better.
+
+    device : torch.device or None
+        Device to be used. If not specified defaults to `torch.device('cpu')`.
+
+    dtype : torch.dtype or None
+        Dtype to be used. If not specified defaults to `torch.float`.
+
+    Returns
+    -------
+    metrics_table : pd.DataFrame
+        Table with the following columns - 'metric', 'timestamp', 'benchmark' and 'value'.
+
+    """
+    # checks
+    if not all(isinstance(bm, Benchmark) for bm in benchmarks.values()):
+        raise TypeError('The values of benchmarks need to be of type Benchmark')
+
+    if not isinstance(dataloader, RigidDataLoader):
+        raise TypeError('The type of dataloader needs to be RigidDataLoader')
+
+    if not all(isinstance(metric, Loss) for metric in metrics.values()):
+        raise TypeError('The values of metrics need to be of type Loss')
+
+    device = device or torch.device('cpu')
+    dtype = dtype or torch.float
+
+    for bm in benchmarks.values():
+        if isinstance(bm, torch.nn.Module):
+            bm.eval()
+
+    all_entries = []
+
+    for batch_ix, (X_batch, y_batch, timestamps, _) in enumerate(dataloader):
+        # Get batch
+        X_batch, y_batch = X_batch.to(device).to(dtype), y_batch.to(device).to(dtype)
+        for bm_name, bm in benchmarks.items():
+            weights = bm(X_batch)
+            for metric_name, metric in metrics.items():
+                metric_per_s = metric(weights, y_batch).detach().cpu().numpy()
+                all_entries.append(pd.DataFrame({'timestamp': timestamps,
+                                                 'benchmark': bm_name,
+                                                 'metric': metric_name,
+                                                 'value': metric_per_s}))
+
+    metrics_table = pd.concat(all_entries)
+
+    return metrics_table
+
+
+def plot_metrics(metrics_table):
+    """Plot performance of all benchmarks for all metrics.
+
+    Parameters
+    ----------
+    metrics_table : pd.DataFrame
+        Table with the following columns - 'metric', 'timestamp', 'benchmark' and 'value'.
+
+    Returns
+    -------
+    return_ax : 'matplotlib.axes._subplots.AxesSubplot
+        Axes with number of subaxes equal to number of metrics.
+
+    """
+    all_metrics = metrics_table['metric'].unique()
+    n_metrics = len(all_metrics)
+
+    _, axs = plt.subplots(n_metrics)
+
+    for i, metric_name in enumerate(all_metrics):
+        df = pd.pivot_table(metrics_table[metrics_table['metric'] == metric_name],
+                            values='value',
+                            columns='benchmark',
+                            index='timestamp').sort_index()
+        df.plot(ax=axs[i])
+        axs[i].set_title(metric_name)
+
+    plt.tight_layout()
+
+    return axs
 
 
 def generate_weights_table(network, dataloader, device=None, dtype=None):
