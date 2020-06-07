@@ -1,7 +1,7 @@
 """Module dealing with data."""
 
-from .load import (Compose, Dropout, FlexibleDataLoader, InRAMDataset, Multiply, Noise,
-                   RigidDataLoader)
+from .augment import (Compose, Dropout, Multiply, Noise)
+from .load import (FlexibleDataLoader, InRAMDataset, RigidDataLoader)
 
 __all__ = ['Compose',
            'Dropout',
