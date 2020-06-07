@@ -261,10 +261,12 @@ Additionally, one can pass a transformation :code:`transform` that can serve as 
 Currently implemented transforms under :code:`deepdow.data` are
 
 - :code:`Compose` - basically a copy of `Compose` from Torch Vision
-- :code:`Dropout` - randomly setting elements to zero (not in place)
-- :code:`Multiply` - multiplying all elements by a constant (not in place)
-- :code:`Noise` - add Gaussian noise (not in place)
+- :code:`Dropout` - randomly setting elements to zero
+- :code:`Multiply` - multiplying all elements by a constant
+- :code:`Noise` - add Gaussian noise
+- :code:`Scale` - centering and scaling (similar to scikit-learn :code:`StandardScaler` and :code:`RobustScaler`)
 
+All of the transforms are not in place.
 
 Dataloaders
 -----------

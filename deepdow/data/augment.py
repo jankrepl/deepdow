@@ -268,3 +268,82 @@ class Noise:
         X_sample_new = self.frac * X_sample.std([1, 2], keepdim=True) * torch.randn_like(X_sample) + X_sample
 
         return X_sample_new, y_sample, timestamps_sample, asset_names
+
+
+class Scale:
+    """Scale input features.
+
+    The input features are per channel centered to zero and scaled to one. We use the same
+    terminology as scikit-learn. However, the equivalent in torchvision is `Normalize`.
+
+    Parameters
+    ----------
+    center : np.ndarray
+        1D array of shape `(n_channels,)` representing the center of the features (mean or median).
+        Needs to be precomputed in advance.
+
+    scale : np.ndarray
+        1D array of shape `(n_channels,)` representing the scale of the features (standard deviation
+        or quantile range). Needs to be precomputed in advance.
+
+    See Also
+    --------
+    prepare_robust_scaler
+    prepare_standard_scaler
+    """
+
+    def __init__(self, center, scale):
+        if len(center) != len(scale):
+            raise ValueError('The center and scale need to have the same size.')
+
+        if np.any(scale <= 0):
+            raise ValueError('The scale parameters need to be positive.')
+
+        self.center = center
+        self.scale = scale
+        self.n_channels = len(self.center)
+
+    def __call__(self, X_sample, y_sample, timestamps_sample, asset_names):
+        """Perform transform.
+
+        Parameters
+        ----------
+        X_sample : torch.Tensor
+            Feature vector of shape `(n_channels, lookback, n_assets)`.
+
+        y_sample : torch.Tensor
+            Target vector of shape `(n_channels, horizon, n_assets)`.
+
+        timestamps_sample : datetime
+            Time stamp of the sample.
+
+        asset_names
+            Asset names corresponding to the last channel of `X_sample` and `y_sample`.
+
+        Returns
+        -------
+        X_sample_new : torch.Tensor
+            Feature vector of shape `(n_channels, lookback, n_assets)` scaled appropriatelly.
+
+        y_sample : torch.Tesnor
+            Same as input.
+
+        timestamps_sample : datetime
+            Same as input.
+
+        asset_names
+            Same as input.
+        """
+        n_channels = X_sample.shape[0]
+        if n_channels != self.n_channels:
+            raise ValueError('Expected {} channels in X, got {}'.format(self.n_channels, n_channels))
+
+        X_sample_new = X_sample.clone()
+        dtype, device = X_sample_new.dtype, X_sample_new.device
+
+        center = torch.as_tensor(self.center, dtype=dtype, device=device)[:, None, None]
+        scale = torch.as_tensor(self.scale, dtype=dtype, device=device)[:, None, None]
+
+        X_sample_new.sub_(center).div_(scale)
+
+        return X_sample_new, y_sample, timestamps_sample, asset_names

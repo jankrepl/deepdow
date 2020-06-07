@@ -2,8 +2,9 @@
 
 import numpy as np
 import pytest
+import torch
 
-from deepdow.data import prepare_robust_scaler, prepare_standard_scaler
+from deepdow.data import Scale, prepare_robust_scaler, prepare_standard_scaler
 
 
 @pytest.mark.parametrize('overlap', [True, False])
@@ -51,3 +52,35 @@ class TestPrepareRobustScaler:
         medians_2, ranges_2 = prepare_robust_scaler(X, percentile_range=(10, 90))
 
         assert np.all(ranges_2 > ranges_1)
+
+
+class TestScaler:
+    def test_erorrs(self):
+        with pytest.raises(ValueError):
+            raise Scale(np.ones(3), np.ones(4))
+
+        with pytest.raises(ValueError):
+            raise Scale(np.array([1, -1]), np.array([9, -0.1]))
+
+        tform = Scale(np.array([1, -1]), np.array([9, 10.]))
+        with pytest.raises(ValueError):
+            tform(torch.rand(3, 4, 5), None, None, None)
+
+    def test_overall(self):
+        n_channels, lookback, n_assets = 3, 5, 12
+
+        X = np.random.random((n_channels, lookback, n_assets))
+        X_torch = torch.as_tensor(X)
+        dtype = X_torch.dtype
+
+        center = X.mean(axis=(1, 2))
+        scale = X.std(axis=(1, 2), )
+
+        tform = Scale(center, scale)
+        X_scaled = tform(X_torch, None, None, None)[0]
+
+        assert torch.is_tensor(X_scaled)
+        assert X_torch.shape == X_scaled.shape
+        assert not torch.allclose(X_torch, X_scaled)
+        assert torch.allclose(X_scaled.mean(dim=(1, 2)), torch.zeros(n_channels, dtype=dtype))
+        assert torch.allclose(X_scaled.std(dim=(1, 2), unbiased=False), torch.ones(n_channels, dtype=dtype))
