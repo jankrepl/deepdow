@@ -323,7 +323,7 @@ class Scale:
         Returns
         -------
         X_sample_new : torch.Tensor
-            Feature vector of shape `(n_channels, lookback, n_assets)` scaled appropriatelly.
+            Feature vector of shape `(n_channels, lookback, n_assets)` scaled appropriately.
 
         y_sample : torch.Tesnor
             Same as input.
