@@ -1,7 +1,8 @@
 deepdow.data module
 ===================
 
-.. automodule:: deepdow.data
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. toctree::
+
+   deepdow.data.augment
+   deepdow.data.load
+   deepdow.data.synthetic

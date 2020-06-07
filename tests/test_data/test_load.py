@@ -4,8 +4,9 @@ import numpy as np
 import pytest
 import torch
 
-from deepdow.data import (Compose, Dropout, FlexibleDataLoader, InRAMDataset, Multiply, Noise, RigidDataLoader,
-                          collate_uniform, scale_features)
+from deepdow.data import (Compose, Dropout, FlexibleDataLoader, InRAMDataset, Multiply, Noise,
+                          RigidDataLoader)
+from deepdow.data.load import collate_uniform
 
 
 class TestCollateUniform:
@@ -46,8 +47,7 @@ class TestCollateUniform:
         assert len(timestamps_batch) == n_samples
         assert len(asset_names_batch) == 5
 
-    @pytest.mark.parametrize('scaler', [None, 'standard', 'percent'])
-    def test_replicable(self, scaler):
+    def test_replicable(self):
         random_state_a = 3
         random_state_b = 5
 
@@ -67,21 +67,18 @@ class TestCollateUniform:
                                                      random_state=random_state_a,
                                                      n_assets_range=(4, 5),
                                                      lookback_range=(4, 5),
-                                                     horizon_range=(3, 4),
-                                                     scaler=scaler)
+                                                     horizon_range=(3, 4))
         X_batch_2, y_batch_2, _, _ = collate_uniform(batch,
                                                      random_state=random_state_a,
                                                      n_assets_range=(4, 5),
                                                      lookback_range=(4, 5),
-                                                     horizon_range=(3, 4),
-                                                     scaler=scaler)
+                                                     horizon_range=(3, 4))
 
         X_batch_3, y_batch_3, _, _ = collate_uniform(batch,
                                                      random_state=random_state_b,
                                                      n_assets_range=(4, 5),
                                                      lookback_range=(4, 5),
-                                                     horizon_range=(3, 4),
-                                                     scaler=scaler)
+                                                     horizon_range=(3, 4))
 
         assert torch.allclose(X_batch_1, X_batch_2)
         assert torch.allclose(y_batch_1, y_batch_2)
@@ -186,19 +183,6 @@ class TestInRAMDataset:
         assert (y_sample == 0).sum() == 0
         assert y_sample.max() < 1
         assert y_sample.min() > -1
-
-
-@pytest.mark.parametrize('scaler', ['standard', 'percent', 'wrong'])
-def test_scale_features(scaler):
-    X = torch.rand(2, 3, 4, 5)
-
-    if scaler == 'wrong':
-        with pytest.raises(ValueError):
-            scale_features(X, approach=scaler)
-    else:
-        X_scaled = scale_features(X, approach=scaler)
-
-        assert X_scaled.shape == X.shape
 
 
 class TestFlexibleDataLoader:
