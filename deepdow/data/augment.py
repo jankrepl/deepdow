@@ -1,6 +1,83 @@
 """Collection of callable functions that augment deepdow tensors."""
 
+import numpy as np
 import torch
+
+
+def prepare_standard_scaler(X, overlap=False, indices=None):
+    """Compute mean and standard deviation for each channel.
+
+    Parameters
+    ----------
+    X : np.ndarray
+        Full features array of shape `(n_samples, n_channels, lookback, n_assets)`.
+
+    overlap : bool
+        If False, then only using the most recent timestep. This will guarantee that not counting
+        the same thing multiple times.
+
+    indices : list or None
+        List of indices to consider from the `X.shape[0]` dimension. If None
+        then considering all the samples.
+
+    Returns
+    -------
+    means : np.ndarray
+        Mean of each channel. Shape `(n_channels,)`.
+
+    stds : np.ndarray
+        Standard deviation of each channel. Shape `(n_channels,)`.
+
+    """
+    indices = indices if indices is not None else list(range(len(X)))
+    considered_values = X[indices, ...] if overlap else X[indices, :, -1:, :]
+
+    means = considered_values.mean(axis=(0, 2, 3))
+    stds = considered_values.std(axis=(0, 2, 3))
+
+    return means, stds
+
+
+def prepare_robust_scaler(X, overlap=False, indices=None, percentile_range=(25, 75)):
+    """Compute median and percentile range for each channel.
+
+    Parameters
+    ----------
+    X : np.ndarray
+        Full features array of shape `(n_samples, n_channels, lookback, n_assets)`.
+
+    overlap : bool
+        If False, then only using the most recent timestep. This will guarantee that not counting
+        the same thing multiple times.
+
+    indices : list or None
+        List of indices to consider from the `X.shape[0]` dimension. If None
+        then considering all the samples.
+
+    percentile_range : tuple
+        The left and right percentile to consider. Needs to be in [0, 100].
+
+    Returns
+    -------
+    medians : np.ndarray
+        Median of each channel. Shape `(n_channels,)`.
+
+    ranges : np.ndarray
+        Interquantile range for each channel. Shape `(n_channels,)`.
+
+    """
+    if not 0 <= percentile_range[0] < percentile_range[1] <= 100:
+        raise ValueError('The percentile range needs to be in [0, 100] and left < right')
+
+    indices = indices if indices is not None else list(range(len(X)))
+    considered_values = X[indices, ...] if overlap else X[indices, :, -1:, :]
+
+    medians = np.median(considered_values, axis=(0, 2, 3))
+    percentiles = np.percentile(considered_values, percentile_range, axis=(0, 2, 3))  # (2, n_channels)
+
+    ranges = percentiles[1] - percentiles[0]
+
+    return medians, ranges
 
 
 class Compose:
