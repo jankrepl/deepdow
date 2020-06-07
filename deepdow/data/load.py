@@ -4,42 +4,6 @@ from functools import partial
 import torch
 
 
-def scale_features(X, approach='standard'):
-    """Scale feature matrix.
-
-    Parameters
-    ----------
-    X : torch.Tensor
-        Tensor of shape (n_samples, n_channels, lookback, n_assets). Unscaled
-
-    approach : str, {'standard', 'percent'}
-        How to scale features.
-
-    Returns
-    -------
-    X_scaled : torch.tensor
-        Tensor of shape (n_samples, n_channels, lookback, n_assets). Scaled.
-    """
-    n_samples, n_channels, lookback, n_assets = X.shape
-
-    if approach == 'standard':
-        means = X.mean(dim=[2, 3])  # for each sample and each channel a mean is computed (over lookback and assets)
-        stds = X.std(dim=[2, 3]) + 1e-6  # for each sample and each channel a std is computed (over lookback and assets)
-
-        means_rep = means.view(n_samples, n_channels, 1, 1).repeat(1, 1, lookback, n_assets)
-        stds_rep = stds.view(n_samples, n_channels, 1, 1).repeat(1, 1, lookback, n_assets)
-
-        X_scaled = (X - means_rep) / stds_rep
-
-    elif approach == 'percent':
-        X_scaled = X * 100
-
-    else:
-        raise ValueError('Invalid scaling approach {}'.format(approach))
-
-    return X_scaled
-
-
 class InRAMDataset(torch.utils.data.Dataset):
     """Dataset that lives entirely in RAM.
 
@@ -104,7 +68,7 @@ class InRAMDataset(torch.utils.data.Dataset):
 
 
 def collate_uniform(batch, n_assets_range=(5, 10), lookback_range=(2, 20), horizon_range=(3, 15), asset_ixs=None,
-                    random_state=None, scaler=None):
+                    random_state=None):
     """Create batch of samples.
 
     Randomly (from uniform distribution) selects assets, lookback and horizon. If `assets` are specified then assets
@@ -132,9 +96,6 @@ def collate_uniform(batch, n_assets_range=(5, 10), lookback_range=(2, 20), horiz
 
     random_state : int or None
         Random state.
-
-    scaler : None or {'standard', 'percent'}
-        If None then no scaling applied. If string then a specific scaling theme. Only applied to X_batch.
 
     Returns
     -------
@@ -180,9 +141,6 @@ def collate_uniform(batch, n_assets_range=(5, 10), lookback_range=(2, 20), horiz
     horizon = torch.randint(low=horizon_range[0], high=min(horizon_max + 1, horizon_range[1]), size=(1,))[0]
 
     X_batch = torch.stack([b[0][:, -lookback:, asset_ixs] for b in batch], dim=0)
-    if scaler is not None:
-        X_batch = scale_features(X_batch, approach=scaler)
-
     y_batch = torch.stack([b[1][:, :horizon, asset_ixs] for b in batch], dim=0)
     timestamps_batch = [b[2] for b in batch]
     asset_names_batch = [batch[0][3][ix] for ix in asset_ixs]
@@ -223,13 +181,10 @@ class FlexibleDataLoader(torch.utils.data.DataLoader):
         If both `asset_ixs` and `n_assets_range` are None then `asset_ixs` automatically assumed to be all possible
         indices.
 
-    scaler : None or {'standard', 'percent'}
-        If None then no scaling applied. If string then a specific scaling theme. Only applied to X_batch.
-
     """
 
     def __init__(self, dataset, indices=None, n_assets_range=None, lookback_range=None, horizon_range=None,
-                 asset_ixs=None, scaler=None, **kwargs):
+                 asset_ixs=None, **kwargs):
 
         if n_assets_range is not None and asset_ixs is not None:
             raise ValueError('One cannot specify both n_assets_range and asset_ixs')
@@ -258,15 +213,12 @@ class FlexibleDataLoader(torch.utils.data.DataLoader):
         else:
             self.asset_ixs = asset_ixs
 
-        self.scaler = scaler
-
         super().__init__(dataset,
                          collate_fn=partial(collate_uniform,
                                             n_assets_range=self.n_assets_range,
                                             lookback_range=self.lookback_range,
                                             horizon_range=self.horizon_range,
-                                            asset_ixs=self.asset_ixs,
-                                            scaler=self.scaler),
+                                            asset_ixs=self.asset_ixs),
                          sampler=torch.utils.data.SubsetRandomSampler(self.indices),
                          batch_sampler=None,
                          shuffle=False,
@@ -305,12 +257,9 @@ class RigidDataLoader(torch.utils.data.DataLoader):
 
     horizon : int or None
         How many time steps we look forward. If None then taking the maximum horizon from `dataset`.
-
-    scaler : None or {'standard', 'percent'}
-        If None then no scaling applied. If string then a specific scaling theme. Only applied to X_batch.
     """
 
-    def __init__(self, dataset, asset_ixs=None, indices=None, lookback=None, horizon=None, scaler=None, **kwargs):
+    def __init__(self, dataset, asset_ixs=None, indices=None, lookback=None, horizon=None, **kwargs):
 
         if asset_ixs is not None and not (0 <= min(asset_ixs) <= max(asset_ixs) <= dataset.n_assets - 1):
             raise ValueError('Invalid asset_ixs.')
@@ -329,15 +278,13 @@ class RigidDataLoader(torch.utils.data.DataLoader):
         self.lookback = lookback if lookback is not None else dataset.lookback
         self.horizon = horizon if horizon is not None else dataset.horizon
         self.asset_ixs = asset_ixs if asset_ixs is not None else list(range(len(dataset.asset_names)))
-        self.scaler = scaler
 
         super().__init__(self.dataset,
                          collate_fn=partial(collate_uniform,
                                             n_assets_range=None,
                                             lookback_range=(self.lookback, self.lookback + 1),
                                             horizon_range=(self.horizon, self.horizon + 1),
-                                            asset_ixs=self.asset_ixs,
-                                            scaler=self.scaler),
+                                            asset_ixs=self.asset_ixs),
                          sampler=torch.utils.data.SubsetRandomSampler(self.indices),
                          batch_sampler=None,
                          shuffle=False,
