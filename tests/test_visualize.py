@@ -1,4 +1,4 @@
-from unittest.mock import Mock
+from unittest.mock import MagicMock, Mock
 
 from matplotlib.animation import FuncAnimation
 from matplotlib.axes import Axes
@@ -7,7 +7,49 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from deepdow.visualize import create_weight_anim, create_weight_heatmap, generate_weights_table
+from deepdow.losses import MeanReturns
+from deepdow.visualize import (create_weight_anim, create_weight_heatmap, generate_metrics_table,
+                               generate_weights_table, plot_metrics)
+
+
+class TestGenerateMetricsTable:
+    def test_errors(self, dataloader_dummy, network_dummy):
+        with pytest.raises(TypeError):
+            generate_metrics_table({'bm_1': 'WRONG'}, dataloader_dummy, {'metric': MeanReturns()})
+
+        with pytest.raises(TypeError):
+            generate_metrics_table({'bm_1': network_dummy}, 'FAKE', {'metric': MeanReturns()})
+
+        with pytest.raises(TypeError):
+            generate_metrics_table({'bm_1': network_dummy}, dataloader_dummy, {'metric': 'FAKE'})
+
+    def test_basic(self, dataloader_dummy, network_dummy):
+        metrics_table = generate_metrics_table({'bm_1': network_dummy},
+                                               dataloader_dummy,
+                                               {'rets': MeanReturns()})
+
+        assert isinstance(metrics_table, pd.DataFrame)
+        assert len(metrics_table) == len(dataloader_dummy.dataset)
+        assert {'metric', 'value', 'benchmark', 'timestamp'} == set(metrics_table.columns.to_list())
+
+
+def test_plot_metrics(monkeypatch):
+    n_entries = 100
+    metrics_table = pd.DataFrame(np.random.random((n_entries, 2)),
+                                 columns=[
+                                     'value',
+                                     'timestamp'])
+    metrics_table['metric'] = 'M'
+    metrics_table['benchmark'] = 'B'
+
+    fake_plt = Mock()
+    fake_plt.subplots.return_value = None, MagicMock()
+    fake_pd = Mock()
+
+    monkeypatch.setattr('deepdow.visualize.plt', fake_plt)
+    monkeypatch.setattr('deepdow.visualize.pd', fake_pd)
+
+    plot_metrics(metrics_table)
 
 
 class TestGenerateWeightsTable:

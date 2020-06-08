@@ -4,7 +4,26 @@ import numpy as np
 import pytest
 import torch
 
-from deepdow.data import Scale, prepare_robust_scaler, prepare_standard_scaler
+from deepdow.data import (Compose, Dropout, Multiply, Noise, Scale, prepare_robust_scaler,
+                          prepare_standard_scaler)
+
+
+@pytest.mark.parametrize('tform', [Compose([lambda a, b, c, d: (2 * a, b, c, d),
+                                            lambda a, b, c, d: (3 + a, b, c, d)]),
+                                   Dropout(p=0.5),
+                                   Multiply(c=4),
+                                   Noise(0.3),
+                                   Scale(np.array([1.2]), np.array([5.7])),
+                                   ])
+def test_tforms_not_in_place_for_x(tform):
+    X = torch.randn(1, 4, 5)
+    X_orig = X.clone()
+
+    X_after, _, _, _ = tform(X, None, None, None)
+
+    assert torch.allclose(X, X_orig)
+    assert not torch.allclose(X_after, X)
+    assert X_after.shape == X.shape
 
 
 @pytest.mark.parametrize('overlap', [True, False])

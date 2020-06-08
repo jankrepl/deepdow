@@ -181,10 +181,16 @@ class FlexibleDataLoader(torch.utils.data.DataLoader):
         If both `asset_ixs` and `n_assets_range` are None then `asset_ixs` automatically assumed to be all possible
         indices.
 
+    batch_size : int
+        Number of samples in a batch.
+
+    drop_last : bool
+        If True, then the last batch that does not have `batch_size` samples is dropped.
+
     """
 
     def __init__(self, dataset, indices=None, n_assets_range=None, lookback_range=None, horizon_range=None,
-                 asset_ixs=None, **kwargs):
+                 asset_ixs=None, batch_size=1, drop_last=False, **kwargs):
 
         if n_assets_range is not None and asset_ixs is not None:
             raise ValueError('One cannot specify both n_assets_range and asset_ixs')
@@ -222,7 +228,8 @@ class FlexibleDataLoader(torch.utils.data.DataLoader):
                          sampler=torch.utils.data.SubsetRandomSampler(self.indices),
                          batch_sampler=None,
                          shuffle=False,
-                         drop_last=False,
+                         drop_last=drop_last,
+                         batch_size=batch_size,
                          **kwargs)
 
     @property
@@ -257,9 +264,17 @@ class RigidDataLoader(torch.utils.data.DataLoader):
 
     horizon : int or None
         How many time steps we look forward. If None then taking the maximum horizon from `dataset`.
+
+    batch_size : int
+        Number of samples in a batch.
+
+    drop_last : bool
+        If True, then the last batch that does not have `batch_size` samples is dropped.
+
     """
 
-    def __init__(self, dataset, asset_ixs=None, indices=None, lookback=None, horizon=None, **kwargs):
+    def __init__(self, dataset, asset_ixs=None, indices=None, lookback=None, horizon=None,
+                 drop_last=False, batch_size=1, **kwargs):
 
         if asset_ixs is not None and not (0 <= min(asset_ixs) <= max(asset_ixs) <= dataset.n_assets - 1):
             raise ValueError('Invalid asset_ixs.')
@@ -288,7 +303,8 @@ class RigidDataLoader(torch.utils.data.DataLoader):
                          sampler=torch.utils.data.SubsetRandomSampler(self.indices),
                          batch_sampler=None,
                          shuffle=False,
-                         drop_last=False,
+                         drop_last=drop_last,
+                         batch_size=batch_size,
                          **kwargs)
 
     @property
