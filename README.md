@@ -3,6 +3,7 @@
 [![Build Status](https://travis-ci.com/jankrepl/deepdow.svg?branch=master)](https://travis-ci.com/jankrepl/deepdow)
 [![codecov](https://codecov.io/gh/jankrepl/deepdow/branch/master/graph/badge.svg)](https://codecov.io/gh/jankrepl/deepdow)
 [![Documentation Status](https://readthedocs.org/projects/deepdow/badge/?version=latest)](https://deepdow.readthedocs.io/en/latest/?badge=latest)
+[![PyPI version](https://badge.fury.io/py/deepdow.svg)](https://badge.fury.io/py/deepdow)
 
 `deepdow` (read as "wow") is a Python package connecting portfolio optimization and deep learning. Its goal is to
 facilitate research of networks that perform weight allocation in **one forward pass**.
