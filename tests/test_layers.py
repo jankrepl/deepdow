@@ -7,7 +7,7 @@ from deepdow.layers import (AverageCollapse, AttentionCollapse, ElementCollapse,
 from deepdow.layers import (AnalyticalMarkowitz, NCO, NumericalMarkowitz, Resample,
                             SoftmaxAllocator, SparsemaxAllocator, WeightNorm)
 from deepdow.layers import Cov2Corr, CovarianceMatrix, KMeans, MultiplyByConstant
-from deepdow.layers import Conv, RNN
+from deepdow.layers import Conv, RNN, Zoom
 
 ALL_COLLAPSE = [AverageCollapse, AttentionCollapse, ElementCollapse, ExponentialCollapse,
                 MaxCollapse, SumCollapse]
@@ -671,3 +671,40 @@ class TestWeightNorm:
         n_parameters = sum(p.numel() for p in WeightNorm(n_assets).parameters() if p.requires_grad)
 
         assert n_parameters == n_assets
+
+
+class TestZoom:
+    @pytest.mark.parametrize('mode', ['nearest', 'bilinear'])
+    @pytest.mark.parametrize('padding_mode', ['zeros', 'reflection', 'border'])
+    def test_basic(self, Xy_dummy, mode, padding_mode):
+        X, _, _, _ = Xy_dummy
+        dtype, device = X.dtype, X.device
+        n_samples, _, _, n_assets = X.shape
+        layer = Zoom(mode=mode, padding_mode=padding_mode)
+
+        scale = torch.rand(n_samples, dtype=dtype, device=device)
+        x_zoomed = layer(X, scale)
+
+        assert torch.is_tensor(x_zoomed)
+        assert x_zoomed.shape == X.shape
+        assert x_zoomed.dtype == X.dtype
+        assert x_zoomed.device == X.device
+
+    @pytest.mark.parametrize('mode', ['nearest', 'bilinear'])
+    @pytest.mark.parametrize('padding_mode', ['zeros', 'reflection', 'border'])
+    def test_no_change(self, mode, padding_mode):
+        # scale=1
+        n_samples, n_channels, lookback, n_assets = 2, 3, 4, 5
+        X = torch.rand(n_samples, n_channels, lookback, n_assets)
+        scale = torch.ones(n_samples, dtype=X.dtype)
+
+        layer = Zoom(mode=mode, padding_mode=padding_mode)
+
+        x_zoomed = layer(X, scale)
+
+        assert torch.allclose(x_zoomed, X)
+
+    def test_n_parameters(self):
+        n_parameters = sum(p.numel() for p in Zoom().parameters() if p.requires_grad)
+
+        assert n_parameters == 0
