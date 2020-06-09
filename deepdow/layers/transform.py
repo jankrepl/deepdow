@@ -168,14 +168,15 @@ class Zoom(torch.nn.Module):
         Returns
         -------
         torch.Tensor
-            Tensor of shape `(n_samples, self.hidden_size, lookback, n_assets)` that is a zoomed
-            version of the input.
+            Tensor of shape `(n_samples, n_channels, lookback, n_assets)` that is a zoomed
+            version of the input. Note that the shape is identical to the input.
 
         """
         translate = 1 - scale
 
         theta = torch.stack([torch.tensor([[1, 0, 0],
                                            [0, s, t]]) for s, t in zip(scale, translate)], dim=0)
+        theta = theta.to(device=x.device, dtype=x.dtype)
 
         grid = nn.functional.affine_grid(theta, x.shape)
         x_zoomed = nn.functional.grid_sample(x,
