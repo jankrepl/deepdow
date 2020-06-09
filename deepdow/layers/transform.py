@@ -109,7 +109,6 @@ class RNN(nn.Module):
         x : torch.Tensor
             Tensor of shape `(n_samples, n_channels, lookback, n_assets)`.
 
-
         Returns
         -------
         torch.Tensor
@@ -125,3 +124,66 @@ class RNN(nn.Module):
             res.append(all_hidden_.permute(2, 0, 1))  # hidden_size, lookback, n_assets
 
         return torch.stack(res)
+
+
+class Zoom(torch.nn.Module):
+    """Zoom in and out.
+
+    It can dynamically zoom into more recent timesteps and disregard older ones. Conversely,
+    it can collapse more timesteps into one. Based on Spatial Transformer Network.
+
+    Parameters
+    ----------
+    mode : str, {'bilinear', 'nearest'}
+        What interpolation to perform.
+
+    padding_mode : str, {'zeros', 'border', 'reflection'}
+        How to fill in values that fall outisde of the grid. Relevant in the case when we
+        zoom out.
+
+    References
+    ----------
+    [1] Jaderberg, Max, Karen Simonyan, and Andrew Zisserman. "Spatial transformer networks."
+        Advances in neural information processing systems. 2015.
+
+    """
+
+    def __init__(self, mode='bilinear', padding_mode='reflection'):
+        super().__init__()
+        self.mode = mode
+        self.padding_mode = padding_mode
+
+    def forward(self, x, scale):
+        """Perform forward pass.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Tensor of shape `(n_samples, n_channels, lookback, n_assets)`.
+
+        scale : torch.Tensor
+            Tensor of shape `(n_samples,)` representing how much to zoom in (`scale < 1`) or
+            zoom out (`scale > 1`).
+
+        Returns
+        -------
+        torch.Tensor
+            Tensor of shape `(n_samples, n_channels, lookback, n_assets)` that is a zoomed
+            version of the input. Note that the shape is identical to the input.
+
+        """
+        translate = 1 - scale
+
+        theta = torch.stack([torch.tensor([[1, 0, 0],
+                                           [0, s, t]]) for s, t in zip(scale, translate)], dim=0)
+        theta = theta.to(device=x.device, dtype=x.dtype)
+
+        grid = nn.functional.affine_grid(theta, x.shape)
+        x_zoomed = nn.functional.grid_sample(x,
+                                             grid,
+                                             mode=self.mode,
+                                             padding_mode=self.padding_mode,
+                                             align_corners=False,
+                                             )
+
+        return x_zoomed
