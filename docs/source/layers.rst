@@ -103,6 +103,35 @@ it.
 
     assert result.shape == (n_samples, n_output_channels, lookback, n_assets)
 
+Zoom
+****
+Inspired by the Spatial Transformer Network [Jaderberg2015]_, this layer allows to dynamically zoom in
+and out along the :code:`lookback` (time) dimension of the input **x**. In other words,
+it performs dynamic time warping (with linear transformation). By providing
+a scale of 1 no changes are made. If provides scale < 1 i.e. 0.5 then the time is slowed down twice
+and :code:`lookback/2` most recent timesteps are considered. Conversely, if we provide scale > 1
+i.e. 2 then the time is sped up twice and :code:`2 * lookback` timesteps are considered. Since
+we only have :code:`lookback` timesteps available in **x** we employ padding (see below).
+
+The :code:`method` parameter determines what interpolation is used (either :code:`'bilinear'` and
+:code:`'nearest'`). The parameter :code:`padding_method` controls what to do with values that
+fall outside of the grid (happens when scale > 1). The options are :code:`'zeros'`, :code:`'border'`
+and :code:`'reflection'`.
+
+
+.. testcode::
+
+    from deepdow.layers import Zoom
+
+    n_samples, n_channels, lookback, n_assets = 2, 4, 20, 11
+    x = torch.rand(n_samples, n_channels, lookback, n_assets)
+    scale = torch.rand(n_samples)  # values between (0, 1) representing slowing down
+
+    layer = Zoom()
+
+    result = layer(x, scale)
+
+    assert result.shape == (n_samples, n_channels, lookback, n_assets)
 
 Collapse layers
 ---------------
@@ -436,3 +465,6 @@ References
 
 .. [Bodnar2013]
    Bodnar, Taras, Nestor Parolya, and Wolfgang Schmid. "On the equivalence of quadratic optimization problems commonly used in portfolio theory." European Journal of Operational Research 229.3 (2013): 637-644.
+
+.. [Jaderberg2015]
+   Jaderberg, Max, Karen Simonyan, and Andrew Zisserman. "Spatial transformer networks." Advances in neural information processing systems. 2015.
