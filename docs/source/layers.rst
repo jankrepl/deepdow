@@ -103,6 +103,9 @@ it.
 
     assert result.shape == (n_samples, n_output_channels, lookback, n_assets)
 
+
+.. _layers_zoom:
+
 Zoom
 ****
 Inspired by the Spatial Transformer Network [Jaderberg2015]_, this layer allows to dynamically zoom in
