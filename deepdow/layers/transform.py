@@ -167,7 +167,7 @@ class Warp(torch.nn.Module):
             raise ValueError('The tform tensor needs to be either 2 or 3 dimensional.')
 
         tx = torch.ones(n_samples, lookback, n_assets, dtype=dtype, device=device)
-        tx *= torch.linspace(-1, 1, steps=n_assets)[None, None, :]
+        tx *= torch.linspace(-1, 1, steps=n_assets, device=device, dtype=dtype)[None, None, :]
 
         grid = torch.stack([tx, ty], dim=-1)
 
