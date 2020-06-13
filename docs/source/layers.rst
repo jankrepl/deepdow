@@ -103,6 +103,7 @@ it.
 
     assert result.shape == (n_samples, n_output_channels, lookback, n_assets)
 
+.. _layers_warp:
 
 Warp
 ****
@@ -132,7 +133,7 @@ between (-1, 1) where -1 represents the beginning of the time series and 1 repre
 
     assert result.shape == (n_samples, n_channels, lookback, n_assets)
 
-Note that to prevent folding one should provide strictly increasing transformations.
+Note that to prevent folding one should provide strictly monotonic transformations.
 
 .. _layers_zoom:
 
