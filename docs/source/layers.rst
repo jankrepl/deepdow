@@ -135,6 +135,10 @@ between (-1, 1) where -1 represents the beginning of the time series and 1 repre
 
 Note that to prevent folding one should provide strictly monotonic transformations.
 
+.. seealso::
+
+    Example :ref:`sphx_glr_auto_examples_warp.py`
+
 .. _layers_zoom:
 
 Zoom
@@ -166,6 +170,12 @@ and :code:`'reflection'`.
     result = layer(x, scale)
 
     assert result.shape == (n_samples, n_channels, lookback, n_assets)
+
+.. seealso::
+
+    Example :ref:`sphx_glr_auto_examples_zoom.py`
+
+
 
 Collapse layers
 ---------------
@@ -318,6 +328,10 @@ from :code:`(0, 1]`.
    assert w.shape == (2, 2)
    assert torch.allclose(w.sum(1), torch.ones(2))
 
+.. seealso::
+
+    Example :ref:`sphx_glr_auto_examples_softmax_sparsemax.py`
+
 SparsemaxAllocator
 ******************
 Suggested in [Martins2016]_. It is similar to Softmax but enforces sparsity. It currently uses
@@ -353,6 +367,9 @@ parameter.
    assert torch.allclose(w.sum(1), torch.ones(2))
    assert torch.allclose(w, w_true, atol=1e-5)
 
+.. seealso::
+
+    Example :ref:`sphx_glr_auto_examples_softmax_sparsemax.py`
 
 .. _weight_norm:
 
