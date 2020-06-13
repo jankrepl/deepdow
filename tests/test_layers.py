@@ -7,7 +7,7 @@ from deepdow.layers import (AverageCollapse, AttentionCollapse, ElementCollapse,
 from deepdow.layers import (AnalyticalMarkowitz, NCO, NumericalMarkowitz, Resample,
                             SoftmaxAllocator, SparsemaxAllocator, WeightNorm)
 from deepdow.layers import Cov2Corr, CovarianceMatrix, KMeans, MultiplyByConstant
-from deepdow.layers import Conv, RNN, Zoom
+from deepdow.layers import Conv, RNN, Warp, Zoom
 
 ALL_COLLAPSE = [AverageCollapse, AttentionCollapse, ElementCollapse, ExponentialCollapse,
                 MaxCollapse, SumCollapse]
@@ -647,6 +647,61 @@ class TestSparsemax:
 
         assert not torch.allclose(w_const, w_unconst)
         assert w_const.max().item() == pytest.approx(max_weight, abs=1e-5)
+
+
+class TestWarp:
+
+    def test_error(self):
+        with pytest.raises(ValueError):
+            Warp()(torch.rand(1, 2, 3, 4), torch.ones(4, ))
+
+    @pytest.mark.parametrize('mode', ['nearest', 'bilinear'])
+    @pytest.mark.parametrize('padding_mode', ['zeros', 'reflection', 'border'])
+    def test_basic(self, Xy_dummy, mode, padding_mode):
+        X, _, _, _ = Xy_dummy
+        dtype, device = X.dtype, X.device
+        n_samples, _, lookback, n_assets = X.shape
+        layer = Warp(mode=mode, padding_mode=padding_mode)
+
+        tform_ = torch.rand(n_samples, lookback, dtype=dtype, device=device)
+        tform_cumsum = tform_.cumsum(dim=-1)
+        tform = 2 * (tform_cumsum / tform_cumsum.max(dim=1, keepdim=True)[0] - 0.5)
+        x_warped = layer(X, tform)
+
+        assert torch.is_tensor(x_warped)
+        assert x_warped.shape == X.shape
+        assert x_warped.dtype == X.dtype
+        assert x_warped.device == X.device
+
+    @pytest.mark.parametrize('mode', ['nearest', 'bilinear'])
+    @pytest.mark.parametrize('padding_mode', ['zeros', 'reflection', 'border'])
+    def test_no_change(self, mode, padding_mode):
+        # scale=1
+        n_samples, n_channels, lookback, n_assets = 2, 3, 4, 5
+        X = torch.rand(n_samples, n_channels, lookback, n_assets)
+        tform = torch.stack(n_samples * [torch.linspace(-1, end=1, steps=lookback)], dim=0)
+
+        layer = Warp(mode=mode, padding_mode=padding_mode)
+
+        x_warped = layer(X, tform)
+
+        assert torch.allclose(x_warped, X, atol=1e-5)
+
+    def test_asset_specific(self):
+        n_samples, n_channels, lookback, n_assets = 2, 3, 4, 5
+        X = torch.rand(n_samples, n_channels, lookback, n_assets)
+        tform = torch.randn(n_samples, lookback, n_assets, dtype=X.dtype)
+
+        layer = Warp()
+
+        x_warped = layer(X, tform)
+
+        assert X.shape == x_warped.shape
+
+    def test_n_parameters(self):
+        n_parameters = sum(p.numel() for p in Warp().parameters() if p.requires_grad)
+
+        assert n_parameters == 0
 
 
 class TestWeightNorm:
