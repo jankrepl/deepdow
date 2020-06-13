@@ -104,6 +104,36 @@ it.
     assert result.shape == (n_samples, n_output_channels, lookback, n_assets)
 
 
+Warp
+****
+This layer is inspired by the problem of time series alignment (see [Weber2019]_).
+It allows the user to specify per asset 1D transformations to warp the input tensor **x** with.
+Note that :ref:`layers_zoom` is a special case. The :code:`tform` tensor should mostly have values
+between (-1, 1) where -1 represents the beginning of the time series and 1 represents the end
+(the most recent observations). This layer has two modes based on the shape of provided
+:code:`tform`.
+
+- :code:`tform.shape = (n_samples, lookback, n_assets)` - Warping each asset differently
+- :code:`tform.shape = (n_samples, lookback)` - Warping each asset the same way
+
+
+.. testcode::
+
+    from deepdow.layers import Warp
+
+    n_samples, n_channels, lookback, n_assets = 2, 4, 20, 11
+    x = torch.rand(n_samples, n_channels, lookback, n_assets)
+    single_tform = (torch.linspace(0, end=1, steps=lookback) ** 2 - 0.5) * 2
+    tform = torch.stack(n_samples * [single_tform], dim=0)
+
+    layer = Warp()
+
+    result = layer(x, tform)
+
+    assert result.shape == (n_samples, n_channels, lookback, n_assets)
+
+Note that to prevent folding one should provide strictly increasing transformations.
+
 .. _layers_zoom:
 
 Zoom
@@ -447,6 +477,9 @@ References
 
 .. [Jiang2017]
    Jiang, Zhengyao, and Jinjun Liang. "Cryptocurrency portfolio management with deep reinforcement learning." 2017 Intelligent Systems Conference (IntelliSys). IEEE, 2017
+
+.. [Weber2019]
+   Weber, Ron A. Shapira, et al. "Diffeomorphic Temporal Alignment Nets." Advances in Neural Information Processing Systems. 2019.
 
 .. [Agrawal2019]
    Agrawal, Akshay, et al. "Differentiable convex optimization layers." Advances in Neural Information Processing Systems. 2019.
