@@ -8,8 +8,27 @@ import pandas as pd
 import pytest
 
 from deepdow.losses import MeanReturns
-from deepdow.visualize import (create_weight_anim, create_weight_heatmap, generate_metrics_table,
-                               generate_weights_table, plot_metrics)
+from deepdow.visualize import (plot_weight_anim, plot_weight_heatmap, generate_cumrets,
+                               generate_metrics_table, generate_weights_table, plot_metrics)
+
+
+class TestGenerateCumrets:
+    def test_errors(self, dataloader_dummy, network_dummy):
+        with pytest.raises(TypeError):
+            generate_cumrets({'bm_1': 'WRONG'}, dataloader_dummy)
+
+        with pytest.raises(TypeError):
+            generate_cumrets({'bm_1': network_dummy}, 'FAKE')
+
+    def test_basic(self, dataloader_dummy, network_dummy):
+        cumrets_dict = generate_cumrets({'bm_1': network_dummy},
+                                        dataloader_dummy)
+
+        assert isinstance(cumrets_dict, dict)
+        assert len(cumrets_dict) == 1
+        assert 'bm_1' in cumrets_dict
+        assert cumrets_dict['bm_1'].shape == (len(dataloader_dummy.dataset),
+                                              dataloader_dummy.horizon)
 
 
 class TestGenerateMetricsTable:
@@ -69,18 +88,18 @@ class TestGenerateWeightsTable:
         assert weights_table.columns.to_list() == dataloader_dummy.dataset.asset_names
 
 
-class TestCreateWeightAnim:
+class TestPlotWeightAnim:
     def test_errors(self):
         with pytest.raises(ValueError):
-            create_weight_anim(pd.DataFrame([[0, 1], [1, 2]], columns=['others', 'asset_1']))
+            plot_weight_anim(pd.DataFrame([[0, 1], [1, 2]], columns=['others', 'asset_1']))
 
         with pytest.raises(ValueError):
-            create_weight_anim(pd.DataFrame([[0, 1], [1, 2]]), n_displayed_assets=3)
+            plot_weight_anim(pd.DataFrame([[0, 1], [1, 2]]), n_displayed_assets=3)
 
         with pytest.raises(ValueError):
-            create_weight_anim(pd.DataFrame([[0, 1], [1, 2]], columns=['a', 'b']),
-                               n_displayed_assets=1,
-                               always_visible=['a', 'b'])
+            plot_weight_anim(pd.DataFrame([[0, 1], [1, 2]], columns=['a', 'b']),
+                             n_displayed_assets=1,
+                             always_visible=['a', 'b'])
 
     @pytest.mark.parametrize('colors', [None, {'asset_1': 'green'}, ListedColormap(['green', 'red'])])
     def test_portfolio_evolution(self, monkeypatch, colors):
@@ -102,17 +121,17 @@ class TestCreateWeightAnim:
         plt_mock.subplots = Mock(return_value=[Mock(), Mock()])
 
         monkeypatch.setattr('deepdow.visualize.plt', plt_mock)
-        ani = create_weight_anim(weights,
-                                 n_displayed_assets=n_displayed_assets,
-                                 always_visible=['asset_0'],
-                                 n_seconds=10,
-                                 figsize=(1, 1),
-                                 colors=colors)
+        ani = plot_weight_anim(weights,
+                               n_displayed_assets=n_displayed_assets,
+                               always_visible=['asset_0'],
+                               n_seconds=10,
+                               figsize=(1, 1),
+                               colors=colors)
 
         assert isinstance(ani, FuncAnimation)
 
 
-class TestCreateWeightHeatmap:
+class TestPlotWeightHeatmap:
     @pytest.mark.parametrize('add_sum_column', [True, False])
     @pytest.mark.parametrize('time_format', [None, '%d-%m-%Y'])
     def test_basic(self, time_format, add_sum_column, monkeypatch):
@@ -131,9 +150,9 @@ class TestCreateWeightHeatmap:
         fake_sns.heatmap.return_value = fake_axes
 
         monkeypatch.setattr('deepdow.visualize.sns', fake_sns)
-        ax = create_weight_heatmap(weights,
-                                   time_format=time_format,
-                                   add_sum_column=add_sum_column)
+        ax = plot_weight_heatmap(weights,
+                                 time_format=time_format,
+                                 add_sum_column=add_sum_column)
 
         assert isinstance(ax, Axes)
         assert fake_sns.heatmap.call_count == 1

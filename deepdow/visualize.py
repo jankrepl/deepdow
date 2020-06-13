@@ -79,8 +79,8 @@ def generate_metrics_table(benchmarks, dataloader, metrics, device=None, dtype=N
     return metrics_table
 
 
-def generate_cumrets_table(benchmarks, dataloader, device=None, dtype=None, returns_channel=0,
-                           input_type='log', output_type='log'):
+def generate_cumrets(benchmarks, dataloader, device=None, dtype=None, returns_channel=0,
+                     input_type='log', output_type='log'):
     """Generate cumulative returns over the horizon for all benchmarks.
 
     Parameters
@@ -91,7 +91,6 @@ def generate_cumrets_table(benchmarks, dataloader, device=None, dtype=None, retu
 
     dataloader : deepdow.data.RigidDataLoader
         Dataloader that we will fully iterate over.
-
 
     device : torch.device or None
         Device to be used. If not specified defaults to `torch.device('cpu')`.
@@ -110,7 +109,7 @@ def generate_cumrets_table(benchmarks, dataloader, device=None, dtype=None, retu
 
     Returns
     -------
-    cumrets_ : dict
+    cumrets_dict : dict
        Keys are benchmark names and values are ``pd.DataFrame`` with index equal to timestamps,
        columns horizon timesteps and values cumulative returns.
     """
@@ -143,9 +142,9 @@ def generate_cumrets_table(benchmarks, dataloader, device=None, dtype=None, retu
             all_entries[bm_name].append(pd.DataFrame(cumrets.detach().cpu().numpy(),
                                                      index=timestamps))
 
-    cumrets_table = {bm_name: pd.concat(entries).sort_index() for bm_name, entries in all_entries.items()}
+    cumrets_dict = {bm_name: pd.concat(entries).sort_index() for bm_name, entries in all_entries.items()}
 
-    return cumrets_table
+    return cumrets_dict
 
 
 def plot_metrics(metrics_table):
@@ -235,8 +234,8 @@ def generate_weights_table(network, dataloader, device=None, dtype=None):
     return weights_table.sort_index()
 
 
-def create_weight_anim(weights, always_visible=None, n_displayed_assets=None, n_seconds=3, figsize=(10, 10),
-                       colors=None, autopct='%1.1f%%'):
+def plot_weight_anim(weights, always_visible=None, n_displayed_assets=None, n_seconds=3, figsize=(10, 10),
+                     colors=None, autopct='%1.1f%%'):
     """Visualize portfolio evolution over time with pie charts.
 
     Parameters
@@ -334,8 +333,8 @@ def create_weight_anim(weights, always_visible=None, n_displayed_assets=None, n_
     return ani
 
 
-def create_weight_heatmap(weights, add_sum_column=False, cmap="YlGnBu", ax=None, always_visible=None,
-                          asset_skips=1, time_skips=1, time_format='%d-%m-%Y', vmin=0, vmax=1):
+def plot_weight_heatmap(weights, add_sum_column=False, cmap="YlGnBu", ax=None, always_visible=None,
+                        asset_skips=1, time_skips=1, time_format='%d-%m-%Y', vmin=0, vmax=1):
     """Create a heatmap out of the weights.
 
     Parameters
