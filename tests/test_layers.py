@@ -763,3 +763,17 @@ class TestZoom:
         n_parameters = sum(p.numel() for p in Zoom().parameters() if p.requires_grad)
 
         assert n_parameters == 0
+
+    def test_equality_with_warp(self):
+        n_samples, n_channels, lookback, n_assets = 2, 3, 4, 5
+        X = torch.rand(n_samples, n_channels, lookback, n_assets)
+        scale = torch.ones(n_samples, dtype=X.dtype) * 0.5
+        tform = torch.stack(n_samples * [torch.linspace(0, end=1, steps=lookback)], dim=0)
+
+        layer_zoom = Zoom()
+        layer_warp = Warp()
+
+        x_zoomed = layer_zoom(X, scale)
+        x_warped = layer_warp(X, tform)
+
+        assert torch.allclose(x_zoomed, x_warped)

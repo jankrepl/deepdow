@@ -233,12 +233,12 @@ class Zoom(torch.nn.Module):
                                            [0, s, t]]) for s, t in zip(scale, translate)], dim=0)
         theta = theta.to(device=x.device, dtype=x.dtype)
 
-        grid = nn.functional.affine_grid(theta, x.shape)
+        grid = nn.functional.affine_grid(theta, x.shape, align_corners=True)
         x_zoomed = nn.functional.grid_sample(x,
                                              grid,
                                              mode=self.mode,
                                              padding_mode=self.padding_mode,
-                                             align_corners=False,
+                                             align_corners=True,
                                              )
 
         return x_zoomed
