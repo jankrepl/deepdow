@@ -165,7 +165,7 @@ class GreatNet(torch.nn.Module, Benchmark):
 # a vector of length :code:`n_assets`. Since elements of this vector can range from :math:`-\infty`
 # to :math:`\infty`. To turn this vector of asset allocation we use the :code:`SoftmaxAllocator`.
 # Additionally, we learn the :code:`temperature` from the data. This will enable us to learn the
-# optimal tradeoff between an equally weighted allocation (uniform distribution) and
+# optimal trade-off between an equally weighted allocation (uniform distribution) and
 # single asset portfolios.
 
 # %%
@@ -235,7 +235,7 @@ network = network.eval()
 # %%
 # To put performance our our network in context, we also utilize multiple benchmarks. :code:`deepdow`
 # offers multiple benchmarks already. Additionally, one can provide custom simple benchmarks or
-# some pretrained networks.
+# some pre-trained networks.
 benchmarks = {
     '1overN': OneOverN(),  # each asset has weight 1 / n_assets
     'random': Random(),  # random allocation that is however close 1OverN

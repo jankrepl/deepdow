@@ -17,7 +17,7 @@ The below plot shows how these two allocators react to changes in :code:`max_wei
 
 .. warning::
 
-    Note that we are using the :code:`seaborn` to plot heatmaps.
+    Note that we are using the :code:`seaborn` to plot a heatmap.
 
 """
 

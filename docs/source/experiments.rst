@@ -91,11 +91,11 @@ Callbacks
 Callbacks are intended to be run at precise moments of the training loop. All callbacks have a shared interface
 :code:`deepdow.callbacks.Callback` that provides the following methods
 
-- :code:`on_batch_begin` - run at the beggining of each **batch**
+- :code:`on_batch_begin` - run at the beginning of each **batch**
 - :code:`on_batch_end` - run at the end of each **batch**
-- :code:`on_epoch_begin` - run at the beggining of each **epoch**
+- :code:`on_epoch_begin` - run at the beginning of each **epoch**
 - :code:`on_epoch_end` - run at the end of each **epoch**
-- :code:`on_train_begin` - run at the beggining of the **training**
+- :code:`on_train_begin` - run at the beginning of the **training**
 - :code:`on_train_end`- run at the end of the **training**
 - :code:`on_train_interrupt` - run in case training interrupted
 
@@ -131,7 +131,7 @@ training.
 
 MLFlowCallback
 **************
-Callback that logs relevant metrics to mlflow.
+Callback that logs relevant metrics to MLflow.
 
 ModelCheckpointCallback
 ***********************
@@ -145,7 +145,7 @@ with :code:`output` parameter.
 
 TensorBoardCallback
 *******************
-Callback that logs relevant metrics to mlfow together with images and histograms.
+Callback that logs relevant metrics to MLflow together with images and histograms.
 
 
 ValidationCallback
