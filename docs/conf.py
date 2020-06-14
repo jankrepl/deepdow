@@ -14,6 +14,8 @@ import os
 import pathlib
 import sys
 
+from sphinx_gallery.sorting import FileNameSortKey
+
 some_path = pathlib.Path(os.path.abspath('.'))
 parent_some_path = some_path.parent
 sys.path.insert(0, str(some_path))
@@ -91,5 +93,6 @@ def setup(app):
 sphinx_gallery_conf = {
     'examples_dirs': '../examples',  # path to your example scripts
     'gallery_dirs': 'auto_examples',  # path to where to save gallery generated output
-    'filename_pattern': ''  # include everything
+    'filename_pattern': '',  # include everything
+    'within_subsection_order': FileNameSortKey
 }

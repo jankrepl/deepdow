@@ -68,7 +68,7 @@ returns = np.array([sin_single(n_timesteps,
 returns += np.random.normal(scale=0.02, size=returns.shape)
 
 # %%
-# See below
+# See below the first 100 timesteps of 2 assets.
 plt.plot(returns[:100, [1, 2]])
 
 
