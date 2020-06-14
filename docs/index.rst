@@ -15,7 +15,7 @@ DeepDow
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: USING DEEPDOW:
 
    source/installation
    source/introduction
@@ -27,6 +27,13 @@ DeepDow
    source/losses
    source/experiments
    auto_examples/index
+
+.. toctree::
+   :maxdepth: 2
+   :caption: DEVELOPMENT
+
+   source/changelog
+
 
 .. toctree::
    :maxdepth: 2
