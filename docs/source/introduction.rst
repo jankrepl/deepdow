@@ -27,7 +27,7 @@ Commonly, these two steps are absolutely separated since they require different 
 1. **Predictive modeling (statistics + machine learning)**
 2. **Objective function and constraints design**
 
-Not suprisingly, one needs to use totally different tools. Below are some examples from the Python ecosystem.
+Not surprisingly, one needs to use totally different tools. Below are some examples from the Python ecosystem.
 
 1. :code:`numpy`, :code:`pandas`, :code:`scikit-learn`, :code:`statsmodels`, :code:`tensorflow`, :code:`pytorch`, ...
 2. :code:`cvxpy`, :code:`cvxopt`, :code:`scipy`, ...
@@ -39,7 +39,7 @@ Why DeepDow different?
 end-to-end deep networks that input the rawest features (returns,
 volumes, ...) and output asset allocation. This approach has multiple benefits:
 
-- Hyperparamters can be turned into **trainable weights** (i.e. :math:`\gamma` in :ref:`2nd stage <traditional>`)
+- Hyperparameters can be turned into **trainable weights** (i.e. :math:`\gamma` in :ref:`2nd stage <traditional>`)
 - Leveraging deep learning to extract useful features for **allocation** (rather than just prediction)
 - **Single** loss function
 

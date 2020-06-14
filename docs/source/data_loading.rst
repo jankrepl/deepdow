@@ -122,7 +122,7 @@ Raw data
 --------
 Let us assume, that our raw data :code:`raw_df` is stored in a :code:`pd.DataFrame`. There are :code:`n_timesteps` rows
 representing different timesteps with the same time frequency but potentially with gaps (due to non-business days etc.).
-They are indexed by :code:`pd.DatatimeIndex`. The columns are indexed by :code:`pd.MultiIndex` where the first level
+They are indexed by :code:`pd.DatetimeIndex`. The columns are indexed by :code:`pd.MultiIndex` where the first level
 represents the the :code:`n_assets` different **assets**. The second level then represents
 the :code:`n_channels` **channels** (indicators) like volume or close price. For the rest of the this
 page we will be using the below example
@@ -227,12 +227,12 @@ timestamps.
     assert indicators == ['Close', 'Volume']
 
 
-
+.. _inramdataset:
 
 InRAMDataset
 ------------
 The next step is to start migrating our custom lists and numpy arrays to native PyTorch classes. For more details see
-`Official tutorial <https://pytorch.org/tutorials/beginner/data_loading_tutorial.html>`_ First of all,
+`Official tutorial <https://pytorch.org/tutorials/beginner/data_loading_tutorial.html>`_. First of all,
 :code:`deepdow` implements its own subclass of :code:`torch.utils.data.Dataset` called :code:`InRAMDataset`. Its goal
 is to encapsulate the above generated :code:`X`, :code:`y`, :code:`timestamps` and  :code:`asset_names` and define
 per sample loading.
@@ -268,19 +268,21 @@ Currently implemented transforms under :code:`deepdow.data` are
 
 All of the transforms are not in place.
 
+.. _dataloaders:
+
 Dataloaders
 -----------
 The last ingredient in the data pipeline are dataloaders. Their goal is to stream batches of samples for training and
 validation. :code:`deepdow` provides two options
 
 - **RigidDataLoader** - lookback, horizon and assets **are constant** over different batches
-- **FlexibleDataLoder** - lookback, horizon and assets **can change** over different batches
+- **FlexibleDataLoader** - lookback, horizon and assets **can change** over different batches
 
 Both of them are subclassing :code:`torch.utils.data.DataLoader` and therefore inherit its functionality. One important
 example is the :code:`batch_size` parameter. However, they also add new functionality. Notably one can use the
 parameter :code:`indices` to specify which samples of the original dataset are going to be streamed. The
 **train, validation and test split** can be performed via this parameter. Last but not least they both have its
-speficif parameters that we describe in the following subsections.
+specific parameters that we describe in the following subsections.
 
 RigidDataLoader
 ****************
@@ -346,7 +348,7 @@ The goal of this dataloader is to introduce major structural changes to the stre
 :code:`y_batch`. The goal is to randomly create subtensors of them. See below important features
 
     - :code:`lookback_range` tuple specifies the min and max lookback a :code:`X_batch` can have. The actual lookback is sampled **uniformly** for every batch.
-    - :code:`horizon_range` tuple specifies the min and max horzion a :code:`y_batch` can have. Sampled **uniformly**.
+    - :code:`horizon_range` tuple specifies the min and max horizon a :code:`y_batch` can have. Sampled **uniformly**.
     - If :code:`asset_ixs` not specified then :code:`n_assets_range` tuple is the min and max number of assets in :code:`X_batch` and :code:`y_batch`. The actual assets sampled randomly.
 
 

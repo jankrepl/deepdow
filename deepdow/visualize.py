@@ -12,7 +12,7 @@ import torch
 
 from .benchmarks import Benchmark
 from .data import RigidDataLoader
-from .losses import Loss
+from .losses import Loss, portfolio_cumulative_returns
 
 
 def generate_metrics_table(benchmarks, dataloader, metrics, device=None, dtype=None):
@@ -77,6 +77,74 @@ def generate_metrics_table(benchmarks, dataloader, metrics, device=None, dtype=N
     metrics_table = pd.concat(all_entries)
 
     return metrics_table
+
+
+def generate_cumrets(benchmarks, dataloader, device=None, dtype=None, returns_channel=0,
+                     input_type='log', output_type='log'):
+    """Generate cumulative returns over the horizon for all benchmarks.
+
+    Parameters
+    ----------
+    benchmarks : dict
+        Dictionary where keys are benchmark names and values are instances of `Benchmark` (possible
+        also `torch.nn.Network`).
+
+    dataloader : deepdow.data.RigidDataLoader
+        Dataloader that we will fully iterate over.
+
+    device : torch.device or None
+        Device to be used. If not specified defaults to `torch.device('cpu')`.
+
+    dtype : torch.dtype or None
+        Dtype to be used. If not specified defaults to `torch.float`.
+
+    returns_channel : int
+        What channel in `y` represents the returns.
+
+    input_type : str, {'log', 'simple'}
+        What type of returns are we dealing with in `y`.
+
+    output_type : str, {'log', 'simple'}
+        What type of returns are we dealing with in the output.
+
+    Returns
+    -------
+    cumrets_dict : dict
+       Keys are benchmark names and values are ``pd.DataFrame`` with index equal to timestamps,
+       columns horizon timesteps and values cumulative returns.
+    """
+    # checks
+    if not all(isinstance(bm, Benchmark) for bm in benchmarks.values()):
+        raise TypeError('The values of benchmarks need to be of type Benchmark')
+
+    if not isinstance(dataloader, RigidDataLoader):
+        raise TypeError('The type of dataloader needs to be RigidDataLoader')
+
+    device = device or torch.device('cpu')
+    dtype = dtype or torch.float
+
+    all_entries = {}
+    for bm_name, bm in benchmarks.items():
+        all_entries[bm_name] = []
+        if isinstance(bm, torch.nn.Module):
+            bm.eval()
+
+    for batch_ix, (X_batch, y_batch, timestamps, _) in enumerate(dataloader):
+        # Get batch
+        X_batch, y_batch = X_batch.to(device).to(dtype), y_batch.to(device).to(dtype)
+        for bm_name, bm in benchmarks.items():
+            weights = bm(X_batch)
+            cumrets = portfolio_cumulative_returns(weights,
+                                                   y_batch[:, returns_channel, ...],
+                                                   input_type=input_type,
+                                                   output_type=output_type)
+
+            all_entries[bm_name].append(pd.DataFrame(cumrets.detach().cpu().numpy(),
+                                                     index=timestamps))
+
+    cumrets_dict = {bm_name: pd.concat(entries).sort_index() for bm_name, entries in all_entries.items()}
+
+    return cumrets_dict
 
 
 def plot_metrics(metrics_table):
@@ -166,8 +234,8 @@ def generate_weights_table(network, dataloader, device=None, dtype=None):
     return weights_table.sort_index()
 
 
-def create_weight_anim(weights, always_visible=None, n_displayed_assets=None, n_seconds=3, figsize=(10, 10),
-                       colors=None, autopct='%1.1f%%'):
+def plot_weight_anim(weights, always_visible=None, n_displayed_assets=None, n_seconds=3, figsize=(10, 10),
+                     colors=None, autopct='%1.1f%%'):
     """Visualize portfolio evolution over time with pie charts.
 
     Parameters
@@ -265,8 +333,8 @@ def create_weight_anim(weights, always_visible=None, n_displayed_assets=None, n_
     return ani
 
 
-def create_weight_heatmap(weights, add_sum_column=False, cmap="YlGnBu", ax=None, always_visible=None,
-                          asset_skips=1, time_skips=1, time_format='%d-%m-%Y', vmin=0, vmax=1):
+def plot_weight_heatmap(weights, add_sum_column=False, cmap="YlGnBu", ax=None, always_visible=None,
+                        asset_skips=1, time_skips=1, time_format='%d-%m-%Y', vmin=0, vmax=1):
     """Create a heatmap out of the weights.
 
     Parameters

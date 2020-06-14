@@ -15,15 +15,9 @@ parameter controlling the maximum possible weight of a single asset and :code:`t
 The below plot shows how these two allocators react to changes in :code:`max_weight` and
 :code:`temperature`.
 
-References
-----------
-.. [Martins2016]
-   Martins, Andre, and Ramon Astudillo. "From softmax to sparsemax: A sparse model of attention and multi-label classification." International Conference on Machine Learning. 2016.
-
-
 .. warning::
 
-    Note that we are using the :code:`seaborn` to plot heatmaps.
+    Note that we are using the :code:`seaborn` to plot a heatmap.
 
 """
 

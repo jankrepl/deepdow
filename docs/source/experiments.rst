@@ -1,5 +1,3 @@
-.. _experiments:
-
 .. testsetup::
 
     import numpy as np
@@ -7,6 +5,8 @@
 
     np.random.seed(2)
     torch.manual_seed(2)
+
+.. _experiments:
 
 Experiments
 ===========
@@ -55,7 +55,7 @@ Once we construct the :code:`Run`, we can start the training and evaluation loop
               metrics=metrics,
               benchmarks=benchmarks)
 
-    run.launch(n_epochs=1)
+    history = run.launch(n_epochs=1)
 
 .. testoutput::
 
@@ -65,7 +65,24 @@ Once we construct the :code:`Run`, we can start the training and evaluation loop
 
 We get results on the benchmarks in the standard output (see above).
 Additionally, progress bar is sent to the standard error. It monitors progress of our network. To read more
-details on the :code:`Run` class see :ref:`experiments_API`.
+details on the :code:`Run` class see :ref:`experiments_API`. Last but not least, we also get an
+instance of the :code:`History` class. See below section for more information.
+
+History
+-------
+The :code:`launch` method returns an instance of the :code:`History` class. It captures all the
+useful information that was recorded during training. This information can be accessed via the
+:code:`metrics` property that is a :code:`pd.DataFrame` with the following columns
+
+- :code:`model` - name of the model
+- :code:`metric` - name of the loss
+- :code:`value` - value of the loss
+- :code:`batch` - batch
+- :code:`epoch` - epoch
+- :code:`dataloader` - name of the dataloader
+- :code:`lookback` - lookback size, by default only using the one from the dataloader
+- :code:`timestamp` - it can be used to unique identify a given sample
+- :code:`current_time` - time when the entry logged
 
 .. _callbacks:
 
@@ -74,11 +91,11 @@ Callbacks
 Callbacks are intended to be run at precise moments of the training loop. All callbacks have a shared interface
 :code:`deepdow.callbacks.Callback` that provides the following methods
 
-- :code:`on_batch_begin` - run at the beggining of each **batch**
+- :code:`on_batch_begin` - run at the beginning of each **batch**
 - :code:`on_batch_end` - run at the end of each **batch**
-- :code:`on_epoch_begin` - run at the beggining of each **epoch**
+- :code:`on_epoch_begin` - run at the beginning of each **epoch**
 - :code:`on_epoch_end` - run at the end of each **epoch**
-- :code:`on_train_begin` - run at the beggining of the **training**
+- :code:`on_train_begin` - run at the beginning of the **training**
 - :code:`on_train_end`- run at the end of the **training**
 - :code:`on_train_interrupt` - run in case training interrupted
 
@@ -114,7 +131,7 @@ training.
 
 MLFlowCallback
 **************
-Callback that logs relevant metrics to mlflow.
+Callback that logs relevant metrics to MLflow.
 
 ModelCheckpointCallback
 ***********************
@@ -128,7 +145,7 @@ with :code:`output` parameter.
 
 TensorBoardCallback
 *******************
-Callback that logs relevant metrics to mlfow together with images and histograms.
+Callback that logs relevant metrics to MLflow together with images and histograms.
 
 
 ValidationCallback

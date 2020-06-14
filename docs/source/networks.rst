@@ -13,7 +13,7 @@ Networks
 
 The main goal of :code:`deepdow` is to provide easy access to building end-to-end differentiable portfolio allocation
 neural networks. This section proposes multiple different networks and shows how to create new ones. To better understand
-this section, we encourage the user to read previous sections. In particular, the section :ref:`basics` discussses
+this section, we encourage the user to read previous sections. In particular, the section :ref:`basics` discusses
 the overall pipeline. Additionally, in :ref:`layers` we describe in detail the
 building blocks of the networks.
 
@@ -29,7 +29,8 @@ Ideally, this network should propose the best portfolio **w** to be held for **h
 what happened in the market up until now **x**. The actually meaning of `best` depends on with what loss function the
 network was trained.
 
-In this section, we propose multiple architectures. Additionally, we also demonstrate
+In this section, we propose multiple architectures. They are by no means optimal and should serve
+as an example.
 
 
 Existing networks
@@ -42,7 +43,7 @@ their use case. See :ref:`writing_custom_networks` for more details. For more de
 
 .. warning::
 
-    All :code:`deepdow` netwroks assume that the input and output tensors have an extra dimension
+    All :code:`deepdow` networks assume that the input and output tensors have an extra dimension
     in the front—the **sample** dimension. We omit this dimension on purpose to make the examples
     and sketches simpler.
 
@@ -112,7 +113,7 @@ KeynesNet
 This network connects 1D convolutions (or RNN) with softmax allocation. Note that his network learns the
 :code:`temperature` parameter to be used inside the :code:`SoftmaxAllocator`.
 
-The activations have the following shape (ommiting the sample dimension).
+The activations have the following shape (omitting the sample dimension).
 
 1. input **x** :code:`(n_channels, lookback, n_assets)`
 2. instance normalized :code:`(n_channels, lookback, n_assets)`
@@ -162,7 +163,7 @@ if we randomly shuffle all our inputs along any dimension and retrain this netwo
 
 Note that his network learns the :code:`temperature` parameter to be used inside the :code:`SoftmaxAllocator`.
 
-The activations have the following shape (ommiting the sample dimension).
+The activations have the following shape (omitting the sample dimension).
 
 1. input **x** :code:`(n_channels, lookback, n_assets)`
 2. flattened :code:`(n_channels * lookback * n_assets,)`
@@ -198,7 +199,7 @@ MinimalNet
 and only learns a fixed weight vector that is predicted for all samples. It is a wrapper
 around the :ref:`weight_norm` layer.
 
-The activations have the following shape (ommiting the sample dimension).
+The activations have the following shape (omitting the sample dimension).
 
 1. input **x** :code:`(n_channels, lookback, n_assets)`
 2. output **w** :code:`(n_assets,)`
@@ -240,11 +241,11 @@ the following parameters
 
 - :code:`matrix` - square root of the covariance matrix, initial value is identity matrix
 - :code:`exp_returns` - expected returns, initial value is 1
-- :code:`gamma_sqrt` - risk and return tradeoff, initial value is 1
+- :code:`gamma_sqrt` - risk and return trade-off, initial value is 1
 - :code:`alpha` - weight regularization, initial value is 1
 
 Note that to avoid numerical issues, one can set :code:`force_symmetric=True` at construction. This way, the
-:code:`matrix` is mutliplied by its transpose to guarantee that the input to the allocator is symmetric and
+:code:`matrix` is multiplied by its transpose to guarantee that the input to the allocator is symmetric and
 semi-definite.
 
 

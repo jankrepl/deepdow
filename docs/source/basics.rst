@@ -38,7 +38,7 @@ evolution of the market.
 
 One can now move along the time dimension and apply the same decomposition at every time step. This method
 of generating a dataset is called the **rolling window**. To illustrate this idea, let us take a slightly
-bigger starting tensor (:code:`n_timesteps = 12`) while keeping :code:`loookback = 5`, :code:`gap = 1` and
+bigger starting tensor (:code:`n_timesteps = 12`) while keeping :code:`lookback = 5`, :code:`gap = 1` and
 :code:`horizon = 4`. Let's roll it!
 
 
