@@ -227,12 +227,12 @@ timestamps.
     assert indicators == ['Close', 'Volume']
 
 
-
+.. _inramdataset:
 
 InRAMDataset
 ------------
 The next step is to start migrating our custom lists and numpy arrays to native PyTorch classes. For more details see
-`Official tutorial <https://pytorch.org/tutorials/beginner/data_loading_tutorial.html>`_ First of all,
+`Official tutorial <https://pytorch.org/tutorials/beginner/data_loading_tutorial.html>`_. First of all,
 :code:`deepdow` implements its own subclass of :code:`torch.utils.data.Dataset` called :code:`InRAMDataset`. Its goal
 is to encapsulate the above generated :code:`X`, :code:`y`, :code:`timestamps` and  :code:`asset_names` and define
 per sample loading.
@@ -267,6 +267,8 @@ Currently implemented transforms under :code:`deepdow.data` are
 - :code:`Scale` - centering and scaling (similar to scikit-learn :code:`StandardScaler` and :code:`RobustScaler`)
 
 All of the transforms are not in place.
+
+.. _dataloaders:
 
 Dataloaders
 -----------

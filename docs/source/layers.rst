@@ -137,7 +137,7 @@ Note that to prevent folding one should provide strictly monotonic transformatio
 
 .. seealso::
 
-    Example :ref:`sphx_glr_auto_examples_warp.py`
+    Example :ref:`sphx_glr_auto_examples_layers_warp.py`
 
 .. _layers_zoom:
 
@@ -173,7 +173,7 @@ and :code:`'reflection'`.
 
 .. seealso::
 
-    Example :ref:`sphx_glr_auto_examples_zoom.py`
+    Example :ref:`sphx_glr_auto_examples_layers_zoom.py`
 
 
 
@@ -330,7 +330,7 @@ from :code:`(0, 1]`.
 
 .. seealso::
 
-    Example :ref:`sphx_glr_auto_examples_softmax_sparsemax.py`
+    Example :ref:`sphx_glr_auto_examples_layers_softmax_sparsemax.py`
 
 SparsemaxAllocator
 ******************
@@ -369,7 +369,7 @@ parameter.
 
 .. seealso::
 
-    Example :ref:`sphx_glr_auto_examples_softmax_sparsemax.py`
+    Example :ref:`sphx_glr_auto_examples_layers_softmax_sparsemax.py`
 
 .. _weight_norm:
 

@@ -83,7 +83,7 @@ class VARTrue(Benchmark):
         return result
 
 
-coefs = np.load('../examples/var_coefs.npy')  # (lookback, n_assets, n_assets) = (12, 8, 8)
+coefs = np.load('var_coefs.npy')  # (lookback, n_assets, n_assets) = (12, 8, 8)
 
 # Parameters
 lookback, _, n_assets = coefs.shape
