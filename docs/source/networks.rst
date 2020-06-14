@@ -29,7 +29,8 @@ Ideally, this network should propose the best portfolio **w** to be held for **h
 what happened in the market up until now **x**. The actually meaning of `best` depends on with what loss function the
 network was trained.
 
-In this section, we propose multiple architectures. Additionally, we also demonstrate
+In this section, we propose multiple architectures. They are by no means optimal and should serve
+as an example.
 
 
 Existing networks
