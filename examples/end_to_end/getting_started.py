@@ -3,7 +3,7 @@
 Getting started
 ===============
 
-Welcome to :code:`deepdow`! This tutorial is going to guide you through the basic but essential
+Welcome to :code:`deepdow`! This tutorial is going to guide you through the basic (but essential)
 features. You will learn about the general pipeline through an end-to-end example. It consists
 of the following steps
 
@@ -108,13 +108,11 @@ dataset = InRAMDataset(X, y, transform=Scale(means, stds))
 # for testing. For more details see :ref:`dataloaders`.
 dataloader_train = RigidDataLoader(dataset,
                                    indices=indices_train,
-                                   batch_size=32,
-                                   drop_last=True)
+                                   batch_size=32)
 
 dataloader_test = RigidDataLoader(dataset,
                                   indices=indices_test,
-                                  batch_size=32,
-                                  drop_last=False)
+                                  batch_size=32)
 
 
 # %%
@@ -159,11 +157,12 @@ class GreatNet(torch.nn.Module, Benchmark):
 
 # %%
 # So what is this network doing? First of all, we make an assumption that assets and lookback will
-# never change (the same shape and order at train and at inference time). If we assume this,
-# we can learn :code:`n_assets` linear models that have :code:`n_assets * lookback` features. In
+# never change (the same shape and order at train and at inference time). This assumption
+# is justified since we are using :code:`RigidDataLoader`.
+# We can learn :code:`n_assets` linear models that have :code:`n_assets * lookback` features. In
 # other words we have a dense layer that takes the flattened feature tensor :code:`x` and returns
 # a vector of length :code:`n_assets`. Since elements of this vector can range from :math:`-\infty`
-# to :math:`\infty`. To turn this vector of asset allocation we use the :code:`SoftmaxAllocator`.
+# to :math:`\infty` we turn it into an asset allocation via :code:`SoftmaxAllocator`.
 # Additionally, we learn the :code:`temperature` from the data. This will enable us to learn the
 # optimal trade-off between an equally weighted allocation (uniform distribution) and
 # single asset portfolios.
@@ -184,20 +183,20 @@ network = network.train()  # it is the default, however, just to make the distin
 # time. We want to minimize the drawdowns, maximize the mean returns and also maximize the Sharpe
 # ratio. All of these losses are implemented in :code:`deepdow.losses`. To avoid confusion, they
 # are always implemented in a way that **the lower the value of the loss the better**. To combine
-# multiple objectives we can simply some all of the individual losses. Similarly, if we want to
+# multiple objectives we can simply sum all of the individual losses. Similarly, if we want to
 # assign more importance to one of them we can achieve this by multiplying by a constant. To learn
 # more see :ref:`losses`.
 
 loss = MaximumDrawdown() + 2 * MeanReturns() + SharpeRatio()
 
 # %%
-# Additionally, by default all the losses assume that we input logarithmic returns
-# (:code:`input_type='log'`) and then are in the 0th channel (:code:`returns_channel=0`).
+# Note that by default all the losses assume that we input logarithmic returns
+# (:code:`input_type='log'`) and that they are in the 0th channel (:code:`returns_channel=0`).
 
 
 # %%
 # We now have all the ingredients ready for training of the neural network. :code:`deepdow` implements
-# a simple wrapper :code:`Run` then implements the training loop and a minimal callback
+# a simple wrapper :code:`Run` that implements the training loop and a minimal callback
 # framework. For further information see :ref:`experiments`.
 
 run = Run(network,
@@ -243,7 +242,7 @@ benchmarks = {
 }
 
 # %%
-# During training, the only mandatory metric/loss was the loss criterion that we tried to minimized.
+# During training, the only mandatory metric/loss was the loss criterion that we tried to minimize.
 # Naturally, one might be interested in many other metrics to evaluate the performance. See below
 # an example. We multiply each of the metrics by 100 to increase readability.
 
