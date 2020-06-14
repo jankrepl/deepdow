@@ -388,7 +388,7 @@ class MinimalNet(torch.nn.Module, Benchmark):
         Parameters
         ----------
         x : torch.Tensor
-            Tensor of shape `(n_samples, dim_1, ...., dim_N).
+            Tensor of shape `(n_samples, dim_1, ...., dim_N)`.
 
         Returns
         -------
