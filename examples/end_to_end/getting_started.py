@@ -50,7 +50,7 @@ n_samples = n_timesteps - lookback - horizon - gap + 1
 # Additionally, we will use approximately 80% of the data for training and 20% for testing.
 split_ix = int(n_samples * 0.8)
 indices_train = list(range(split_ix))
-indices_test = list(range(split_ix + max(lookback, horizon), n_samples))
+indices_test = list(range(split_ix + lookback + horizon, n_samples))
 
 print('Train range: {}:{}\nTest range: {}:{}'.format(indices_train[0], indices_train[-1],
                                                      indices_test[0], indices_test[-1]))
@@ -244,12 +244,12 @@ benchmarks = {
 # %%
 # During training, the only mandatory metric/loss was the loss criterion that we tried to minimize.
 # Naturally, one might be interested in many other metrics to evaluate the performance. See below
-# an example. We multiply each of the metrics by 100 to increase readability.
+# an example.
 
 metrics = {
-    'MaxDD': 100 * MaximumDrawdown(),
-    'Sharpe': 100 * SharpeRatio(),
-    'MeanReturn': 100 * MeanReturns()
+    'MaxDD': MaximumDrawdown(),
+    'Sharpe': SharpeRatio(),
+    'MeanReturn': MeanReturns()
 }
 
 # %%

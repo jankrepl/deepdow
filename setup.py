@@ -26,7 +26,7 @@ setup(
     description=DESCRIPTION,
     long_description=LONG_DESCRIPTION,
     url="https://github.com/jankrepl/deepdow",
-    packages=find_packages(),
+    packages=find_packages(exclude=["tests"]),
     license="Apache License 2.0",
     install_requires=INSTALL_REQUIRES,
     python_requires='>=3.5',
