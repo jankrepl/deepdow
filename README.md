@@ -14,8 +14,9 @@ facilitate research of networks that perform weight allocation in **one forward 
 pip install deepdow
 ```
 # Resources
+- **Getting started**: https://deepdow.readthedocs.io/en/latest/auto_examples/end_to_end/getting_started.html
 - **Detailed documentation**: https://deepdow.readthedocs.io/en/latest
-- **Examples**: https://deepdow.readthedocs.io/en/latest/auto_examples/index.html
+- **More examples**: https://deepdow.readthedocs.io/en/latest/auto_examples/index.html
 
 # Description
 `deepdow` attempts to **merge** two very common steps in portfolio optimization
@@ -41,3 +42,4 @@ descent algorithms.
 - integration with `mlflow` and `tensorboard` via callbacks
 - provides variety of losses like sharpe ratio, maximum drawdown, ...
 - simple to extend and customize
+- CPU and GPU support
