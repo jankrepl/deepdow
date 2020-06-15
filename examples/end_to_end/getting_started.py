@@ -3,9 +3,9 @@
 Getting started
 ===============
 
-Welcome to :code:`deepdow`! This tutorial is going to guide you through the basic (but essential)
-features. You will learn about the general pipeline through an end-to-end example. It consists
-of the following steps
+Welcome to :code:`deepdow`! This tutorial is going to demonstrate all the essential features.
+Before you continue, make sure to check out :ref:`basics` to familiarize yourself with the core ideas
+of :code:`deepdow`. This hands-on tutorial is divided into 4 sections
 
 1. Dataset creation and loading
 2. Network definition
@@ -40,7 +40,7 @@ np.random.seed(5)
 # Dataset creation and loading
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 # In this example, we are going to be using a synthetic dataset. Asset returns are going to be
-# some a sine function where the frequency and phase are randomly selected for each asset. First of
+# sine functions where the frequency and phase are randomly selected for each asset. First of
 # all let us set all the parameters relevant to data creation.
 n_timesteps, n_assets = 1000, 20
 lookback, gap, horizon = 40, 2, 20
