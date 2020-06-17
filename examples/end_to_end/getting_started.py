@@ -232,7 +232,7 @@ per_epoch_results.mean()['test']['loss']['network'].plot()
 network = network.eval()
 
 # %%
-# To put performance our our network in context, we also utilize multiple benchmarks. :code:`deepdow`
+# To put the performance of our network in context, we also utilize benchmarks. :code:`deepdow`
 # offers multiple benchmarks already. Additionally, one can provide custom simple benchmarks or
 # some pre-trained networks.
 benchmarks = {

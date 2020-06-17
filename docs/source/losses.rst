@@ -77,10 +77,6 @@ Additionally, we also consider their portfolio counterparts
 Note that in all in both of the cases the initial holding :math:`V` cancels out and the portfolio returns are independent
 of it.
 
-about multiple utility functions
-that are often used within these losses. Note that they are implemented within :code:`deepdow.losses`.
-
-
 
 Portfolio returns
 -----------------
