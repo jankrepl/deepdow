@@ -1,3 +1,5 @@
+import operator
+
 import pytest
 import torch
 
@@ -196,43 +198,43 @@ class TestAllLosses:
         assert losses.device == y_dummy.device
 
     @pytest.mark.parametrize('loss_class_r', ALL_LOSSES + [3], ids=[x.__name__ for x in ALL_LOSSES] + ['constant'])
-    @pytest.mark.parametrize('op', ['sum', 'div', 'mul', 'pow'])
+    @pytest.mark.parametrize('op', ['add', 'truediv', 'mul', 'pow'])
     def test_arithmetic(self, loss_class_r, op, Xy_dummy):
         _, y_dummy, _, _ = Xy_dummy
         n_samples, n_channels, horizon, n_assets = y_dummy.shape
+
         loss_class_l = SharpeRatio
-
-        loss_instance_l = loss_class_l()
-        loss_instance_r = loss_class_r() if not isinstance(loss_class_r, int) else loss_class_r
-
-        if op == 'sum':
-            mixed = loss_instance_l + loss_instance_r
-            sign = '+'
-
-        elif op == 'mul':
-            mixed = loss_instance_l * loss_instance_r
-            sign = '*'
-
-        elif op == 'div':
-            mixed = loss_instance_l / loss_instance_r
-            sign = '/'
-
-        elif op == 'pow':
-            mixed = loss_instance_l ** 2
-            sign = '**'
-
-        else:
-            raise ValueError('Unrecognized op')
+        r_is_constant = isinstance(loss_class_r, int)
 
         weights = (torch.ones(n_samples, n_assets) / n_assets).to(device=y_dummy.device, dtype=y_dummy.dtype)
 
-        losses = mixed(weights, y_dummy)
+        loss_instance_l = loss_class_l()
+        loss_instance_r = loss_class_r() if not r_is_constant else loss_class_r
 
-        assert torch.is_tensor(losses)
-        assert losses.shape == (n_samples,)
-        assert losses.dtype == y_dummy.dtype
-        assert losses.device == y_dummy.device
-        assert sign in repr(mixed)
+        python_operator = getattr(operator, op)
+
+        if op == 'pow' and not r_is_constant:
+            with pytest.raises(TypeError):
+                python_operator(loss_instance_l, loss_instance_r)
+
+            return
+
+        else:
+            mixed_loss = python_operator(loss_instance_l, loss_instance_r)
+
+        true_tensor = python_operator(loss_instance_l(weights, y_dummy),
+                                      loss_instance_r(weights, y_dummy) if not r_is_constant else loss_class_r)
+
+        sign = {'add': '+', 'truediv': '/', 'mul': '*', 'pow': '**'}[op]
+
+        mixed_tensor = mixed_loss(weights, y_dummy)
+
+        assert torch.is_tensor(mixed_tensor)
+        assert torch.allclose(mixed_tensor, true_tensor)
+        assert mixed_tensor.shape == (n_samples,)
+        assert mixed_tensor.dtype == y_dummy.dtype
+        assert mixed_tensor.device == y_dummy.device
+        assert sign in repr(mixed_loss)
 
     def test_parent_undefined_methods(self):
         with pytest.raises(NotImplementedError):
