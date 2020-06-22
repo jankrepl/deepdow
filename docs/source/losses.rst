@@ -104,6 +104,14 @@ and outputs a vector of portfolio returns (the type is controlled via :code:`out
     r^{\textbf{w}}_{\text{horizon}}
     \end{bmatrix}
 
+We rely on the below relation to perform the computations
+
+.. math::
+
+    {}^{\text{S}}r_t^{\textbf{w}}=\frac{\sum_{a=1}^{N}{}^{\text{S}}r_{t}^{a}w_a\prod_{i=1}^{t-1}(1+{}^{\text{S}}r_{i}^{a})}{\sum_{a=1}^{N}w_a\prod_{i=1}^{t-1}(1+{}^{\text{S}}r_{i}^{a})}
+
+.. math::
+
 .. testcode::
 
     from deepdow.losses import portfolio_returns
