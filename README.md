@@ -4,6 +4,7 @@
 [![codecov](https://codecov.io/gh/jankrepl/deepdow/branch/master/graph/badge.svg)](https://codecov.io/gh/jankrepl/deepdow)
 [![Documentation Status](https://readthedocs.org/projects/deepdow/badge/?version=latest)](https://deepdow.readthedocs.io/en/latest/?badge=latest)
 [![PyPI version](https://badge.fury.io/py/deepdow.svg)](https://badge.fury.io/py/deepdow)
+[![DOI](https://zenodo.org/badge/237742797.svg)](https://zenodo.org/badge/latestdoi/237742797)
 
 `deepdow` (read as "wow") is a Python package connecting portfolio optimization and deep learning. Its goal is to
 facilitate research of networks that perform weight allocation in **one forward pass**.
@@ -43,3 +44,8 @@ descent algorithms.
 - provides variety of losses like sharpe ratio, maximum drawdown, ...
 - simple to extend and customize
 - CPU and GPU support
+
+# Citing
+If you use `deepdow` (including ideas proposed in the documentation, examples and tests) in your research please **make sure to cite it**.
+To obtain all the necessary citing information click on the **DOI badge** at top of this README and you will be automatically redirected to an external website.
+Note that currently we are using [Zenodo](https://zenodo.org/).
