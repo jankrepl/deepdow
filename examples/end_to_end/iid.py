@@ -226,7 +226,7 @@ optimal_portfolios_c = {'minvar': markowitz.minvar(max_weight=max_weight),
                         'maxutil': markowitz.maxutil(gamma=gamma, max_weight=max_weight)}
 
 # %%
-# Let's write some visualization machinery machinery!
+# Let's write some visualization machinery!
 # Let us now define some styling for plots
 color_mapping = {'minvar': 'r',
                  'maxret': 'g',
