@@ -404,8 +404,8 @@ all_losses = {'minvar': StandardDeviation() ** 2,
               'maxutil': MeanReturns() + gamma * StandardDeviation() ** 2}
 
 # %%
-# Creation of synthetic return series
-# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+# Training and evaluation
+# ^^^^^^^^^^^^^^^^^^^^^^^
 # Now it is time to train!
 
 deep_portfolios_c = {}
