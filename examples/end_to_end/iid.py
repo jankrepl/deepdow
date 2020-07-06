@@ -93,7 +93,7 @@ plt.tight_layout()
 
 # %%
 # From now on we see the mean and covmat as the ground truth parameters that fully determine the
-# market dynamics. We now generate some sample from a multivariate normal distribution with
+# market dynamics. We now generate some samples from a multivariate normal distribution with
 # mean and covmat as the defining parameters.
 
 n_timesteps = 1500
@@ -404,6 +404,8 @@ all_losses = {'minvar': StandardDeviation() ** 2,
               'maxutil': MeanReturns() + gamma * StandardDeviation() ** 2}
 
 # %%
+# Creation of synthetic return series
+# ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 # Now it is time to train!
 
 deep_portfolios_c = {}
