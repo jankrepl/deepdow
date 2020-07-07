@@ -6,7 +6,7 @@ Independent and identically distributed returns
 A very common assumption in modelling of financial returns is independence in time.
 In other words, there is no use in considering today (or any other past day) returns to predict
 tomorrow returns. Another very popular assumption is that returns have the same distribution.
-Combining both of these assumption we basically assume that there is some underlying multivariate
+Combining both of these assumptions we basically claim that there is some underlying multivariate
 distribution and the actual returns we observe are just independent samples from it.
 
 :code:`deepdow` can be applied in a market with the above described IID dynamics. This example will
@@ -227,7 +227,6 @@ optimal_portfolios_c = {'minvar': markowitz.minvar(max_weight=max_weight),
 
 # %%
 # Let's write some visualization machinery!
-# Let us now define some styling for plots
 color_mapping = {'minvar': 'r',
                  'maxret': 'g',
                  'maxutil': 'yellow'}
@@ -286,7 +285,7 @@ plot_scatter(title='Ground truth: Unconstrained vs constrained',
 # The main question now is whether we are able to find the optimal allocation just from the
 # :code:`returns`. One obvious way to do it is to explicitly estimate mean and covariance matrix
 # and use the same optimizers as before to find the solution. If number of samples is big enough
-# this should work well! Let us try it for the unconstrained case
+# this should work well!
 
 markowitz_emp = Markowitz(returns.mean().values, returns.cov().values)
 
