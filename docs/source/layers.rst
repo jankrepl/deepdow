@@ -233,6 +233,7 @@ idea is to group assets into :code:`n_clusters` different clusters and use :code
 them. In the second step, we compute asset allocation across these :code:`n_clusters` new portfolios. Note that
 the clustering is currently done via the :code:`KMeans` layer (see :ref:`kmeans`).
 
+.. _layers_numericalmarkowitz:
 
 NumericalMarkowitz
 ******************
