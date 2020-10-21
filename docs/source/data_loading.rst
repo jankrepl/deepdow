@@ -188,7 +188,7 @@ It performs the following steps
 1. exclusion of undesired assets and channels (see :code:`included_assets` and :code:`included_indicators`)
 2. adding missing rows - timestamps implied by the specified frequency :code:`freq`
 3. filling missing values (forward fill followed by backward fill)
-4. computation of returns (if :code:`use_log` then logarithmic else simple)
+4. computation of returns (if :code:`use_log` then logarithmic else simple) - the first timestep is automatically deleted
 5. running the rolling window (see :ref:`basics`) given :code:`lookback`, :code:`gap` and :code:`horizon`
 
 We get the following outputs
@@ -199,9 +199,8 @@ We get the following outputs
 - :code:`asset_names` - list of length :code:`n_assets` representing asset names
 - :code:`indicators` - list of length :code:`n_channels` representing channel / indicator names
 
-Note that in our example :code:`n_samples = n_timesteps - lookback - horizon - gap + 1` since there are no missing
-timestamps.
-
+Note that in our example :code:`n_samples = n_timesteps - lookback - horizon - gap + 1` since there is a single
+missing day (`2016-01-18`) w.r.t. the default `B` frequency that is going to be forward filled.
 
 .. testcode::
 
@@ -217,6 +216,7 @@ timestamps.
     X, timestamps, y, asset_names, indicators = raw_to_Xy(raw_df,
                                                           lookback=lookback,
                                                           gap=gap,
+                                                          freq="B",
                                                           horizon=horizon)
 
     n_samples =  n_timesteps - lookback - horizon - gap + 1  # 10
