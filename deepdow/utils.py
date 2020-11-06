@@ -257,7 +257,8 @@ def raw_to_Xy(raw_data, lookback=10, horizon=10, gap=0, freq='B', included_asset
     index = pd.date_range(start=raw_data.index[0], end=raw_data.index[-1], freq=freq)
 
     new = pd.DataFrame(raw_data, index=index).ffill().bfill()
-
+    
+    # ! If assets are excluded, n_assets should change
     to_exclude = []
     for a in asset_names:
         is_valid = np.all(np.isfinite(new[a])) and np.all(new[a] > 0)
