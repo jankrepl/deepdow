@@ -215,6 +215,7 @@ class Run:
         else:
             raise TypeError('Invalid type of benchmarks: {}'.format(type(benchmarks)))
 
+        # TODO: Add option to disable progress bar
         self.callbacks = [BenchmarkCallback(), ValidationCallback(), ProgressBarCallback()] + (callbacks or [])
         # Inject self into callbacks
         for cb in self.callbacks:
