@@ -122,6 +122,10 @@ class PandasChecks:
 
 
 def prices_to_returns(prices, use_log=True):
+    # ? Maybe use a more meaningful name since
+    # ? not all variables to be transformed are prices
+
+    # TODO: Add other methods like pct_change
     """Convert prices to returns.
 
     Parameters
@@ -190,11 +194,12 @@ def returns_to_Xy(returns, lookback=10, horizon=10, gap=0):
 
     for i in range(lookback, n_timesteps - horizon - gap + 1):
         X_list.append(returns.iloc[i - lookback: i, :].values)
-        timestamps_list.append(returns.index[i - 1])
         y_list.append(returns.iloc[i + gap: i + gap + horizon, :].values)
+        timestamps_list.append(returns.index[i - 1])
+
+    timestamps = pd.DatetimeIndex(timestamps_list, freq=returns.index.freq)
 
     X = np.array(X_list)
-    timestamps = pd.DatetimeIndex(timestamps_list, freq=returns.index.freq)
     y = np.array(y_list)
 
     return X[:, np.newaxis, :, :], timestamps, y[:, np.newaxis, :, :]
@@ -219,6 +224,7 @@ def raw_to_Xy(raw_data, lookback=10, horizon=10, gap=0, freq='B', included_asset
     gap : int
         Integer representing the number of time periods one cannot act after observing the features.
 
+    # ? Maybe specify what frequencies mean, e.g. "B"
     freq : str
         Periodicity of the data.
 
@@ -256,9 +262,10 @@ def raw_to_Xy(raw_data, lookback=10, horizon=10, gap=0, freq='B', included_asset
 
     index = pd.date_range(start=raw_data.index[0], end=raw_data.index[-1], freq=freq)
 
+    # ? Maybe pass columns and raw_data.values to avoid sticky Frozen Lists
     new = pd.DataFrame(raw_data, index=index).ffill().bfill()
-    
-    # ! If assets are excluded, n_assets should change
+
+    # ! If assets_names change, n_assets should change (not explicit in docs)
     to_exclude = []
     for a in asset_names:
         is_valid = np.all(np.isfinite(new[a])) and np.all(new[a] > 0)
@@ -267,6 +274,7 @@ def raw_to_Xy(raw_data, lookback=10, horizon=10, gap=0, freq='B', included_asset
 
     asset_names = sorted(list(set(asset_names) - set(to_exclude)))
 
+    # ? What does absolute stand for? Variable could have a more meaninful name.
     absolute = new.iloc[:, new.columns.get_level_values(0).isin(asset_names)][asset_names]  # sort
     absolute = absolute.iloc[:, absolute.columns.get_level_values(1).isin(indicators)]
 
@@ -274,6 +282,8 @@ def raw_to_Xy(raw_data, lookback=10, horizon=10, gap=0, freq='B', included_asset
 
     X_list = []
     y_list = []
+
+    # ! len(indicators) should be > 0 or timestamps is undefined
     for ind in indicators:
         X, timestamps, y = (returns_to_Xy(returns.xs(ind, axis=1, level=1),
                                           lookback=lookback,
