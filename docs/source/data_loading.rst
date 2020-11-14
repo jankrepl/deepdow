@@ -200,7 +200,7 @@ We get the following outputs
 - :code:`indicators` - list of length :code:`n_channels` representing channel / indicator names
 
 Note that in our example :code:`n_samples = n_timesteps - lookback - horizon - gap + 1` since there is a single
-missing day (`2016-01-18`) w.r.t. the default `B` frequency that is going to be forward filled.
+missing day (`2016-01-18`) w.r.t. the default :code:`B` frequency that is going to be forward filled.
 
 .. testcode::
 
@@ -353,6 +353,7 @@ The goal of this dataloader is to introduce major structural changes to the stre
 
 
 .. testcode::
+    :skipif: True
 
     from deepdow.data import FlexibleDataLoader
 
@@ -373,6 +374,7 @@ The goal of this dataloader is to introduce major structural changes to the stre
         print()
 
 .. testoutput::
+    :skipif: True
     :options: +NORMALIZE_WHITESPACE
 
     torch.Size([4, 2, 5, 2])
