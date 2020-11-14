@@ -475,6 +475,8 @@ class ProgressBarCallback(Callback):
         final_postfix = "{}, {}".format(old_postfix, new_postfix)
         self.bar.set_postfix_str(final_postfix)
 
+        self.bar.refresh()
+        self.bar.close()
         del self.bar
 
     def on_batch_end(self, metadata):
