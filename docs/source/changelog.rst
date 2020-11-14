@@ -1,6 +1,18 @@
 Changelog
 =========
 
+v0.2.1
+------
+Added
+*****
+- IID example - #67
+
+Fixes
+*****
+- Progressbar not displaying correctly - PR #80
+- Improving documentation - PR #72
+
+
 v0.2.0
 ------
 
