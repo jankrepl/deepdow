@@ -370,7 +370,7 @@ class ModelCheckpointCallback(Callback):
         Running minimum of the metric.
     """
 
-    def __init__(self, folder_path, dataloader_name, metric_name, verbose=False, save_best_only=False):
+    def __init__(self, folder_path, dataloader_name, metric_name, verbose=False):
         self.folder_path = pathlib.Path(folder_path)
         if self.folder_path.is_file():
             raise NotADirectoryError('The checkpointing path needs to be a folder.')
@@ -378,7 +378,6 @@ class ModelCheckpointCallback(Callback):
         self.dataloader_name = dataloader_name
         self.metric_name = metric_name
         self.verbose = verbose
-        self.save_best_only = save_best_only
 
         self.min = np.inf
         self.run = None  # will be injected with an instance of ``Run``.
