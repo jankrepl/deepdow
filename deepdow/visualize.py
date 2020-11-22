@@ -376,6 +376,9 @@ def plot_weight_heatmap(weights, add_sum_column=False, cmap="YlGnBu", ax=None, a
     always_visible = always_visible or []
 
     if add_sum_column:
+        if 'sum' in displayed_table.columns:
+            raise ValueError("The weights dataframe already contains the sum column.")
+
         displayed_table['sum'] = displayed_table.sum(axis=1)
         always_visible.append('sum')
 
