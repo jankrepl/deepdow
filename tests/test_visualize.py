@@ -1,3 +1,4 @@
+import datetime
 from unittest.mock import MagicMock, Mock
 
 from matplotlib.animation import FuncAnimation
@@ -158,5 +159,10 @@ class TestPlotWeightHeatmap:
         assert fake_sns.heatmap.call_count == 1
         assert fake_axes.tick_params.call_count == 2
 
-
-4
+    def test_sum_column(self):
+        with pytest.raises(ValueError):
+            now = datetime.datetime.now()
+            df = pd.DataFrame(np.zeros((2, 2)),
+                              columns=["asset", "sum"],
+                              index=[now, now])
+            plot_weight_heatmap(df, add_sum_column=True)
