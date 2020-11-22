@@ -157,6 +157,3 @@ class TestPlotWeightHeatmap:
         assert isinstance(ax, Axes)
         assert fake_sns.heatmap.call_count == 1
         assert fake_axes.tick_params.call_count == 2
-
-
-4
