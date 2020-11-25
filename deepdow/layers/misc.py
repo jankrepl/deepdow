@@ -66,7 +66,8 @@ class CovarianceMatrix(nn.Module):
         Parameters
         ----------
         x : torch.Tensor
-            Of shape (n_samples, n_channels, n_assets).
+            Of shape (n_samples, dim, n_assets). The middle dimension `dim`
+            represents the observations we compute the covariance matrix over.
 
         shrinkage_coef : None or torch.Tensor
             If None then using the `self.shrinkage_coef` supplied at construction for each sample. Otherwise a
