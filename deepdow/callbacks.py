@@ -521,14 +521,13 @@ class TensorBoardCallback(Callback):
     Currently supports:
         - images (evolution of predicted weights over time)
         - histograms (activations of input and outputs of all layers)
-        - hyperparamters
         - scalars (logged metrics)
 
     Parameters
     ----------
     log_dir : None or str or pathlib.Path
         Represent the folder where to checkpoints will be saved. If None then using
-        `cwd/runs/CURRENT_DATETIME_HOSTNAME`. Else the exact path.
+        the current working directory. Else the exact path.
 
     ts : datetime.datetime or None
         If ``datetime.datetime``, then only logging specific sample corresponding to provided timestamp.
@@ -605,7 +604,6 @@ class TensorBoardCallback(Callback):
     def on_epoch_end(self, metadata):
         """Log images, metrics and hyperparamters."""
         epoch = metadata.get('epoch')
-        n_epochs = metadata.get('n_epochs')
 
         # create weight image
         master_df = pd.concat(self.weights).sort_index()
@@ -621,9 +619,6 @@ class TensorBoardCallback(Callback):
 
             for metric_name, metric_value in metrics.items():
                 self.writer.add_scalar(metric_name, metric_value, global_step=epoch)
-
-            if epoch == n_epochs - 1:
-                self.writer.add_hparams(self.run.hparams, metrics)
 
         except KeyError:
             pass
