@@ -102,6 +102,7 @@ class TestRun:
         assert dataloader_dummy is run.train_dataloader
         assert isinstance(run.metrics, dict)
         assert isinstance(run.val_dataloaders, dict)
+        assert isinstance(run.hparams, dict)
 
     def test_launch(self, dataloader_dummy):
         network = DummyNet(n_channels=dataloader_dummy.dataset.X.shape[1])
