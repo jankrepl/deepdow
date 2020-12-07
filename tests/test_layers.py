@@ -444,8 +444,11 @@ class TestResample:
         some_loss = weights_1.sum()
 
         assert rets.grad is None
+
         some_loss.backward()
+
         assert rets.grad is not None
+        assert single.grad is None
 
 
 class TestRNN:
