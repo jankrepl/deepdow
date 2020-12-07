@@ -412,7 +412,7 @@ class TestResample:
         single_ = torch.rand(n_assets, n_assets, dtype=dtype, device=device)
         single = single_ @ single_.t()
         covmat = torch.stack([single for _ in range(n_samples)], dim=0)
-        rets = torch.rand(n_samples, n_assets, dtype=dtype, device=device)
+        rets = torch.rand(n_samples, n_assets, dtype=dtype, device=device, requires_grad=True)
 
         if allocator_class.__name__ == 'AnalyticalMarkowitz':
             allocator = allocator_class()
@@ -439,6 +439,16 @@ class TestResample:
             assert not torch.allclose(weights_1, weights_2)
         else:
             assert torch.allclose(weights_1, weights_2)
+
+        # Make sure one can run backward pass (just sum the weights to get a scalar)
+        some_loss = weights_1.sum()
+
+        assert rets.grad is None
+
+        some_loss.backward()
+
+        assert rets.grad is not None
+        assert single.grad is None
 
 
 class TestRNN:

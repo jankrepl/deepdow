@@ -332,7 +332,7 @@ class Resample(nn.Module):
         portfolios = []  # n_portfolios elements of (n_samples, n_assets)
 
         for _ in range(self.n_portfolios):
-            draws = dist.sample((n_draws,))  # (n_draws, n_samples, n_assets)
+            draws = dist.rsample((n_draws,))  # (n_draws, n_samples, n_assets)
             rets_ = draws.mean(dim=0) if rets is not None else None  # (n_samples, n_assets)
             covmat_ = CovarianceMatrix(sqrt=self.uses_sqrt)(draws.permute(1, 0, 2))  # (n_samples, n_assets, ...)
 
