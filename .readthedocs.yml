@@ -7,10 +7,14 @@ version: 2
 sphinx:
   configuration: docs/conf.py
 
+build:
+    image: stable
+
 
 # Optionally set the version of Python and requirements required to build your docs
 python:
   version: 3.7
+  system_packages: true
   install:
     - method: pip
       path: .
