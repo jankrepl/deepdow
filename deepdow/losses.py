@@ -1044,68 +1044,59 @@ class WorstReturn(Loss):
 class RiskParity(Loss):
     """Risk Parity Portfolio.
 
-    source: EQN (4) of
-    https://poseidon01.ssrn.com/delivery.php?ID=390114006122099106072078096104069112056050065027039051078098000067064086112072124109005035107005061025044074073029126125070080038037078052000085104024102000110030090033033078083120080087081020021019107089002123119030075084115101026124093011116092064098&EXT=pdf
-    
     Parameters
     ----------
     returns_channel : int
         Which channel of the `y` target represents returns.
 
-    input_type : str, {'log', 'simple'}
-        What type of returns are we dealing with in `y`.
+    Attributes
+    ----------
+    covariance_layer : deepdow.layers.CoverianceMatrix
+        Covarioance matrix layer.
 
-    output_type : str, {'log', 'simple'}
-        What type of returns are we dealing with in the output.
-
-    eps : float
-        Additional constant to avoid log zero error.
+    References
+    ----------
+    https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2297383
     """
-    
-    def __init__(self, returns_channel=0, input_type='log', output_type='simple', eps=1e-4):
+
+    def __init__(self, returns_channel=0):
         self.returns_channel = returns_channel
         self.covariance_layer = CovarianceMatrix(sqrt=False)
-        self.input_type = input_type
-        self.output_type = output_type
-        self.eps = eps
-        
+
     def __call__(self, weights, y):
-        """.
+        """Compute loss.
+
         Parameters
         ----------
         weights : torch.Tensor
-            Tensor of shape `(n_samples, n_assets)` representing the predicted weights by our portfolio optimizer.
+            Tensor of shape `(n_samples, n_assets)` representing the predicted
+            weights by our portfolio optimizer.
+
         y : torch.Tensor
-            Tensor of shape `(n_samples, n_channels, horizon, n_assets)` representing the evolution over the next
-            `horizon` timesteps.
+            Tensor of shape `(n_samples, n_channels, horizon, n_assets)`
+            representing the evolution over the next `horizon` timesteps.
+
         Returns
         -------
          torch.Tensor
             Tensor of shape `(n_samples,)` representing the per sample risk parity.
         """
-        prets = portfolio_returns(weights,
-                                  y[:, self.returns_channel, ...],
-                                  input_type=self.input_type,
-                                  output_type=self.output_type) # (n_samples, horizon)
-        covar = self.covariance_layer(y[:, self.returns_channel, ...]) # (n_samples, n_assets, n_assets)
-        
-        b = 1/weights.shape[-1] # equally weighted budget, b, makes this formula a special case of risk budgeting called risk parity
-        
-        # ensure non-zero weights
-        weights = torch.where(weights==0.0, weights+self.eps, weights)
-        # add dimension for matmul operation
+        n_assets = weights.shape[-1]
+        covar = self.covariance_layer(y[:, self.returns_channel, ...])  # (n_samples, n_assets, n_assets)
+
         weights = weights.unsqueeze(dim=1)
-        
-        term_1 = 0.5*torch.matmul(weights, torch.matmul(covar, weights.permute((0,2,1))))
-        term_2 = torch.sum(b*torch.log(weights.permute((0,2,1))), dim=1).unsqueeze(dim=-1)
-        rp = (term_1 - term_2).squeeze()
+        volatility = torch.sqrt(torch.matmul(weights,
+                                             torch.matmul(covar,
+                                                          weights.permute((0, 2, 1)))))  # (n_samples, 1, 1)
+        c = (covar * weights) / volatility  # (n_samples, n_assets, n_assets)
+        risk = volatility / n_assets  # (n_samples, 1, 1)
+
+        budget = torch.matmul(weights, c)  # (n_samples, n_assets, n_assets)
+        rp = torch.sum((risk - budget)**2, dim=-1).view(-1)  # (n_samples,)
 
         return rp
-        
+
     def __repr__(self):
         """Generate representation string."""
-        return "{}(returns_channel={}, input_type='{}', output_type='{}', eps={})".format(self.__class__.__name__,
-                                                                                          self.returns_channel,
-                                                                                          self.input_type,
-                                                                                          self.output_type, 
-                                                                                          self.eps)
+        return "{}(returns_channel={})".format(self.__class__.__name__,
+                                               self.returns_channel)
