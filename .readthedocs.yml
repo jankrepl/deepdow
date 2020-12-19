@@ -13,8 +13,6 @@ python:
   version: 3.7
   install:
     - method: pip
-      path: numpy==1.19.4
-    - method: pip
       path: .
       extra_requirements:
       - examples
