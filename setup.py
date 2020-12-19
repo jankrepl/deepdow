@@ -33,6 +33,6 @@ setup(
     extras_require={
         "dev": ["codecov", "flake8==3.7.9", "pydocstyle", "pytest>=4.6", "pytest-cov", "tox"],
         "docs": ["sphinx", "sphinx_rtd_theme"],
-        "examples": ["numpy==1.19.2", "sphinx_gallery", "statsmodels"]
+        "examples": ["sphinx_gallery", "statsmodels"]
     }
 )
