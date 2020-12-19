@@ -266,6 +266,32 @@ tensors (batched along the sample dimension):
 
     The major downside of using this allocator is a significant decrease in speed.
 
+NumericalRiskBudgeting
+**********************
+Proposed in [Spinu2013]_.
+
+.. math::
+
+    \begin{aligned}
+    \min_{\textbf{w}} \quad & \frac{1}{2}{\textbf{w}}^{T}  \boldsymbol{\Sigma} \textbf{w} - \sum_{i=1}^{N} b_i  \log(w_i) \\
+    \textrm{s.t.} \quad & \sum_{i=1}^{N}w_i = 1 \\
+    \quad & w_i >= 0, i \in \{1,...,N\}\\
+    \quad & w_i <= w_{\text{max}}, i \in \{1,...,N\}\\
+    \end{aligned}
+
+where the :math:`b_i, i=1,..,N` are the risk budgets. The user needs to provide
+:code:`n_assets` (:math:`N` in the above formulation) and :code:`max_weight`
+(:math:`w_{\text{max}}`) when constructing this layer. To perform a forward pass one passes the following
+tensors (batched along the sample dimension):
+
+- :code:`covmat_sqrt` - Corresponds to a (matrix) square root of the covariance matrix :math:`\boldsymbol{\Sigma}`
+- :code:`b` - Risk budgets
+
+
+.. warning::
+
+    The major downside of using this allocator is a significant decrease in speed.
+
 Resample
 ********
 The :code:`Resample` layer is inspired by [Michaud2007]_. It is a **metallocator** that expects an instance
@@ -493,6 +519,9 @@ References
 
 .. [Prado2019]
    Lopez de Prado, M. (2019). A Robust Estimator of the Efficient Frontier. Available at SSRN 3469961.
+
+.. [Spinu2013]
+   Spinu, Florin, An Algorithm for Computing Risk Parity Weights (July 30, 2013). Available at SSRN: https://ssrn.com/abstract=2297383 or http://dx.doi.org/10.2139/ssrn.2297383
 
 .. [Jiang2017]
    Jiang, Zhengyao, and Jinjun Liang. "Cryptocurrency portfolio management with deep reinforcement learning." 2017 Intelligent Systems Conference (IntelliSys). IEEE, 2017
