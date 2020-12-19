@@ -4,7 +4,8 @@ import torch
 from deepdow.layers import (AverageCollapse, AttentionCollapse, ElementCollapse,
                             ExponentialCollapse, MaxCollapse,
                             SumCollapse)
-from deepdow.layers import (AnalyticalMarkowitz, NCO, NumericalMarkowitz, Resample,
+from deepdow.layers import (AnalyticalMarkowitz, NCO, NumericalMarkowitz,
+                            NumericalRiskBudgeting, Resample,
                             SoftmaxAllocator, SparsemaxAllocator, WeightNorm)
 from deepdow.layers import Cov2Corr, CovarianceMatrix, KMeans, MultiplyByConstant
 from deepdow.layers import Conv, RNN, Warp, Zoom
@@ -326,6 +327,9 @@ class TestNumericalMarkowitz:
         weights = popt(rets, covmat_sqrt, gamma, alpha)
 
         assert weights.shape == (n_samples, n_assets)
+        assert torch.allclose(weights.sum(dim=-1), torch.ones(n_samples,
+                                                              device=device,
+                                                              dtype=dtype))
         assert weights.dtype == X.dtype
         assert weights.device == X.device
 
@@ -787,3 +791,30 @@ class TestZoom:
         x_warped = layer_warp(X, tform)
 
         assert torch.allclose(x_zoomed, x_warped)
+
+
+class TestNumericalRiskBudgeting:
+    def test_basic(self, Xy_dummy):
+        X, _, _, _ = Xy_dummy
+        device, dtype = X.device, X.dtype
+        n_samples, n_channels, lookback, n_assets = X.shape
+
+        popt = NumericalRiskBudgeting(n_assets)
+
+        covmat_sqrt__ = torch.rand((n_assets, n_assets)).to(device=X.device, dtype=X.dtype)
+        covmat_sqrt_ = covmat_sqrt__ @ covmat_sqrt__
+        covmat_sqrt_.add_(torch.eye(n_assets, dtype=dtype, device=device))
+
+        covmat_sqrt = torch.stack(n_samples * [covmat_sqrt_])
+
+        budgets = torch.rand((n_samples, n_assets), dtype=dtype, device=device)
+        budgets /= budgets.sum(dim=-1, keepdim=True)
+
+        weights = popt(covmat_sqrt, budgets)
+
+        assert weights.shape == (n_samples, n_assets)
+        assert torch.allclose(weights.sum(dim=-1), torch.ones(n_samples,
+                                                              device=device,
+                                                              dtype=dtype))
+        assert weights.dtype == X.dtype
+        assert weights.device == X.device

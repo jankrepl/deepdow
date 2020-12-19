@@ -3,6 +3,7 @@
 All losses are designed for minimization.
 """
 from types import MethodType
+from .layers import CovarianceMatrix
 
 import torch
 
@@ -1038,3 +1039,64 @@ class WorstReturn(Loss):
                                                                                   self.returns_channel,
                                                                                   self.input_type,
                                                                                   self.output_type)
+
+
+class RiskParity(Loss):
+    """Risk Parity Portfolio.
+
+    Parameters
+    ----------
+    returns_channel : int
+        Which channel of the `y` target represents returns.
+
+    Attributes
+    ----------
+    covariance_layer : deepdow.layers.CoverianceMatrix
+        Covarioance matrix layer.
+
+    References
+    ----------
+    https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2297383
+    """
+
+    def __init__(self, returns_channel=0):
+        self.returns_channel = returns_channel
+        self.covariance_layer = CovarianceMatrix(sqrt=False)
+
+    def __call__(self, weights, y):
+        """Compute loss.
+
+        Parameters
+        ----------
+        weights : torch.Tensor
+            Tensor of shape `(n_samples, n_assets)` representing the predicted
+            weights by our portfolio optimizer.
+
+        y : torch.Tensor
+            Tensor of shape `(n_samples, n_channels, horizon, n_assets)`
+            representing the evolution over the next `horizon` timesteps.
+
+        Returns
+        -------
+         torch.Tensor
+            Tensor of shape `(n_samples,)` representing the per sample risk parity.
+        """
+        n_assets = weights.shape[-1]
+        covar = self.covariance_layer(y[:, self.returns_channel, ...])  # (n_samples, n_assets, n_assets)
+
+        weights = weights.unsqueeze(dim=1)
+        volatility = torch.sqrt(torch.matmul(weights,
+                                             torch.matmul(covar,
+                                                          weights.permute((0, 2, 1)))))  # (n_samples, 1, 1)
+        c = (covar * weights) / volatility  # (n_samples, n_assets, n_assets)
+        risk = volatility / n_assets  # (n_samples, 1, 1)
+
+        budget = torch.matmul(weights, c)  # (n_samples, n_assets, n_assets)
+        rp = torch.sum((risk - budget)**2, dim=-1).view(-1)  # (n_samples,)
+
+        return rp
+
+    def __repr__(self):
+        """Generate representation string."""
+        return "{}(returns_channel={})".format(self.__class__.__name__,
+                                               self.returns_channel)

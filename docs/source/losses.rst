@@ -168,6 +168,16 @@ The **negative** of mean portfolio returns over the :code:`horizon` time steps.
 
     {\mu}^{\textbf{w}} = \frac{\sum_{i}^{\text{horizon}} r^{\textbf{w}}_{i} }{\text{horizon}}
 
+RiskParity
+**********
+
+.. math::
+
+   \sum_{i=1}^{N}\Big(\frac{\sigma}{N} - w_i \big(\frac{\Sigma\textbf{w}}{\sigma}\big)_i\Big) ^ 2
+
+where :math:`\sigma=\sqrt{\textbf{w}^T\Sigma\textbf{w}}` and :math:`\Sigma` is
+the covariance matrix of asset returns.
+
 Quantile (Value at Risk)
 ************************
 The **negative** of the :code:`p`-quantile of portfolio returns. Note that in the background it solved via

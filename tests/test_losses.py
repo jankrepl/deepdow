@@ -3,13 +3,18 @@ import operator
 import pytest
 import torch
 
-from deepdow.losses import (Alpha, CumulativeReturn, LargestWeight, Loss, MaximumDrawdown, MeanReturns, Quantile,
-                            SharpeRatio, Softmax, SortinoRatio, SquaredWeights, StandardDeviation, TargetMeanReturn,
-                            TargetStandardDeviation, WorstReturn, log2simple, portfolio_returns,
-                            portfolio_cumulative_returns, simple2log)
+from deepdow.losses import (Alpha, CumulativeReturn, LargestWeight, Loss,
+                            MaximumDrawdown, MeanReturns, RiskParity, Quantile,
+                            SharpeRatio, Softmax, SortinoRatio, SquaredWeights,
+                            StandardDeviation, TargetMeanReturn,
+                            TargetStandardDeviation, WorstReturn, log2simple,
+                            portfolio_returns, portfolio_cumulative_returns,
+                            simple2log)
 
-ALL_LOSSES = [Alpha, CumulativeReturn, LargestWeight, MaximumDrawdown, MeanReturns, Quantile, SharpeRatio, Softmax,
-              SortinoRatio, SquaredWeights, StandardDeviation, TargetMeanReturn, TargetStandardDeviation, WorstReturn]
+ALL_LOSSES = [Alpha, CumulativeReturn, LargestWeight, MaximumDrawdown,
+              MeanReturns, RiskParity, Quantile, SharpeRatio, Softmax,
+              SortinoRatio, SquaredWeights, StandardDeviation,
+              TargetMeanReturn, TargetStandardDeviation, WorstReturn]
 
 
 class TestHelpers:
@@ -351,3 +356,44 @@ class TestMaximumDrawdown:
         loss = loss_inst(w, y)[0]
 
         assert loss == 0
+
+
+class TestRiskParity:
+    @staticmethod
+    def stupid_compute(w, y):
+        """Straightforward implementation with list comprehensions."""
+        from deepdow.layers import CovarianceMatrix
+
+        n_samples, n_assets = w.shape
+        covar = CovarianceMatrix(sqrt=False)(y[:, 0, ...])  # returns_channel=0
+
+        var = torch.cat([(w[[i]] @ covar[i]) @ w[[i]].permute(1, 0) for i in range(n_samples)], dim=0)
+        vol = torch.sqrt(var)
+
+        lhs = vol / n_assets
+        rhs = torch.cat([(1 / vol[i]) * w[[i]] * (w[[i]] @ covar[i]) for i in range(n_samples)], dim=0)
+
+        res = torch.tensor([((lhs[i] - rhs[i]) ** 2).sum() for i in range(n_samples)])
+
+        return res
+
+    def test_correct_fpass(self):
+        device, dtype = torch.device("cpu"), torch.float32
+        n_samples, n_channels, horizon, n_assets = 2, 3, 10, 5
+
+        # Generate weights and targets
+        torch.manual_seed(2)
+        y = torch.rand((n_samples, n_channels, horizon, n_assets),
+                       dtype=dtype,
+                       device=device)
+
+        weights = torch.rand((n_samples, n_assets),
+                             dtype=dtype,
+                             device=device)
+
+        weights /= weights.sum(dim=-1, keepdim=True)
+
+        res_stupid = self.stupid_compute(weights, y)
+        res_actual = RiskParity()(weights, y)
+
+        assert torch.allclose(res_stupid, res_actual)
