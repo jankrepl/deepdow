@@ -563,9 +563,10 @@ class NumericalRiskBudgeting(nn.Module):
     References
     ----------
     [1] https://github.com/cvxgrp/cvxpylayers
-    [2] https://poseidon01.ssrn.com/delivery.php?ID=390114006122099106072078096104069112056050065027039051078098000067064086112072124109005035107005061025044074073029126125070080038037078052000085104024102000110030090033033078083120080087081020021019107089002123119030075084115101026124093011116092064098&EXT=pdf
+    [2] https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2297383
     [3] https://mpra.ub.uni-muenchen.de/37749/2/MPRA_paper_37749.pdf
     """
+
     def __init__(self, n_assets, max_weight=1):
         """Construct."""
         super().__init__()
@@ -573,12 +574,12 @@ class NumericalRiskBudgeting(nn.Module):
         b = cp.Parameter(n_assets, nonneg=True)
 
         w = cp.Variable(n_assets)
+
         term_1 = 0.5 * cp.sum_squares(covmat_sqrt @ w)
-        # term_2 = cp.sum(b * cp.log(w)) # taking log(w) makes the problem non-dpp
-        # TODO: not sure how to make it dpp with log, refer Section 4.1: https://web.stanford.edu/~boyd/papers/pdf/diff_cvxpy.pdf
-        term_2 = cp.sum(cp.multiply(b, w))
-        objective = cp.Minimize(term_1 - term_2) # refer [2]
-        constraint = [cp.sum(w) == 1, cp.sum(b) == 1, w >= 0, w <= max_weight] # refer [2]
+        term_2 = b @ cp.log(w)
+
+        objective = cp.Minimize(term_1 - term_2)  # refer [2]
+        constraint = [cp.sum(w) == 1, w >= 0, w <= max_weight]  # refer [2]
 
         prob = cp.Problem(objective, constraint)
 
@@ -595,7 +596,7 @@ class NumericalRiskBudgeting(nn.Module):
             Of shape (n_samples, n_assets, n_assets) representing the covariance matrix.
 
         b : torch.Tensor
-            Of shape (n_samples, n_assets) representing the budget, 
+            Of shape (n_samples, n_assets) representing the budget,
             risk contribution from each component (asset) is equal to the budget, refer [3]
 
         Returns

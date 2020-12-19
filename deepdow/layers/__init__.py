@@ -2,7 +2,8 @@
 
 from .collapse import (AttentionCollapse, AverageCollapse, ElementCollapse, ExponentialCollapse,
                        MaxCollapse, SumCollapse)
-from .allocate import (AnalyticalMarkowitz, NCO, NumericalMarkowitz, Resample, SoftmaxAllocator,
+from .allocate import (AnalyticalMarkowitz, NCO, NumericalMarkowitz,
+                       NumericalRiskBudgeting, Resample, SoftmaxAllocator,
                        SparsemaxAllocator, WeightNorm)
 from .misc import Cov2Corr, CovarianceMatrix, KMeans, MultiplyByConstant
 from .transform import Conv, RNN, Warp, Zoom
@@ -20,6 +21,7 @@ __all__ = ['AnalyticalMarkowitz',
            'MultiplyByConstant',
            'NCO',
            'NumericalMarkowitz',
+           'NumericalRiskBudgeting',
            'Resample',
            'RNN',
            'SoftmaxAllocator',
