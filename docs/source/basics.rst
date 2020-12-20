@@ -6,7 +6,7 @@ This page introduces all the important concepts used within :code:`deepdow`.
 
 Data
 ----
-Financial timeseries can be seen a 3D tensor with the following dimensions
+Financial timeseries can be seen as a 3D tensor with the following dimensions
 
 - **time**
 - **asset**
