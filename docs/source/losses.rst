@@ -45,12 +45,12 @@ portfolio value at time `t`
 
 .. math::
 
-    p^{\textbf{w}}_t = \sum_{a=1}^{N} p_t^a w_a V
+    p^{\textbf{w}}_t = \sum_{a=1}^{N} p_t^a \frac{w_a V}{p_0^a}
 
 Before we continue, notice that the above definition assumes two things
 
 - We employ the buy and hold strategy
-- Assets are perfectly divisible (one can by :math:`w_a V` units of any asset)
+- Assets are perfectly divisible (one can by :math:`\frac{w_a V}{p_0^a}` units of any asset)
 
 Let us now define two define two types of asset returns: **simple** and **logarithmic**
 
@@ -74,7 +74,7 @@ Additionally, we also consider their portfolio counterparts
     {}^{\text{L}}r^{\textbf{w}}_{t} = \log \frac{p^{\textbf{w}}_{t}}{p^{\textbf{w}}_{t-1}}
 
 
-Note that in all in both of the cases the initial holding :math:`V` cancels out and the portfolio returns are independent
+Note that in both of the cases the initial holding :math:`V` cancels out and the portfolio returns are independent
 of it.
 
 
