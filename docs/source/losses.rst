@@ -74,7 +74,7 @@ Additionally, we also consider their portfolio counterparts
     {}^{\text{L}}r^{\textbf{w}}_{t} = \log \frac{p^{\textbf{w}}_{t}}{p^{\textbf{w}}_{t-1}}
 
 
-Note that in all in both of the cases the initial holding :math:`V` cancels out and the portfolio returns are independent
+Note that in both of the cases the initial holding :math:`V` cancels out and the portfolio returns are independent
 of it.
 
 
