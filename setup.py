@@ -9,7 +9,7 @@ INSTALL_REQUIRES = [
     "cvxpylayers",
     "matplotlib",
     "mlflow",
-    "numpy>=1.16",
+    "numpy>=1.16.5",
     "pandas",
     "pillow",
     "seaborn",
