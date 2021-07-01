@@ -1101,6 +1101,7 @@ class RiskParity(Loss):
         return "{}(returns_channel={})".format(self.__class__.__name__,
                                                self.returns_channel)
 
+
 class DownsideRisk(Loss):
     """Downside Risk."""
 
@@ -1138,7 +1139,9 @@ class DownsideRisk(Loss):
         )
 
         return torch.sqrt(
-            torch.mean(torch.relu(-prets.sub(prets.mean(dim=1)[:, None])) ** self.beta, dim=1)
+            torch.mean(
+                torch.relu(-prets.sub(prets.mean(dim=1)[:, None])) ** self.beta, dim=1
+            )
         )
 
     def __repr__(self):
