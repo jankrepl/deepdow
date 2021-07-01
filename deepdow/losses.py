@@ -1100,3 +1100,55 @@ class RiskParity(Loss):
         """Generate representation string."""
         return "{}(returns_channel={})".format(self.__class__.__name__,
                                                self.returns_channel)
+
+class DownsideRisk(Loss):
+    """Downside Risk."""
+
+    def __init__(
+        self, beta=2, returns_channel=0, input_type="log", output_type="simple"
+    ):
+        self.beta = beta
+        self.returns_channel = returns_channel
+        self.input_type = input_type
+        self.output_type = output_type
+
+    def __call__(self, weights, y):
+        """Compute the downside risk.
+
+        Parameters
+        ----------
+        weights : torch.Tensor
+            Tensor of shape `(n_samples, n_assets)` representing the predicted weights by our portfolio optimizer.
+
+        y : torch.Tensor
+            Tensor of shape `(n_samples, n_channels, horizon, n_assets)` representing the evolution over the next
+            `horizon` timesteps.
+
+        Returns
+        -------
+        torch.Tensor
+            Tensor of shape `(n_samples,)` representing the per sample downside risk.
+
+        """
+        prets = portfolio_returns(
+            weights,
+            y[:, self.returns_channel, ...],
+            input_type=self.input_type,
+            output_type=self.output_type,
+        )
+
+        return torch.sqrt(
+            torch.mean(torch.relu(-prets.sub(prets.mean(dim=1)[:, None])) ** self.beta, dim=1)
+        )
+
+    def __repr__(self):
+        """Generate representation string."""
+        return (
+            "{}(beta={}, returns_channel={}, input_type='{}', output_type='{}')".format(
+                self.__class__.__name__,
+                self.beta,
+                self.returns_channel,
+                self.input_type,
+                self.output_type,
+            )
+        )
