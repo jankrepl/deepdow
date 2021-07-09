@@ -9,7 +9,6 @@ cache: pip
 dist: xenial  # required for python3.7
 
 python:
-    - "3.5"
     - "3.6"
     - "3.7"
 
