@@ -85,7 +85,7 @@ def skip(app, what, name, obj, would_skip, options):
 
 
 def setup(app):
-    app.add_stylesheet('css/custom.css')  # adding custom styling
+    app.add_css_file('css/custom.css')  # adding custom styling
     app.connect("autodoc-skip-member", skip)  # making sure __call__ is shown when implemented in child class
 
 
