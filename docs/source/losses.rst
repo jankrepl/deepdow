@@ -219,6 +219,12 @@ StandardDeviation
 
     {\sigma}^{\textbf{w}} = \sqrt{\frac{\sum_{i}^{\text{horizon}} (r^{\textbf{w}}_{i} - {\mu}^{\textbf{w}})^{2}}{\text{horizon}}}
 
+Downside Risk
+*************
+
+.. math::
+
+    \sqrt{\frac{\sum_{i}^{\text{horizon}} \max({\mu}^{\textbf{w}} - r^{\textbf{w}}_{i} , 0)^{\beta}}{\text{horizon}}}
 
 
 WorstReturn

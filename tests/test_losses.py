@@ -7,14 +7,14 @@ from deepdow.losses import (Alpha, CumulativeReturn, LargestWeight, Loss,
                             MaximumDrawdown, MeanReturns, RiskParity, Quantile,
                             SharpeRatio, Softmax, SortinoRatio, SquaredWeights,
                             StandardDeviation, TargetMeanReturn,
-                            TargetStandardDeviation, WorstReturn, log2simple,
+                            TargetStandardDeviation, WorstReturn, DownsideRisk, log2simple,
                             portfolio_returns, portfolio_cumulative_returns,
                             simple2log)
 
 ALL_LOSSES = [Alpha, CumulativeReturn, LargestWeight, MaximumDrawdown,
               MeanReturns, RiskParity, Quantile, SharpeRatio, Softmax,
               SortinoRatio, SquaredWeights, StandardDeviation,
-              TargetMeanReturn, TargetStandardDeviation, WorstReturn]
+              TargetMeanReturn, TargetStandardDeviation, WorstReturn, DownsideRisk]
 
 
 class TestHelpers:
