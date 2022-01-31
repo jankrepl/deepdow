@@ -15,9 +15,9 @@ facilitate research of networks that perform weight allocation in **one forward 
 pip install deepdow
 ```
 # Resources
-- **Getting started**: https://deepdow.readthedocs.io/en/latest/auto_examples/end_to_end/getting_started.html
-- **Detailed documentation**: https://deepdow.readthedocs.io/en/latest
-- **More examples**: https://deepdow.readthedocs.io/en/latest/auto_examples/index.html
+- [**Getting started**](https://deepdow.readthedocs.io/en/latest/auto_examples/end_to_end/getting_started.html)
+- [**Detailed documentation**](https://deepdow.readthedocs.io/en/latest)
+- [**More examples**](https://deepdow.readthedocs.io/en/latest/auto_examples/index.html)
 
 # Description
 `deepdow` attempts to **merge** two very common steps in portfolio optimization
@@ -30,8 +30,8 @@ descent algorithms.
 
 # `deepdow` is not ...
 - focused on active trading strategies, it only finds allocations to be held over some horizon (**buy and hold**)
-    - one implication of this is that there is no need to handle transaction costs
-- a reinforcement learning framework, however one might easily reuse `deepdow` layers in other deep learning applications
+    - one implication is that transaction costs associated with frequent, short-term trades, will not be a primary concern 
+- a reinforcement learning framework, however, one might easily reuse `deepdow` layers in other deep learning applications
 - a single algorithm, instead, it is a framework that allows for easy experimentation with powerful building blocks
 
 
@@ -47,5 +47,5 @@ descent algorithms.
 
 # Citing
 If you use `deepdow` (including ideas proposed in the documentation, examples and tests) in your research please **make sure to cite it**.
-To obtain all the necessary citing information click on the **DOI badge** at top of this README and you will be automatically redirected to an external website.
-Note that currently we are using [Zenodo](https://zenodo.org/).
+To obtain all the necessary citing information, click on the **DOI badge** at the beginning of this README and you will be automatically redirected to an external website.
+Note that we are currently using [Zenodo](https://zenodo.org/).
