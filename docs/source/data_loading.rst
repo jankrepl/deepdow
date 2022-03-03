@@ -123,7 +123,7 @@ Raw data
 Let us assume, that our raw data :code:`raw_df` is stored in a :code:`pd.DataFrame`. There are :code:`n_timesteps` rows
 representing different timesteps with the same time frequency but potentially with gaps (due to non-business days etc.).
 They are indexed by :code:`pd.DatetimeIndex`. The columns are indexed by :code:`pd.MultiIndex` where the first level
-represents the the :code:`n_assets` different **assets**. The second level then represents
+represents the :code:`n_assets` different **assets**. The second level then represents
 the :code:`n_channels` **channels** (indicators) like volume or close price. For the rest of the this
 page we will be using the below example
 
