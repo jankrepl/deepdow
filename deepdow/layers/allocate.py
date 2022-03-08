@@ -41,15 +41,13 @@ class AnalyticalMarkowitz(nn.Module):
         device = covmat.device
         dtype = covmat.dtype
 
-        covmat_inv = torch.inverse(covmat)
         ones = torch.ones(n_samples, n_assets, 1).to(device=device, dtype=dtype)
-
         if rets is not None:
             expected_returns = rets.view(n_samples, n_assets, 1)
         else:
             expected_returns = ones
 
-        w_unscaled = torch.matmul(covmat_inv, expected_returns)
+        w_unscaled = torch.linalg.solve(covmat, expected_returns)
         denominator = torch.matmul(ones.permute(0, 2, 1), w_unscaled)
         w = w_unscaled / denominator
 
