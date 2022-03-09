@@ -53,7 +53,7 @@ class TestMaximumReturn:
     @pytest.mark.parametrize('predefined_assets', [True, False], ids=['fixed_assets', 'nonfixed_assets'])
     def test_basic(self, Xy_dummy, predefined_assets, max_weight):
         X_dummy, _, _, _ = Xy_dummy
-        eps = 1e-4
+        eps = 1e-3
         n_samples, n_channels, lookback, n_assets = X_dummy.shape
         dtype = X_dummy.dtype
         device = X_dummy.device
