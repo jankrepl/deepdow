@@ -392,7 +392,7 @@ parameter.
 
    assert w.shape == (2, 3)
    assert torch.allclose(w.sum(1), torch.ones(2))
-   assert torch.allclose(w, w_true, atol=1e-5)
+   assert torch.allclose(w, w_true, atol=1e-4)
 
 .. seealso::
 
