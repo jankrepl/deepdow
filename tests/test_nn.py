@@ -27,7 +27,7 @@ class TestDummyNetwork:
 class TestBachelierNet:
     @pytest.mark.parametrize('max_weight', [0.25, 0.5, 1], ids=['max_weight_0.25', 'max_weight_0.5', 'max_weight_1'])
     def test_basic(self, Xy_dummy, max_weight):
-        eps = 1e-4
+        eps = 1e-3
 
         X, _, _, _ = Xy_dummy
         n_samples, n_channels, lookback, n_assets = X.shape
