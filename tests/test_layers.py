@@ -650,7 +650,7 @@ class TestSparsemax:
         true_weights = torch.tensor([[1.0000, 0.0000, 0.0000, 0.0000, 0.0000],
                                      [0.0000, 0.0000, 0.0807, 0.9193, 0.0000]])
 
-        assert torch.allclose(SparsemaxAllocator(5, temperature=1)(rets), true_weights, atol=1e-4)
+        assert torch.allclose(SparsemaxAllocator(5, temperature=1)(rets), true_weights, atol=1e-3)
 
     @pytest.mark.parametrize('max_weight', [0.2, 0.25, 0.34])
     def test_contstrained(self, max_weight):
@@ -660,7 +660,7 @@ class TestSparsemax:
         w_unconst = SparsemaxAllocator(5, temperature=1)(rets)
 
         assert not torch.allclose(w_const, w_unconst)
-        assert w_const.max().item() == pytest.approx(max_weight, abs=1e-5)
+        assert w_const.max().item() == pytest.approx(max_weight, abs=1e-3)
 
 
 class TestWarp:
