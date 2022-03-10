@@ -387,12 +387,11 @@ parameter.
    x = torch.tensor([[1, 2.3, 2.1], [2, 4.2, -1.1]])
 
    w = layer(x)
-   w_true = torch.tensor([[-1.2650e-10,  6.0000e-01,  4.0000e-01],
-                          [-2.9905e-10,  1.0000e+00,  4.2659e-10]])
-
+   w_true = torch.tensor([[-4.8035e-06, 6.0000e-01, 4.0000e-01],
+        			[8.9401e-05, 1.0001e+00, -1.7873e-04]])
    assert w.shape == (2, 3)
    assert torch.allclose(w.sum(1), torch.ones(2))
-   assert torch.allclose(w, w_true, atol=1e-5)
+   assert torch.allclose(w, w_true, atol=1e-4)
 
 .. seealso::
 
