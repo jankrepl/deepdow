@@ -36,28 +36,9 @@ def covariance(x, y):
 
 
 def log2simple(x):
-    """Turn simple returns into log returns.
-
-    r_simple = exp(r_log) - 1.
-
-    Parameters
-    ----------
-    x : torch.Tensor
-        Tensor of any shape where each entry represents a simple return.
-
-    Returns
-    -------
-    torch.Tensor
-        Logarithmic returns.
-
-    """
-    return torch.exp(x) - 1
-
-
-def simple2log(x):
     """Turn log returns into simple returns.
 
-    r_log = ln(r_simple + 1).
+    r_simple = exp(r_log) - 1.
 
     Parameters
     ----------
@@ -68,6 +49,25 @@ def simple2log(x):
     -------
     torch.Tensor
         Simple returns.
+
+    """
+    return torch.exp(x) - 1
+
+
+def simple2log(x):
+    """Turn simple returns into log returns.
+
+    r_log = ln(r_simple + 1).
+
+    Parameters
+    ----------
+    x : torch.Tensor
+        Tensor of any shape where each entry represents a simple return.
+
+    Returns
+    -------
+    torch.Tensor
+        Logarithmic returns.
 
     """
     return torch.log(x + 1)
