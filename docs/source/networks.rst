@@ -110,7 +110,7 @@ This network has non-trivial branching
 
 KeynesNet
 *********
-This network connects 1D convolutions (or RNN) with softmax allocation. Note that his network learns the
+This network connects 1D convolutions (or RNN) with softmax allocation. Note that this network learns the
 :code:`temperature` parameter to be used inside the :code:`SoftmaxAllocator`.
 
 The activations have the following shape (omitting the sample dimension).
