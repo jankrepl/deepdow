@@ -91,7 +91,7 @@ def portfolio_returns(weights, y, input_type='log', output_type='simple', rebala
         What type of returns are we dealing with in the output.
 
     rebalance : bool
-        If True, each timestep the weights are adjusted to be equal to be equal to the original ones. Note that
+        If True, each timestep the weights are adjusted to be equal to the original ones. Note that
         this assumes that we tinker with the portfolio. If False, the portfolio evolves untouched.
 
     Returns
