@@ -52,7 +52,7 @@ Before we continue, notice that the above definition assumes two things
 - We employ the buy and hold strategy
 - Assets are perfectly divisible (one can by :math:`\frac{w_a V}{p_0^a}` units of any asset)
 
-Let us now define two define two types of asset returns: **simple** and **logarithmic**
+Let us now define two types of asset returns: **simple** and **logarithmic**
 
 
 
