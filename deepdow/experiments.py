@@ -38,8 +38,8 @@ class History:
             `lookback`, `metric`, `model`, `timestamp`, `value`.
         """
         master_list = []  # over all epochs
-        for l in self.database.values():
-            master_list.extend(l)
+        for el in self.database.values():
+            master_list.extend(el)
 
         return pd.DataFrame(master_list)
 
