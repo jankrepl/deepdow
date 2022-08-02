@@ -65,5 +65,5 @@ jobs:
         pip install sphinx
         sphinx-build -b doctest docs/ temp_doctest
         
-    - name: Run cover coverage
+    - name: Run coverage
       uses: codecov/codecov-action@v3
