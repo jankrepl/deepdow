@@ -31,7 +31,7 @@ jobs:
 
     - name: Lint
       run: |
-        pip install flake8, pydocstyle
+        pip install flake8 pydocstyle
         flake8 deepdow tests
         pydocstyle deepdow
 
