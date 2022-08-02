@@ -73,7 +73,9 @@ def simple2log(x):
     return torch.log(x + 1)
 
 
-def portfolio_returns(weights, y, input_type='log', output_type='simple', rebalance=False):
+def portfolio_returns(
+    weights, y, input_type="log", output_type="simple", rebalance=False
+):
     """Compute portfolio returns.
 
     Parameters
@@ -100,36 +102,44 @@ def portfolio_returns(weights, y, input_type='log', output_type='simple', rebala
         Of shape (n_samples, horizon) representing per timestep portfolio returns.
 
     """
-    if input_type == 'log':
+    if input_type == "log":
         simple_returns = log2simple(y)
 
-    elif input_type == 'simple':
+    elif input_type == "simple":
         simple_returns = y
 
     else:
-        raise ValueError('Unsupported input type: {}'.format(input_type))
+        raise ValueError("Unsupported input type: {}".format(input_type))
 
     n_samples, horizon, n_assets = simple_returns.shape
 
-    weights_ = weights.view(n_samples, 1, n_assets).repeat(1, horizon, 1)  # (n_samples, horizon, n_assets)
+    weights_ = weights.view(n_samples, 1, n_assets).repeat(
+        1, horizon, 1
+    )  # (n_samples, horizon, n_assets)
 
     if not rebalance:
-        weights_unscaled = (1 + simple_returns).cumprod(1)[:, :-1, :] * weights_[:, 1:, :]
-        weights_[:, 1:, :] = weights_unscaled / weights_unscaled.sum(2, keepdim=True)
+        weights_unscaled = (1 + simple_returns).cumprod(1)[
+            :, :-1, :
+        ] * weights_[:, 1:, :]
+        weights_[:, 1:, :] = weights_unscaled / weights_unscaled.sum(
+            2, keepdim=True
+        )
 
     out = (simple_returns * weights_).sum(-1)
 
-    if output_type == 'log':
+    if output_type == "log":
         return simple2log(out)
 
-    elif output_type == 'simple':
+    elif output_type == "simple":
         return out
 
     else:
-        raise ValueError('Unsupported output type: {}'.format(output_type))
+        raise ValueError("Unsupported output type: {}".format(output_type))
 
 
-def portfolio_cumulative_returns(weights, y, input_type='log', output_type='simple', rebalance=False):
+def portfolio_cumulative_returns(
+    weights, y, input_type="log", output_type="simple", rebalance=False
+):
     """Compute cumulative portfolio returns.
 
     Parameters
@@ -157,17 +167,25 @@ def portfolio_cumulative_returns(weights, y, input_type='log', output_type='simp
         Tensor of shape `(n_samples, horizon)`.
 
     """
-    prets = portfolio_returns(weights, y, input_type=input_type, output_type='log', rebalance=rebalance)
-    log_prets = torch.cumsum(prets, dim=1)  # we can aggregate log returns over time by sum
+    prets = portfolio_returns(
+        weights,
+        y,
+        input_type=input_type,
+        output_type="log",
+        rebalance=rebalance,
+    )
+    log_prets = torch.cumsum(
+        prets, dim=1
+    )  # we can aggregate log returns over time by sum
 
-    if output_type == 'log':
+    if output_type == "log":
         return log_prets
 
-    elif output_type == 'simple':
+    elif output_type == "simple":
         return log2simple(log_prets)
 
     else:
-        raise ValueError('Unsupported output type: {}'.format(output_type))
+        raise ValueError("Unsupported output type: {}".format(output_type))
 
 
 class Loss:
@@ -226,21 +244,32 @@ class Loss:
         """
         if isinstance(other, Loss):
             new_instance = Loss()
-            new_instance._call = MethodType(lambda inst, weights, y: self(weights, y) + other(weights, y), new_instance)
-            new_instance._repr = MethodType(lambda inst: '{} + {}'.format(self.__repr__(), other.__repr__()),
-                                            new_instance)
+            new_instance._call = MethodType(
+                lambda inst, weights, y: self(weights, y) + other(weights, y),
+                new_instance,
+            )
+            new_instance._repr = MethodType(
+                lambda inst: "{} + {}".format(
+                    self.__repr__(), other.__repr__()
+                ),
+                new_instance,
+            )
 
             return new_instance
 
         elif isinstance(other, (int, float)):
             new_instance = Loss()
-            new_instance._call = MethodType(lambda inst, weights, y: self(weights, y) + other, new_instance)
-            new_instance._repr = MethodType(lambda inst: '{} + {}'.format(self.__repr__(), other),
-                                            new_instance)
+            new_instance._call = MethodType(
+                lambda inst, weights, y: self(weights, y) + other, new_instance
+            )
+            new_instance._repr = MethodType(
+                lambda inst: "{} + {}".format(self.__repr__(), other),
+                new_instance,
+            )
 
             return new_instance
         else:
-            raise TypeError('Unsupported type: {}'.format(type(other)))
+            raise TypeError("Unsupported type: {}".format(type(other)))
 
     def __radd__(self, other):
         """Add two losses together.
@@ -274,21 +303,32 @@ class Loss:
         """
         if isinstance(other, Loss):
             new_instance = Loss()
-            new_instance._call = MethodType(lambda inst, weights, y: self(weights, y) * other(weights, y), new_instance)
-            new_instance._repr = MethodType(lambda inst: '{} * {}'.format(self.__repr__(), other.__repr__()),
-                                            new_instance)
+            new_instance._call = MethodType(
+                lambda inst, weights, y: self(weights, y) * other(weights, y),
+                new_instance,
+            )
+            new_instance._repr = MethodType(
+                lambda inst: "{} * {}".format(
+                    self.__repr__(), other.__repr__()
+                ),
+                new_instance,
+            )
 
             return new_instance
 
         elif isinstance(other, (int, float)):
             new_instance = Loss()
-            new_instance._call = MethodType(lambda inst, weights, y: self(weights, y) * other, new_instance)
-            new_instance._repr = MethodType(lambda inst: '{} * {}'.format(self.__repr__(), other),
-                                            new_instance)
+            new_instance._call = MethodType(
+                lambda inst, weights, y: self(weights, y) * other, new_instance
+            )
+            new_instance._repr = MethodType(
+                lambda inst: "{} * {}".format(self.__repr__(), other),
+                new_instance,
+            )
 
             return new_instance
         else:
-            raise TypeError('Unsupported type: {}'.format(type(other)))
+            raise TypeError("Unsupported type: {}".format(type(other)))
 
     def __rmul__(self, other):
         """Multiply two losses together.
@@ -322,9 +362,16 @@ class Loss:
         """
         if isinstance(other, Loss):
             new_instance = Loss()
-            new_instance._call = MethodType(lambda inst, weights, y: self(weights, y) / other(weights, y), new_instance)
-            new_instance._repr = MethodType(lambda inst: '{} / {}'.format(self.__repr__(), other.__repr__()),
-                                            new_instance)
+            new_instance._call = MethodType(
+                lambda inst, weights, y: self(weights, y) / other(weights, y),
+                new_instance,
+            )
+            new_instance._repr = MethodType(
+                lambda inst: "{} / {}".format(
+                    self.__repr__(), other.__repr__()
+                ),
+                new_instance,
+            )
 
             return new_instance
 
@@ -333,13 +380,17 @@ class Loss:
                 raise ZeroDivisionError()
 
             new_instance = Loss()
-            new_instance._call = MethodType(lambda inst, weights, y: self(weights, y) / other, new_instance)
-            new_instance._repr = MethodType(lambda inst: '{} / {}'.format(self.__repr__(), other),
-                                            new_instance)
+            new_instance._call = MethodType(
+                lambda inst, weights, y: self(weights, y) / other, new_instance
+            )
+            new_instance._repr = MethodType(
+                lambda inst: "{} / {}".format(self.__repr__(), other),
+                new_instance,
+            )
 
             return new_instance
         else:
-            raise TypeError('Unsupported type: {}'.format(type(other)))
+            raise TypeError("Unsupported type: {}".format(type(other)))
 
     def __pow__(self, power):
         """Put a loss to a power.
@@ -356,13 +407,18 @@ class Loss:
         """
         if isinstance(power, (int, float)):
             new_instance = Loss()
-            new_instance._call = MethodType(lambda inst, weights, y: self(weights, y) ** power, new_instance)
-            new_instance._repr = MethodType(lambda inst: '({}) ** {}'.format(self.__repr__(), power),
-                                            new_instance)
+            new_instance._call = MethodType(
+                lambda inst, weights, y: self(weights, y) ** power,
+                new_instance,
+            )
+            new_instance._repr = MethodType(
+                lambda inst: "({}) ** {}".format(self.__repr__(), power),
+                new_instance,
+            )
 
             return new_instance
         else:
-            raise TypeError('Unsupported type: {}'.format(type(power)))
+            raise TypeError("Unsupported type: {}".format(type(power)))
 
 
 class Alpha(Loss):
@@ -382,7 +438,9 @@ class Alpha(Loss):
 
     """
 
-    def __init__(self, benchmark_weights=None, returns_channel=0, input_type='log'):
+    def __init__(
+        self, benchmark_weights=None, returns_channel=0, input_type="log"
+    ):
         self.benchmark_weights = benchmark_weights
         self.returns_channel = returns_channel
         self.input_type = input_type
@@ -407,20 +465,31 @@ class Alpha(Loss):
         """
         n_samples, n_assets = weights.shape
         device, dtype = weights.device, weights.dtype
-        portfolio_rets = portfolio_returns(weights,
-                                           y[:, self.returns_channel, ...],
-                                           input_type=self.input_type,
-                                           output_type='simple')  # (n_samples, horizon)
+        portfolio_rets = portfolio_returns(
+            weights,
+            y[:, self.returns_channel, ...],
+            input_type=self.input_type,
+            output_type="simple",
+        )  # (n_samples, horizon)
 
         if self.benchmark_weights is None:
-            benchmark_weights = torch.ones(n_samples, n_assets, dtype=dtype, device=device) / n_assets
+            benchmark_weights = (
+                torch.ones(n_samples, n_assets, dtype=dtype, device=device)
+                / n_assets
+            )
         else:
-            benchmark_weights = self.benchmark_weights[None, :].repeat(n_samples, 1).to(device=device, dtype=dtype)
+            benchmark_weights = (
+                self.benchmark_weights[None, :]
+                .repeat(n_samples, 1)
+                .to(device=device, dtype=dtype)
+            )
 
-        benchmark_rets = portfolio_returns(benchmark_weights,
-                                           y[:, self.returns_channel, ...],
-                                           input_type=self.input_type,
-                                           output_type='simple')  # (n_samples, horizon)
+        benchmark_rets = portfolio_returns(
+            benchmark_weights,
+            y[:, self.returns_channel, ...],
+            input_type=self.input_type,
+            output_type="simple",
+        )  # (n_samples, horizon)
 
         cov = covariance(benchmark_rets, portfolio_rets)
         beta = cov / benchmark_rets.var(dim=1)
@@ -430,10 +499,12 @@ class Alpha(Loss):
 
     def __repr__(self):
         """Generate representation string."""
-        return "{}(benchmark_weights={},returns_channel={}, input_type='{}')".format(self.__class__.__name__,
-                                                                                     self.benchmark_weights,
-                                                                                     self.returns_channel,
-                                                                                     self.input_type)
+        return "{}(benchmark_weights={},returns_channel={}, input_type='{}')".format(
+            self.__class__.__name__,
+            self.benchmark_weights,
+            self.returns_channel,
+            self.input_type,
+        )
 
 
 class CumulativeReturn(Loss):
@@ -448,7 +519,7 @@ class CumulativeReturn(Loss):
         What type of returns are we dealing with in `y`.
     """
 
-    def __init__(self, returns_channel=0, input_type='log'):
+    def __init__(self, returns_channel=0, input_type="log"):
         self.returns_channel = returns_channel
         self.input_type = input_type
 
@@ -470,18 +541,20 @@ class CumulativeReturn(Loss):
             Tensor of shape `(n_samples,)` representing the per sample negative simple cumulative returns.
 
         """
-        crets = portfolio_cumulative_returns(weights,
-                                             y[:, self.returns_channel, ...],
-                                             input_type=self.input_type,
-                                             output_type='simple')
+        crets = portfolio_cumulative_returns(
+            weights,
+            y[:, self.returns_channel, ...],
+            input_type=self.input_type,
+            output_type="simple",
+        )
 
         return -crets[:, -1]
 
     def __repr__(self):
         """Generate representation string."""
-        return "{}(returns_channel={}, input_type='{}')".format(self.__class__.__name__,
-                                                                self.returns_channel,
-                                                                self.input_type)
+        return "{}(returns_channel={}, input_type='{}')".format(
+            self.__class__.__name__, self.returns_channel, self.input_type
+        )
 
 
 class LargestWeight(Loss):
@@ -521,7 +594,7 @@ class LargestWeight(Loss):
 class MaximumDrawdown(Loss):
     """Negative of the maximum drawdown."""
 
-    def __init__(self, returns_channel=0, input_type='log'):
+    def __init__(self, returns_channel=0, input_type="log"):
         self.returns_channel = returns_channel
         self.input_type = input_type
 
@@ -543,10 +616,12 @@ class MaximumDrawdown(Loss):
             Tensor of shape `(n_samples,)` representing the per sample maximum drawdown.
 
         """
-        cumrets = 1 + portfolio_cumulative_returns(weights,
-                                                   y[:, self.returns_channel, ...],
-                                                   input_type=self.input_type,
-                                                   output_type='simple')
+        cumrets = 1 + portfolio_cumulative_returns(
+            weights,
+            y[:, self.returns_channel, ...],
+            input_type=self.input_type,
+            output_type="simple",
+        )
 
         cummax = torch.cummax(cumrets, 1)[0]  # (n_samples, n_timesteps)
 
@@ -559,15 +634,17 @@ class MaximumDrawdown(Loss):
 
     def __repr__(self):
         """Generate representation string."""
-        return "{}(returns_channel={}, input_type='{}')".format(self.__class__.__name__,
-                                                                self.returns_channel,
-                                                                self.input_type)
+        return "{}(returns_channel={}, input_type='{}')".format(
+            self.__class__.__name__, self.returns_channel, self.input_type
+        )
 
 
 class MeanReturns(Loss):
     """Negative mean returns."""
 
-    def __init__(self, returns_channel=0, input_type='log', output_type='simple'):
+    def __init__(
+        self, returns_channel=0, input_type="log", output_type="simple"
+    ):
         self.returns_channel = returns_channel
         self.input_type = input_type
         self.output_type = output_type
@@ -590,19 +667,25 @@ class MeanReturns(Loss):
             Tensor of shape `(n_samples,)` representing the per sample negative mean returns.
 
         """
-        prets = portfolio_returns(weights,
-                                  y[:, self.returns_channel, ...],
-                                  input_type=self.input_type,
-                                  output_type=self.output_type)
+        prets = portfolio_returns(
+            weights,
+            y[:, self.returns_channel, ...],
+            input_type=self.input_type,
+            output_type=self.output_type,
+        )
 
         return -prets.mean(dim=1)
 
     def __repr__(self):
         """Generate representation string."""
-        return "{}(returns_channel={}, input_type='{}', output_type='{}')".format(self.__class__.__name__,
-                                                                                  self.returns_channel,
-                                                                                  self.input_type,
-                                                                                  self.output_type)
+        return (
+            "{}(returns_channel={}, input_type='{}', output_type='{}')".format(
+                self.__class__.__name__,
+                self.returns_channel,
+                self.input_type,
+                self.output_type,
+            )
+        )
 
 
 class Quantile(Loss):
@@ -637,8 +720,9 @@ class Quantile(Loss):
             Tensor of shape `(n_samples,)` representing the per sample negative quantile.
 
         """
-        prets = portfolio_returns(weights,
-                                  y[:, self.returns_channel, ...])  # (n_samples, horizon)
+        prets = portfolio_returns(
+            weights, y[:, self.returns_channel, ...]
+        )  # (n_samples, horizon)
 
         _, horizon = prets.shape
 
@@ -647,7 +731,9 @@ class Quantile(Loss):
 
     def __repr__(self):
         """Generate representation string."""
-        return "{}(returns_channel={})".format(self.__class__.__name__, self.returns_channel)
+        return "{}(returns_channel={})".format(
+            self.__class__.__name__, self.returns_channel
+        )
 
 
 class SharpeRatio(Loss):
@@ -671,7 +757,14 @@ class SharpeRatio(Loss):
         Additional constant added to the denominator to avoid division by zero.
     """
 
-    def __init__(self, rf=0, returns_channel=0, input_type='log', output_type='simple', eps=1e-4):
+    def __init__(
+        self,
+        rf=0,
+        returns_channel=0,
+        input_type="log",
+        output_type="simple",
+        eps=1e-4,
+    ):
         self.rf = rf
         self.returns_channel = returns_channel
         self.input_type = input_type
@@ -696,10 +789,12 @@ class SharpeRatio(Loss):
             Tensor of shape `(n_samples,)` representing the per sample negative sharpe ratio.
 
         """
-        prets = portfolio_returns(weights,
-                                  y[:, self.returns_channel, ...],
-                                  input_type=self.input_type,
-                                  output_type=self.output_type)
+        prets = portfolio_returns(
+            weights,
+            y[:, self.returns_channel, ...],
+            input_type=self.input_type,
+            output_type=self.output_type,
+        )
 
         return -(prets.mean(dim=1) - self.rf) / (prets.std(dim=1) + self.eps)
 
@@ -711,7 +806,8 @@ class SharpeRatio(Loss):
             self.returns_channel,
             self.input_type,
             self.output_type,
-            self.eps)
+            self.eps,
+        )
 
 
 class Softmax(Loss):
@@ -744,7 +840,9 @@ class Softmax(Loss):
 
     def __repr__(self):
         """Generate representation string."""
-        return "{}(returns_channel={})".format(self.__class__.__name__, self.returns_channel)
+        return "{}(returns_channel={})".format(
+            self.__class__.__name__, self.returns_channel
+        )
 
 
 class SortinoRatio(Loss):
@@ -768,7 +866,14 @@ class SortinoRatio(Loss):
         Additional constant added to the denominator to avoid division by zero.
     """
 
-    def __init__(self, rf=0, returns_channel=0, input_type='log', output_type='simple', eps=1e-4):
+    def __init__(
+        self,
+        rf=0,
+        returns_channel=0,
+        input_type="log",
+        output_type="simple",
+        eps=1e-4,
+    ):
         self.rf = rf
         self.returns_channel = returns_channel
         self.input_type = input_type
@@ -793,12 +898,16 @@ class SortinoRatio(Loss):
             Tensor of shape `(n_samples,)` representing the per sample negative worst return over the horizon.
 
         """
-        prets = portfolio_returns(weights,
-                                  y[:, self.returns_channel, ...],
-                                  input_type=self.input_type,
-                                  output_type=self.output_type)
+        prets = portfolio_returns(
+            weights,
+            y[:, self.returns_channel, ...],
+            input_type=self.input_type,
+            output_type=self.output_type,
+        )
 
-        return -(prets.mean(dim=1) - self.rf) / (torch.sqrt(torch.mean(torch.relu(-prets) ** 2, dim=1)) + self.eps)
+        return -(prets.mean(dim=1) - self.rf) / (
+            torch.sqrt(torch.mean(torch.relu(-prets) ** 2, dim=1)) + self.eps
+        )
 
     def __repr__(self):
         """Generate representation string."""
@@ -808,7 +917,8 @@ class SortinoRatio(Loss):
             self.returns_channel,
             self.input_type,
             self.output_type,
-            self.eps)
+            self.eps,
+        )
 
 
 class SquaredWeights(Loss):
@@ -842,7 +952,7 @@ class SquaredWeights(Loss):
         If single asset then equal to `1`. If equally weighted portfolio then `1/N`.
 
         """
-        return (weights ** 2).sum(dim=1)
+        return (weights**2).sum(dim=1)
 
     def __repr__(self):
         """Generate representation string."""
@@ -852,7 +962,9 @@ class SquaredWeights(Loss):
 class StandardDeviation(Loss):
     """Standard deviation."""
 
-    def __init__(self, returns_channel=0, input_type='log', output_type='simple'):
+    def __init__(
+        self, returns_channel=0, input_type="log", output_type="simple"
+    ):
         self.returns_channel = returns_channel
         self.input_type = input_type
         self.output_type = output_type
@@ -875,19 +987,25 @@ class StandardDeviation(Loss):
             Tensor of shape `(n_samples,)` representing the per sample standard deviation.
 
         """
-        prets = portfolio_returns(weights,
-                                  y[:, self.returns_channel, ...],
-                                  input_type=self.input_type,
-                                  output_type=self.output_type)
+        prets = portfolio_returns(
+            weights,
+            y[:, self.returns_channel, ...],
+            input_type=self.input_type,
+            output_type=self.output_type,
+        )
 
         return prets.std(dim=1)
 
     def __repr__(self):
         """Generate representation string."""
-        return "{}(returns_channel={}, input_type='{}', output_type='{}')".format(self.__class__.__name__,
-                                                                                  self.returns_channel,
-                                                                                  self.input_type,
-                                                                                  self.output_type)
+        return (
+            "{}(returns_channel={}, input_type='{}', output_type='{}')".format(
+                self.__class__.__name__,
+                self.returns_channel,
+                self.input_type,
+                self.output_type,
+            )
+        )
 
 
 class TargetMeanReturn(Loss):
@@ -896,7 +1014,14 @@ class TargetMeanReturn(Loss):
     Difference between some desired mean return and the realized one.
     """
 
-    def __init__(self, target=0.01, p=2, returns_channel=0, input_type='log', output_type='simple'):
+    def __init__(
+        self,
+        target=0.01,
+        p=2,
+        returns_channel=0,
+        input_type="log",
+        output_type="simple",
+    ):
         self.p = p
         self.target = target
         self.returns_channel = returns_channel
@@ -925,10 +1050,12 @@ class TargetMeanReturn(Loss):
         def mapping(x):
             return abs(x - self.target) ** self.p
 
-        prets = portfolio_returns(weights,
-                                  y[:, self.returns_channel, ...],
-                                  input_type=self.input_type,
-                                  output_type=self.output_type)
+        prets = portfolio_returns(
+            weights,
+            y[:, self.returns_channel, ...],
+            input_type=self.input_type,
+            output_type=self.output_type,
+        )
 
         return mapping(prets.mean(dim=1))  # (n_shapes,)
 
@@ -940,7 +1067,8 @@ class TargetMeanReturn(Loss):
             self.p,
             self.returns_channel,
             self.input_type,
-            self.output_type)
+            self.output_type,
+        )
 
 
 class TargetStandardDeviation(Loss):
@@ -949,7 +1077,14 @@ class TargetStandardDeviation(Loss):
     Difference between some desired standard deviation and the realized one.
     """
 
-    def __init__(self, target=0.01, p=2, returns_channel=0, input_type='log', output_type='simple'):
+    def __init__(
+        self,
+        target=0.01,
+        p=2,
+        returns_channel=0,
+        input_type="log",
+        output_type="simple",
+    ):
         self.p = p
         self.target = target
         self.returns_channel = returns_channel
@@ -978,10 +1113,12 @@ class TargetStandardDeviation(Loss):
         def mapping(x):
             return abs(x - self.target) ** self.p
 
-        prets = portfolio_returns(weights,
-                                  y[:, self.returns_channel, ...],
-                                  input_type=self.input_type,
-                                  output_type=self.output_type)
+        prets = portfolio_returns(
+            weights,
+            y[:, self.returns_channel, ...],
+            input_type=self.input_type,
+            output_type=self.output_type,
+        )
 
         return mapping(prets.std(dim=1))  # (n_shapes,)
 
@@ -993,7 +1130,8 @@ class TargetStandardDeviation(Loss):
             self.p,
             self.returns_channel,
             self.input_type,
-            self.output_type)
+            self.output_type,
+        )
 
 
 class WorstReturn(Loss):
@@ -1002,7 +1140,9 @@ class WorstReturn(Loss):
     This loss is designed to discourage outliers - extremely low returns.
     """
 
-    def __init__(self, returns_channel=0, input_type='log', output_type='simple'):
+    def __init__(
+        self, returns_channel=0, input_type="log", output_type="simple"
+    ):
         self.returns_channel = returns_channel
         self.input_type = input_type
         self.output_type = output_type
@@ -1026,19 +1166,25 @@ class WorstReturn(Loss):
             Tensor of shape `(n_samples,)` representing the per sample negative worst return over the horizon.
 
         """
-        prets = portfolio_returns(weights,
-                                  y[:, self.returns_channel, ...],
-                                  input_type=self.input_type,
-                                  output_type=self.output_type)
+        prets = portfolio_returns(
+            weights,
+            y[:, self.returns_channel, ...],
+            input_type=self.input_type,
+            output_type=self.output_type,
+        )
 
         return -prets.topk(1, dim=1, largest=False)[0].view(-1)
 
     def __repr__(self):
         """Generate representation string."""
-        return "{}(returns_channel={}, input_type='{}', output_type='{}')".format(self.__class__.__name__,
-                                                                                  self.returns_channel,
-                                                                                  self.input_type,
-                                                                                  self.output_type)
+        return (
+            "{}(returns_channel={}, input_type='{}', output_type='{}')".format(
+                self.__class__.__name__,
+                self.returns_channel,
+                self.input_type,
+                self.output_type,
+            )
+        )
 
 
 class RiskParity(Loss):
@@ -1082,24 +1228,29 @@ class RiskParity(Loss):
             Tensor of shape `(n_samples,)` representing the per sample risk parity.
         """
         n_assets = weights.shape[-1]
-        covar = self.covariance_layer(y[:, self.returns_channel, ...])  # (n_samples, n_assets, n_assets)
+        covar = self.covariance_layer(
+            y[:, self.returns_channel, ...]
+        )  # (n_samples, n_assets, n_assets)
 
         weights = weights.unsqueeze(dim=1)
-        volatility = torch.sqrt(torch.matmul(weights,
-                                             torch.matmul(covar,
-                                                          weights.permute((0, 2, 1)))))  # (n_samples, 1, 1)
+        volatility = torch.sqrt(
+            torch.matmul(
+                weights, torch.matmul(covar, weights.permute((0, 2, 1)))
+            )
+        )  # (n_samples, 1, 1)
         c = (covar * weights) / volatility  # (n_samples, n_assets, n_assets)
         risk = volatility / n_assets  # (n_samples, 1, 1)
 
         budget = torch.matmul(weights, c)  # (n_samples, n_assets, n_assets)
-        rp = torch.sum((risk - budget)**2, dim=-1).view(-1)  # (n_samples,)
+        rp = torch.sum((risk - budget) ** 2, dim=-1).view(-1)  # (n_samples,)
 
         return rp
 
     def __repr__(self):
         """Generate representation string."""
-        return "{}(returns_channel={})".format(self.__class__.__name__,
-                                               self.returns_channel)
+        return "{}(returns_channel={})".format(
+            self.__class__.__name__, self.returns_channel
+        )
 
 
 class DownsideRisk(Loss):
@@ -1140,18 +1291,18 @@ class DownsideRisk(Loss):
 
         return torch.sqrt(
             torch.mean(
-                torch.relu(-prets.sub(prets.mean(dim=1)[:, None])) ** self.beta, dim=1
+                torch.relu(-prets.sub(prets.mean(dim=1)[:, None]))
+                ** self.beta,
+                dim=1,
             )
         )
 
     def __repr__(self):
         """Generate representation string."""
-        return (
-            "{}(beta={}, returns_channel={}, input_type='{}', output_type='{}')".format(
-                self.__class__.__name__,
-                self.beta,
-                self.returns_channel,
-                self.input_type,
-                self.output_type,
-            )
+        return "{}(beta={}, returns_channel={}, input_type='{}', output_type='{}')".format(
+            self.__class__.__name__,
+            self.beta,
+            self.returns_channel,
+            self.input_type,
+            self.output_type,
         )

@@ -9,7 +9,12 @@ import pandas as pd
 import torch
 
 from .benchmarks import Benchmark
-from .callbacks import BenchmarkCallback, EarlyStoppingException, ProgressBarCallback, ValidationCallback
+from .callbacks import (
+    BenchmarkCallback,
+    EarlyStoppingException,
+    ProgressBarCallback,
+    ValidationCallback,
+)
 from .data import FlexibleDataLoader, RigidDataLoader
 from .losses import Loss
 
@@ -54,21 +59,34 @@ class History:
         """
         return pd.DataFrame(self.database[epoch])
 
-    def add_entry(self, model=None, metric=None, batch=None, epoch=None, dataloader=None,
-                  lookback=None, timestamp=None, value=np.nan):
+    def add_entry(
+        self,
+        model=None,
+        metric=None,
+        batch=None,
+        epoch=None,
+        dataloader=None,
+        lookback=None,
+        timestamp=None,
+        value=np.nan,
+    ):
         """Add entry to the internal database."""
         if epoch not in self.database:
             self.database[epoch] = []
 
-        self.database[epoch].append({'model': model,
-                                     'metric': metric,
-                                     'value': value,
-                                     'batch': batch,
-                                     'epoch': epoch,
-                                     'dataloader': dataloader,
-                                     'lookback': lookback,
-                                     'timestamp': timestamp,
-                                     'current_time': datetime.datetime.now()})
+        self.database[epoch].append(
+            {
+                "model": model,
+                "metric": metric,
+                "value": value,
+                "batch": batch,
+                "epoch": epoch,
+                "dataloader": dataloader,
+                "lookback": lookback,
+                "timestamp": timestamp,
+                "current_time": datetime.datetime.now(),
+            }
+        )
 
     def pretty_print(self, epoch=None):
         """Print nicely the internal database.
@@ -84,8 +102,12 @@ class History:
 
         else:
             df = self.metrics_per_epoch(epoch)
-        pd.options.display.float_format = '{:,.3f}'.format
-        print(df.groupby(['model', 'metric', 'epoch', 'dataloader'])['value'].mean().to_string())
+        pd.options.display.float_format = "{:,.3f}".format
+        print(
+            df.groupby(["model", "metric", "epoch", "dataloader"])["value"]
+            .mean()
+            .to_string()
+        )
 
 
 class Run:
@@ -148,40 +170,63 @@ class Run:
 
     """
 
-    def __init__(self, network, loss, train_dataloader, val_dataloaders=None, metrics=None,
-                 benchmarks=None, device=None, dtype=None, optimizer=None, callbacks=None):
+    def __init__(
+        self,
+        network,
+        loss,
+        train_dataloader,
+        val_dataloaders=None,
+        metrics=None,
+        benchmarks=None,
+        device=None,
+        dtype=None,
+        optimizer=None,
+        callbacks=None,
+    ):
         # checks
-        if not isinstance(train_dataloader, (FlexibleDataLoader, RigidDataLoader)):
-            raise TypeError('The train_dataloader needs to be an instance of RigidDataLoader or FlexibleDataLoadeer.')
+        if not isinstance(
+            train_dataloader, (FlexibleDataLoader, RigidDataLoader)
+        ):
+            raise TypeError(
+                "The train_dataloader needs to be an instance of RigidDataLoader or FlexibleDataLoadeer."
+            )
 
         if not isinstance(loss, Loss):
-            raise TypeError('The loss needs to be an instance of Loss.')
+            raise TypeError("The loss needs to be an instance of Loss.")
 
-        if not (isinstance(network, torch.nn.Module) and isinstance(network, Benchmark)):
-            raise TypeError('The network needs to be a torch.nn.Module and Benchmark. ')
+        if not (
+            isinstance(network, torch.nn.Module)
+            and isinstance(network, Benchmark)
+        ):
+            raise TypeError(
+                "The network needs to be a torch.nn.Module and Benchmark. "
+            )
 
         self.network = network
         self.loss = loss
         self.train_dataloader = train_dataloader
 
         # metrics
-        self.metrics = {
-            'loss': loss}
+        self.metrics = {"loss": loss}
 
         if metrics is None:
             pass
 
         elif isinstance(metrics, dict):
             if not all([isinstance(x, Loss) for x in metrics.values()]):
-                raise TypeError('All values of metrics need to be Loss.')
+                raise TypeError("All values of metrics need to be Loss.")
 
-            if 'loss' in metrics:
-                raise ValueError("Cannot name a metric 'loss' - restricted for the actual loss.")
+            if "loss" in metrics:
+                raise ValueError(
+                    "Cannot name a metric 'loss' - restricted for the actual loss."
+                )
 
             self.metrics.update(metrics)
 
         else:
-            raise TypeError('Invalid type of metrics: {}'.format(type(metrics)))
+            raise TypeError(
+                "Invalid type of metrics: {}".format(type(metrics))
+            )
 
         # metrics_dataloaders
         self.val_dataloaders = {}
@@ -190,32 +235,55 @@ class Run:
             pass
 
         elif isinstance(val_dataloaders, dict):
-            if not all([isinstance(x, RigidDataLoader) for x in val_dataloaders.values()]):
-                raise TypeError('All values of val_dataloaders need to be RigidDataLoader.')
+            if not all(
+                [
+                    isinstance(x, RigidDataLoader)
+                    for x in val_dataloaders.values()
+                ]
+            ):
+                raise TypeError(
+                    "All values of val_dataloaders need to be RigidDataLoader."
+                )
 
             self.val_dataloaders.update(val_dataloaders)
 
         else:
-            raise TypeError('Invalid type of val_dataloaders: {}'.format(type(val_dataloaders)))
+            raise TypeError(
+                "Invalid type of val_dataloaders: {}".format(
+                    type(val_dataloaders)
+                )
+            )
 
         # benchmarks
-        self.models = {'main': network}
+        self.models = {"main": network}
 
         if benchmarks is None:
             pass
 
         elif isinstance(benchmarks, dict):
-            if not all([isinstance(x, Benchmark) for x in benchmarks.values()]):
-                raise TypeError('All values of benchmarks need to be a Benchmark.')
+            if not all(
+                [isinstance(x, Benchmark) for x in benchmarks.values()]
+            ):
+                raise TypeError(
+                    "All values of benchmarks need to be a Benchmark."
+                )
 
-            if 'main' in benchmarks:
-                raise ValueError("Cannot name a benchmark 'main' - restricted for the main network.")
+            if "main" in benchmarks:
+                raise ValueError(
+                    "Cannot name a benchmark 'main' - restricted for the main network."
+                )
 
             self.models.update(benchmarks)
         else:
-            raise TypeError('Invalid type of benchmarks: {}'.format(type(benchmarks)))
+            raise TypeError(
+                "Invalid type of benchmarks: {}".format(type(benchmarks))
+            )
 
-        self.callbacks = [BenchmarkCallback(), ValidationCallback(), ProgressBarCallback()] + (callbacks or [])
+        self.callbacks = [
+            BenchmarkCallback(),
+            ValidationCallback(),
+            ProgressBarCallback(),
+        ] + (callbacks or [])
         # Inject self into callbacks
         for cb in self.callbacks:
             cb.run = self
@@ -223,9 +291,13 @@ class Run:
         self.history = History()
 
         self.loss = loss
-        self.device = device or torch.device('cpu')
+        self.device = device or torch.device("cpu")
         self.dtype = dtype or torch.float
-        self.optimizer = torch.optim.Adam(self.network.parameters(), lr=1e-2) if optimizer is None else optimizer
+        self.optimizer = (
+            torch.optim.Adam(self.network.parameters(), lr=1e-2)
+            if optimizer is None
+            else optimizer
+        )
         self.current_epoch = -1
 
     def launch(self, n_epochs=1):
@@ -240,24 +312,35 @@ class Run:
             self.network.to(device=self.device, dtype=self.dtype)
             # Train begin
             if self.current_epoch == -1:
-                self.on_train_begin(metadata={'n_epochs': n_epochs})
+                self.on_train_begin(metadata={"n_epochs": n_epochs})
 
             for _ in range(n_epochs):
                 self.current_epoch += 1
                 # Epoch begin
-                self.on_epoch_begin(metadata={'epoch': self.current_epoch})
+                self.on_epoch_begin(metadata={"epoch": self.current_epoch})
 
-                for batch_ix, (X_batch, y_batch, timestamps, asset_names) in enumerate(self.train_dataloader):
+                for batch_ix, (
+                    X_batch,
+                    y_batch,
+                    timestamps,
+                    asset_names,
+                ) in enumerate(self.train_dataloader):
                     # Batch begin
-                    self.on_batch_begin(metadata={'asset_names': asset_names,
-                                                  'batch': batch_ix,
-                                                  'epoch': self.current_epoch,
-                                                  'timestamps': timestamps,
-                                                  'X_batch': X_batch,
-                                                  'y_batch': y_batch})
+                    self.on_batch_begin(
+                        metadata={
+                            "asset_names": asset_names,
+                            "batch": batch_ix,
+                            "epoch": self.current_epoch,
+                            "timestamps": timestamps,
+                            "X_batch": X_batch,
+                            "y_batch": y_batch,
+                        }
+                    )
 
                     # Get batch
-                    X_batch, y_batch = X_batch.to(self.device).to(self.dtype), y_batch.to(self.device).to(self.dtype)
+                    X_batch, y_batch = X_batch.to(self.device).to(
+                        self.dtype
+                    ), y_batch.to(self.device).to(self.dtype)
 
                     # Make sure network on the right device and train mode
                     self.network.train()
@@ -274,28 +357,37 @@ class Run:
                     self.network.eval()
 
                     # Batch end
-                    self.on_batch_end(metadata={'asset_names': asset_names,
-                                                'batch': batch_ix,
-                                                'batch_loss': loss.item(),
-                                                'epoch': self.current_epoch,
-                                                'timestamps': timestamps,
-                                                'weights': weights,
-                                                'X_batch': X_batch,
-                                                'y_batch': y_batch})
+                    self.on_batch_end(
+                        metadata={
+                            "asset_names": asset_names,
+                            "batch": batch_ix,
+                            "batch_loss": loss.item(),
+                            "epoch": self.current_epoch,
+                            "timestamps": timestamps,
+                            "weights": weights,
+                            "X_batch": X_batch,
+                            "y_batch": y_batch,
+                        }
+                    )
 
                 # Epoch end
-                self.on_epoch_end(metadata={'epoch': self.current_epoch,
-                                            'n_epochs': n_epochs})
+                self.on_epoch_end(
+                    metadata={
+                        "epoch": self.current_epoch,
+                        "n_epochs": n_epochs,
+                    }
+                )
 
             # Train end
             self.on_train_end()
 
         except (EarlyStoppingException, KeyboardInterrupt, SolverError) as ex:
-            print('Training interrupted')
+            print("Training interrupted")
             time.sleep(1)
 
-            self.on_train_interrupt(metadata={'exception': ex,
-                                              'locals': locals()})
+            self.on_train_interrupt(
+                metadata={"exception": ex, "locals": locals()}
+            )
 
         return self.history
 
@@ -340,11 +432,16 @@ class Run:
         res = {}
         res.update(self.network.hparams)
         res.update(self.train_dataloader.hparams)
-        res.update({'device': str(self.device),
-                    'dtype': str(self.dtype),
-                    'loss': str(self.loss),
-                    'weight_decay': self.optimizer.defaults.get('weight_decay', ''),
-                    'lr': self.optimizer.defaults.get('lr', '')
-                    })
+        res.update(
+            {
+                "device": str(self.device),
+                "dtype": str(self.dtype),
+                "loss": str(self.loss),
+                "weight_decay": self.optimizer.defaults.get(
+                    "weight_decay", ""
+                ),
+                "lr": self.optimizer.defaults.get("lr", ""),
+            }
+        )
 
         return res

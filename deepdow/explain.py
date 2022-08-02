@@ -3,8 +3,17 @@
 import torch
 
 
-def gradient_wrt_input(model, target_weights, initial_guess, n_iter=100, mask=None, lr=1e-1, verbose=True, device=None,
-                       dtype=None):
+def gradient_wrt_input(
+    model,
+    target_weights,
+    initial_guess,
+    n_iter=100,
+    mask=None,
+    lr=1e-1,
+    verbose=True,
+    device=None,
+    dtype=None,
+):
     """Find input tensor such that the model produces an allocation close to the target one.
 
     Parameters
@@ -48,7 +57,7 @@ def gradient_wrt_input(model, target_weights, initial_guess, n_iter=100, mask=No
     hist : list
         List of losses per iteration.
     """
-    device = device or torch.device('cpu')
+    device = device or torch.device("cpu")
     dtype = dtype or torch.float32
 
     x = initial_guess.clone().to(device=device, dtype=dtype)
@@ -59,9 +68,11 @@ def gradient_wrt_input(model, target_weights, initial_guess, n_iter=100, mask=No
 
     elif torch.is_tensor(mask):
         if mask.shape != x.shape:
-            raise ValueError('Inconsistent shape of the mask.')
+            raise ValueError("Inconsistent shape of the mask.")
     else:
-        raise TypeError('Incorrect type of the mask, either None or torch.Tensor.')
+        raise TypeError(
+            "Incorrect type of the mask, either None or torch.Tensor."
+        )
 
     # casting
     mask = mask.to(dtype=torch.bool, device=device)
@@ -74,10 +85,16 @@ def gradient_wrt_input(model, target_weights, initial_guess, n_iter=100, mask=No
     hist = []
     for i in range(n_iter):
         if i % 50 == 0 and verbose:
-            msg = '{}-th iteration, loss: {:.4f}'.format(i, hist[-1]) if i != 0 else 'Starting optimization'
+            msg = (
+                "{}-th iteration, loss: {:.4f}".format(i, hist[-1])
+                if i != 0
+                else "Starting optimization"
+            )
             print(msg)
 
-        loss_per_asset = (model((x * mask)[None, ...])[0] - target_weights) ** 2
+        loss_per_asset = (
+            model((x * mask)[None, ...])[0] - target_weights
+        ) ** 2
         loss = loss_per_asset.mean()
         hist.append(loss.item())
 
@@ -86,6 +103,6 @@ def gradient_wrt_input(model, target_weights, initial_guess, n_iter=100, mask=No
         optimizer.step()
 
     if verbose:
-        print('Optimization done, final loss: {:.4f}'.format(hist[-1]))
+        print("Optimization done, final loss: {:.4f}".format(hist[-1]))
 
     return x, hist

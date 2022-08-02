@@ -22,9 +22,15 @@ class ChangeWorkingDirectory:
     """
 
     def __init__(self, directory):
-        self.directory = pathlib.Path(directory) if directory is not None else pathlib.Path.cwd()
+        self.directory = (
+            pathlib.Path(directory)
+            if directory is not None
+            else pathlib.Path.cwd()
+        )
         if not self.directory.is_dir():
-            raise NotADirectoryError('{} is not a directory'.format(str(self.directory)))
+            raise NotADirectoryError(
+                "{} is not a directory".format(str(self.directory))
+            )
 
         self._previous = pathlib.Path.cwd()
 
@@ -59,12 +65,14 @@ class PandasChecks:
 
         """
         if not isinstance(index, pd.DatetimeIndex):
-            raise TypeError('Unsupported type: {}'.format(type(index)))
+            raise TypeError("Unsupported type: {}".format(type(index)))
 
-        correct_index = pd.date_range(index[0], periods=len(index), freq=index.freq)
+        correct_index = pd.date_range(
+            index[0], periods=len(index), freq=index.freq
+        )
 
         if not correct_index.equals(index):
-            raise IndexError('Index has gaps.')
+            raise IndexError("Index has gaps.")
 
     @staticmethod
     def check_valid_entries(table):
@@ -85,10 +93,10 @@ class PandasChecks:
 
         """
         if not isinstance(table, (pd.Series, pd.DataFrame)):
-            raise TypeError('Unsupported type: {}'.format(type(table)))
+            raise TypeError("Unsupported type: {}".format(type(table)))
 
         if not np.all(np.isfinite(table.values)):
-            raise ValueError('There is an invalid entry')
+            raise ValueError("There is an invalid entry")
 
     @staticmethod
     def check_indices_agree(*frames):
@@ -109,16 +117,22 @@ class PandasChecks:
 
         """
         if not all([isinstance(x, (pd.Series, pd.DataFrame)) for x in frames]):
-            raise TypeError('Some elements are not pd.Series or pd.DataFrame')
+            raise TypeError("Some elements are not pd.Series or pd.DataFrame")
 
         reference_index = frames[0].index
 
         for i, f in enumerate(frames):
             if not f.index.equals(reference_index):
-                raise IndexError('The {} entry has wrong index: {}'.format(i, f.index))
+                raise IndexError(
+                    "The {} entry has wrong index: {}".format(i, f.index)
+                )
 
-            if isinstance(f, pd.DataFrame) and not f.columns.equals(reference_index):
-                raise IndexError('The {} entry has wrong columns: {}'.format(i, f.columns))
+            if isinstance(f, pd.DataFrame) and not f.columns.equals(
+                reference_index
+            ):
+                raise IndexError(
+                    "The {} entry has wrong columns: {}".format(i, f.columns)
+                )
 
 
 def prices_to_returns(prices, use_log=True):
@@ -144,9 +158,13 @@ def prices_to_returns(prices, use_log=True):
     if use_log:
         values = np.log(prices.values) - np.log(prices.shift(1).values)
     else:
-        values = (prices.values - prices.shift(1).values) / prices.shift(1).values
+        values = (prices.values - prices.shift(1).values) / prices.shift(
+            1
+        ).values
 
-    return pd.DataFrame(values[1:, :], index=prices.index[1:], columns=prices.columns)
+    return pd.DataFrame(
+        values[1:, :], index=prices.index[1:], columns=prices.columns
+    )
 
 
 def returns_to_Xy(returns, lookback=10, horizon=10, gap=0):
@@ -182,16 +200,16 @@ def returns_to_Xy(returns, lookback=10, horizon=10, gap=0):
     n_timesteps = len(returns.index)
 
     if lookback >= n_timesteps - horizon - gap + 1:
-        raise ValueError('Not enough timesteps to extract X and y.')
+        raise ValueError("Not enough timesteps to extract X and y.")
 
     X_list = []
     timestamps_list = []
     y_list = []
 
     for i in range(lookback, n_timesteps - horizon - gap + 1):
-        X_list.append(returns.iloc[i - lookback: i, :].values)
+        X_list.append(returns.iloc[i - lookback : i, :].values)
         timestamps_list.append(returns.index[i - 1])
-        y_list.append(returns.iloc[i + gap: i + gap + horizon, :].values)
+        y_list.append(returns.iloc[i + gap : i + gap + horizon, :].values)
 
     X = np.array(X_list)
     timestamps = pd.DatetimeIndex(timestamps_list, freq=returns.index.freq)
@@ -200,8 +218,16 @@ def returns_to_Xy(returns, lookback=10, horizon=10, gap=0):
     return X[:, np.newaxis, :, :], timestamps, y[:, np.newaxis, :, :]
 
 
-def raw_to_Xy(raw_data, lookback=10, horizon=10, gap=0, freq='B', included_assets=None, included_indicators=None,
-              use_log=True):
+def raw_to_Xy(
+    raw_data,
+    lookback=10,
+    horizon=10,
+    gap=0,
+    freq="B",
+    included_assets=None,
+    included_indicators=None,
+    use_log=True,
+):
     """Convert raw data to features.
 
     Parameters
@@ -249,12 +275,22 @@ def raw_to_Xy(raw_data, lookback=10, horizon=10, gap=0, freq='B', included_asset
         List of indicators.
     """
     if freq is None:
-        raise ValueError('Frequency freq needs to be specified.')
+        raise ValueError("Frequency freq needs to be specified.")
 
-    asset_names = included_assets if included_assets is not None else raw_data.columns.levels[0].to_list()
-    indicators = included_indicators if included_indicators is not None else raw_data.columns.levels[1].to_list()
+    asset_names = (
+        included_assets
+        if included_assets is not None
+        else raw_data.columns.levels[0].to_list()
+    )
+    indicators = (
+        included_indicators
+        if included_indicators is not None
+        else raw_data.columns.levels[1].to_list()
+    )
 
-    index = pd.date_range(start=raw_data.index[0], end=raw_data.index[-1], freq=freq)
+    index = pd.date_range(
+        start=raw_data.index[0], end=raw_data.index[-1], freq=freq
+    )
 
     new = pd.DataFrame(raw_data, index=index).ffill().bfill()
 
@@ -266,18 +302,24 @@ def raw_to_Xy(raw_data, lookback=10, horizon=10, gap=0, freq='B', included_asset
 
     asset_names = sorted(list(set(asset_names) - set(to_exclude)))
 
-    absolute = new.iloc[:, new.columns.get_level_values(0).isin(asset_names)][asset_names]  # sort
-    absolute = absolute.iloc[:, absolute.columns.get_level_values(1).isin(indicators)]
+    absolute = new.iloc[:, new.columns.get_level_values(0).isin(asset_names)][
+        asset_names
+    ]  # sort
+    absolute = absolute.iloc[
+        :, absolute.columns.get_level_values(1).isin(indicators)
+    ]
 
     returns = prices_to_returns(absolute, use_log=use_log)
 
     X_list = []
     y_list = []
     for ind in indicators:
-        X, timestamps, y = (returns_to_Xy(returns.xs(ind, axis=1, level=1),
-                                          lookback=lookback,
-                                          horizon=horizon,
-                                          gap=gap))
+        X, timestamps, y = returns_to_Xy(
+            returns.xs(ind, axis=1, level=1),
+            lookback=lookback,
+            horizon=horizon,
+            gap=gap,
+        )
         X_list.append(X)
         y_list.append(y)
 

@@ -68,8 +68,10 @@ class InverseVolatility(Benchmark):
     @property
     def hparams(self):
         """Hyperparamters relevant to construction of the model."""
-        return {'use_std': self.use_std,
-                'returns_channel': self.returns_channel}
+        return {
+            "use_std": self.use_std,
+            "returns_channel": self.returns_channel,
+        }
 
 
 class MaximumReturn(Benchmark):
@@ -103,7 +105,11 @@ class MaximumReturn(Benchmark):
         self.n_assets = n_assets
         self.returns_channel = returns_channel
 
-        self.optlayer = self._construct_problem(n_assets, max_weight) if self.n_assets is not None else None
+        self.optlayer = (
+            self._construct_problem(n_assets, max_weight)
+            if self.n_assets is not None
+            else None
+        )
 
     @staticmethod
     def _construct_problem(n_assets, max_weight):
@@ -112,9 +118,9 @@ class MaximumReturn(Benchmark):
         w = cp.Variable(n_assets)
 
         ret = rets @ w
-        prob = cp.Problem(cp.Maximize(ret), [cp.sum(w) == 1,
-                                             w >= 0,
-                                             w <= max_weight])
+        prob = cp.Problem(
+            cp.Maximize(ret), [cp.sum(w) == 1, w >= 0, w <= max_weight]
+        )
 
         return CvxpyLayer(prob, parameters=[rets], variables=[w])
 
@@ -137,22 +143,30 @@ class MaximumReturn(Benchmark):
         # Problem setup
         if self.optlayer is not None:
             if self.n_assets != n_assets:
-                raise ValueError('Incorrect number of assets: {}, expected: {}'.format(n_assets, self.n_assets))
+                raise ValueError(
+                    "Incorrect number of assets: {}, expected: {}".format(
+                        n_assets, self.n_assets
+                    )
+                )
 
             optlayer = self.optlayer
         else:
             optlayer = self._construct_problem(n_assets, self.max_weight)
 
-        rets_estimate = x[:, self.returns_channel, :, :].mean(dim=1)  # (n_samples, n_assets)
+        rets_estimate = x[:, self.returns_channel, :, :].mean(
+            dim=1
+        )  # (n_samples, n_assets)
 
         return optlayer(rets_estimate)[0]
 
     @property
     def hparams(self):
         """Hyperparamters relevant to construction of the model."""
-        return {'max_weight': self.max_weight,
-                'returns_channel': self.returns_channel,
-                'n_assets': self.n_assets}
+        return {
+            "max_weight": self.max_weight,
+            "returns_channel": self.returns_channel,
+            "n_assets": self.n_assets,
+        }
 
 
 class MinimumVariance(Benchmark):
@@ -186,7 +200,11 @@ class MinimumVariance(Benchmark):
         self.returns_channel = returns_channel
         self.max_weight = max_weight
 
-        self.optlayer = self._construct_problem(n_assets, max_weight) if self.n_assets is not None else None
+        self.optlayer = (
+            self._construct_problem(n_assets, max_weight)
+            if self.n_assets is not None
+            else None
+        )
 
     @staticmethod
     def _construct_problem(n_assets, max_weight):
@@ -195,9 +213,9 @@ class MinimumVariance(Benchmark):
         w = cp.Variable(n_assets)
 
         risk = cp.sum_squares(covmat_sqrt @ w)
-        prob = cp.Problem(cp.Minimize(risk), [cp.sum(w) == 1,
-                                              w >= 0,
-                                              w <= max_weight])
+        prob = cp.Problem(
+            cp.Minimize(risk), [cp.sum(w) == 1, w >= 0, w <= max_weight]
+        )
 
         return CvxpyLayer(prob, parameters=[covmat_sqrt], variables=[w])
 
@@ -220,23 +238,31 @@ class MinimumVariance(Benchmark):
         # Problem setup
         if self.optlayer is not None:
             if self.n_assets != n_assets:
-                raise ValueError('Incorrect number of assets: {}, expected: {}'.format(n_assets, self.n_assets))
+                raise ValueError(
+                    "Incorrect number of assets: {}, expected: {}".format(
+                        n_assets, self.n_assets
+                    )
+                )
 
             optlayer = self.optlayer
         else:
             optlayer = self._construct_problem(n_assets, self.max_weight)
 
         # problem solver
-        covmat_sqrt_estimates = CovarianceMatrix(sqrt=True)(x[:, self.returns_channel, :, :])
+        covmat_sqrt_estimates = CovarianceMatrix(sqrt=True)(
+            x[:, self.returns_channel, :, :]
+        )
 
         return optlayer(covmat_sqrt_estimates)[0]
 
     @property
     def hparams(self):
         """Hyperparamters relevant to construction of the model."""
-        return {'max_weight': self.max_weight,
-                'returns_channel': self.returns_channel,
-                'n_assets': self.n_assets}
+        return {
+            "max_weight": self.max_weight,
+            "returns_channel": self.returns_channel,
+            "n_assets": self.n_assets,
+        }
 
 
 class OneOverN(Benchmark):
@@ -258,7 +284,10 @@ class OneOverN(Benchmark):
         """
         n_samples, n_channels, lookback, n_assets = x.shape
 
-        return torch.ones((n_samples, n_assets), dtype=x.dtype, device=x.device) / n_assets
+        return (
+            torch.ones((n_samples, n_assets), dtype=x.dtype, device=x.device)
+            / n_assets
+        )
 
 
 class Random(Benchmark):
@@ -280,8 +309,12 @@ class Random(Benchmark):
         """
         n_samples, n_channels, lookback, n_assets = x.shape
 
-        weights_unscaled = torch.rand((n_samples, n_assets), dtype=x.dtype, device=x.device)
-        weights_sums = weights_unscaled.sum(dim=1, keepdim=True).repeat(1, n_assets)
+        weights_unscaled = torch.rand(
+            (n_samples, n_assets), dtype=x.dtype, device=x.device
+        )
+        weights_sums = weights_unscaled.sum(dim=1, keepdim=True).repeat(
+            1, n_assets
+        )
 
         return weights_unscaled / weights_sums
 
@@ -316,9 +349,11 @@ class Singleton(Benchmark):
         n_samples, n_channels, lookback, n_assets = x.shape
 
         if self.asset_ix not in set(range(n_assets)):
-            raise IndexError('The selected asset index is out of range.')
+            raise IndexError("The selected asset index is out of range.")
 
-        weights = torch.zeros((n_samples, n_assets), dtype=x.dtype, device=x.device)
+        weights = torch.zeros(
+            (n_samples, n_assets), dtype=x.dtype, device=x.device
+        )
         weights[:, self.asset_ix] = 1
 
         return weights
@@ -326,4 +361,4 @@ class Singleton(Benchmark):
     @property
     def hparams(self):
         """Hyperparamters relevant to construction of the model."""
-        return {'asset_ix': self.asset_ix}
+        return {"asset_ix": self.asset_ix}
