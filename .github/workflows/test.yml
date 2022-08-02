@@ -29,7 +29,9 @@ jobs:
 
     - name: Lint
       run: |
-        pip install 'flake8==5.0.3' 'pydocstyle==6.1.1'
+        pip install 'black==22.6.0' 'flake8==5.0.3' 'pydocstyle==6.1.1'
+
+        black -l 79 --check deepdow/ tests
         flake8 deepdow tests
         pydocstyle deepdow
 
