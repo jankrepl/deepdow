@@ -312,7 +312,7 @@ def plot_weight_anim(weights, always_visible=None, n_displayed_assets=None, n_se
         colors_ = None
 
     elif isinstance(colors, dict):
-        colors_ = [colors.get(l, 'black') for l in labels]
+        colors_ = [colors.get(label, 'black') for label in labels]
 
     elif isinstance(colors, cm.colors.ListedColormap):
         colors_ = cycle(colors.colors)
