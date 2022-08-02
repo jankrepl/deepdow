@@ -1,34 +1,30 @@
-name: Python application
+name: Lint and test
 
 on:
   push:
     branches: [master]
-  pull_request:
+  pull_request
 
 permissions:
   contents: read
 
 jobs:
-  build:
+  linting:
+    runs-on: ubuntu-latest
 
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-        python-version: [3.7, 3.8, 3.9]
-   
     steps:
     - name: Cancel previous workflows that are still running
       uses: styfle/cancel-workflow-action@0.8.0
       with:
         access_token: ${{ github.token }}
 
-    - uses: actions/checkout@v3
+    - name: Checkout most recent commit
+      uses: actions/checkout@v3
 
-    - name: Set up Python ${{ matrix.python-version }}
+    - name: Set up Python 3.9
       uses: actions/setup-python@v3
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: 3.9
 
     - name: List dependencies
       run: |
@@ -39,6 +35,22 @@ jobs:
         pip install 'flake8==5.0.3' 'pydocstyle==6.1.1'
         flake8 deepdow tests
         pydocstyle deepdow
+
+  testing:
+    needs: linting
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        python-version: [3.7, 3.8, 3.9]
+    steps:
+    - name: Checkout most recent commit
+      uses: actions/checkout@v3
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ matrix.python-version }}
 
     - name: Install dependencies
       run: |
@@ -54,4 +66,4 @@ jobs:
         sphinx-build -b doctest docs/ temp_doctest
         
     - name: Run cover coverage
-      uses: codecov/codecov-action@v1
+      uses: codecov/codecov-action@v3
