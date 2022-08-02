@@ -47,15 +47,25 @@ class CovarianceMatrix(nn.Module):
         If None then needs to be provided dynamically when performing forward pass.
     """
 
-    def __init__(self, sqrt=True, shrinkage_strategy='diagonal', shrinkage_coef=0.5):
+    def __init__(
+        self, sqrt=True, shrinkage_strategy="diagonal", shrinkage_coef=0.5
+    ):
         """Construct."""
         super().__init__()
 
         self.sqrt = sqrt
 
         if shrinkage_strategy is not None:
-            if shrinkage_strategy not in {'diagonal', 'identity', 'scaled_identity'}:
-                raise ValueError('Unrecognized shrinkage strategy {}'.format(shrinkage_strategy))
+            if shrinkage_strategy not in {
+                "diagonal",
+                "identity",
+                "scaled_identity",
+            }:
+                raise ValueError(
+                    "Unrecognized shrinkage strategy {}".format(
+                        shrinkage_strategy
+                    )
+                )
 
         self.shrinkage_strategy = shrinkage_strategy
         self.shrinkage_coef = shrinkage_coef
@@ -83,19 +93,30 @@ class CovarianceMatrix(nn.Module):
         dtype, device = x.dtype, x.device
 
         if not ((shrinkage_coef is None) ^ (self.shrinkage_coef is None)):
-            raise ValueError('Not clear which shrinkage coefficient to use')
+            raise ValueError("Not clear which shrinkage coefficient to use")
 
         if shrinkage_coef is not None:
             shrinkage_coef_ = shrinkage_coef  # (n_samples,)
         else:
-            shrinkage_coef_ = self.shrinkage_coef * torch.ones(n_samples, dtype=dtype, device=device)
+            shrinkage_coef_ = self.shrinkage_coef * torch.ones(
+                n_samples, dtype=dtype, device=device
+            )
 
         wrapper = self.compute_sqrt if self.sqrt else lambda h: h
 
-        return torch.stack([wrapper(self.compute_covariance(x[i].T.clone(),
-                                                            shrinkage_strategy=self.shrinkage_strategy,
-                                                            shrinkage_coef=shrinkage_coef_[i]))
-                            for i in range(n_samples)], dim=0)
+        return torch.stack(
+            [
+                wrapper(
+                    self.compute_covariance(
+                        x[i].T.clone(),
+                        shrinkage_strategy=self.shrinkage_strategy,
+                        shrinkage_coef=shrinkage_coef_[i],
+                    )
+                )
+                for i in range(n_samples)
+            ],
+            dim=0,
+        )
 
     @staticmethod
     def compute_covariance(m, shrinkage_strategy=None, shrinkage_coef=0.5):
@@ -128,18 +149,18 @@ class CovarianceMatrix(nn.Module):
         if shrinkage_strategy is None:
             return s
 
-        elif shrinkage_strategy == 'identity':
+        elif shrinkage_strategy == "identity":
             identity = torch.eye(len(s), device=s.device, dtype=s.dtype)
 
             return shrinkage_coef * s + (1 - shrinkage_coef) * identity
 
-        elif shrinkage_strategy == 'scaled_identity':
+        elif shrinkage_strategy == "scaled_identity":
             identity = torch.eye(len(s), device=s.device, dtype=s.dtype)
             scaled_identity = identity * torch.diag(s).mean()
 
             return shrinkage_coef * s + (1 - shrinkage_coef) * scaled_identity
 
-        elif shrinkage_strategy == 'diagonal':
+        elif shrinkage_strategy == "diagonal":
             diagonal = torch.diag(torch.diag(s))
 
             return shrinkage_coef * s + (1 - shrinkage_coef) * diagonal
@@ -161,7 +182,9 @@ class CovarianceMatrix(nn.Module):
         """
         _, s, v = m.svd()
 
-        good = s > s.max(-1, True).values * s.size(-1) * torch.finfo(s.dtype).eps
+        good = (
+            s > s.max(-1, True).values * s.size(-1) * torch.finfo(s.dtype).eps
+        )
         components = good.sum(-1)
         common = components.max()
         unbalanced = common != components.min()
@@ -171,7 +194,9 @@ class CovarianceMatrix(nn.Module):
             if unbalanced:  # pragma: no cover
                 good = good[..., :common]  # pragma: no cover
         if unbalanced:
-            s = s.where(good, torch.zeros((), device=s.device, dtype=s.dtype))  # pragma: no cover
+            s = s.where(
+                good, torch.zeros((), device=s.device, dtype=s.dtype)
+            )  # pragma: no cover
 
         return (v * s.sqrt().unsqueeze(-2)) @ v.transpose(-2, -1)
 
@@ -205,7 +230,16 @@ class KMeans(torch.nn.Module):
         Control level of verbosity.
     """
 
-    def __init__(self, n_clusters=5, init='random', n_init=1, max_iter=30, tol=1e-5, random_state=None, verbose=False):
+    def __init__(
+        self,
+        n_clusters=5,
+        init="random",
+        n_init=1,
+        max_iter=30,
+        tol=1e-5,
+        random_state=None,
+        verbose=False,
+    ):
         super().__init__()
         self.n_clusters = n_clusters
         self.init = init
@@ -215,8 +249,10 @@ class KMeans(torch.nn.Module):
         self.random_state = random_state
         self.verbose = verbose
 
-        if self.init not in {'manual', 'random', 'k-means++'}:
-            raise ValueError('Unrecognized initialization {}'.format(self.init))
+        if self.init not in {"manual", "random", "k-means++"}:
+            raise ValueError(
+                "Unrecognized initialization {}".format(self.init)
+            )
 
     def initialize(self, x, manual_init=None):
         """Initialize the k-means algorithm.
@@ -240,19 +276,23 @@ class KMeans(torch.nn.Module):
         device, dtype = x.device, x.dtype
 
         # Note that normalization to probablities is done automatically within torch.multinomial
-        if self.init == 'random':
+        if self.init == "random":
             p = torch.ones(n_samples, dtype=dtype, device=device)
             # centroid_samples = torch.randperm(n_samples).to(device=device)[:self.n_clusters]
-            centroid_samples = torch.multinomial(p, num_samples=self.n_clusters, replacement=False)
+            centroid_samples = torch.multinomial(
+                p, num_samples=self.n_clusters, replacement=False
+            )
             cluster_centers = x[centroid_samples]
 
-        elif self.init == 'k-means++':
+        elif self.init == "k-means++":
             p = torch.ones(n_samples, dtype=dtype, device=device)
             cluster_centers_l = []
             centroid_samples_l = []
 
             while len(cluster_centers_l) < self.n_clusters:
-                centroid_sample = torch.multinomial(p, num_samples=1, replacement=False)
+                centroid_sample = torch.multinomial(
+                    p, num_samples=1, replacement=False
+                )
 
                 if centroid_sample in centroid_samples_l:
                     continue  # pragma: no cover
@@ -264,15 +304,19 @@ class KMeans(torch.nn.Module):
 
             cluster_centers = torch.cat(cluster_centers_l, dim=0)
 
-        elif self.init == 'manual':
+        elif self.init == "manual":
             if not torch.is_tensor(manual_init):
-                raise TypeError('The manual_init needs to be a torch.Tensor')
+                raise TypeError("The manual_init needs to be a torch.Tensor")
 
             if manual_init.shape[0] != self.n_clusters:
-                raise ValueError('The number of manually provided cluster centers is different from n_clusters')
+                raise ValueError(
+                    "The number of manually provided cluster centers is different from n_clusters"
+                )
 
             if manual_init.shape[1] != x.shape[1]:
-                raise ValueError('The feature size of manually provided cluster centers is different from the input')
+                raise ValueError(
+                    "The feature size of manually provided cluster centers is different from the input"
+                )
 
             cluster_centers = manual_init.to(dtype=dtype, device=device)
 
@@ -301,37 +345,56 @@ class KMeans(torch.nn.Module):
         """
         n_samples, n_features = x.shape
         if n_samples < self.n_clusters:
-            raise ValueError('The number of samples is lower than the number of clusters.')
+            raise ValueError(
+                "The number of samples is lower than the number of clusters."
+            )
 
         if self.random_state is not None:
             torch.manual_seed(self.random_state)
 
-        lowest_potential = float('inf')
+        lowest_potential = float("inf")
         lowest_potential_cluster_ixs = None
         lowest_potential_cluster_centers = None
 
         for run in range(self.n_init):
             cluster_centers = self.initialize(x, manual_init=manual_init)
-            previous_potential = float('inf')
+            previous_potential = float("inf")
 
             for it in range(self.max_iter):
-                distances = self.compute_distances(x, cluster_centers)  # (n_samples, n_clusters)
+                distances = self.compute_distances(
+                    x, cluster_centers
+                )  # (n_samples, n_clusters)
 
                 # E step
                 cluster_ixs = torch.argmin(distances, dim=1)  # (n_samples,)
 
                 # M step
-                cluster_centers = torch.stack([x[cluster_ixs == i].mean(dim=0) for i in range(self.n_clusters)], dim=0)
+                cluster_centers = torch.stack(
+                    [
+                        x[cluster_ixs == i].mean(dim=0)
+                        for i in range(self.n_clusters)
+                    ],
+                    dim=0,
+                )
 
                 # stats
-                current_potential = distances.gather(1, cluster_ixs.view(-1, 1)).sum()
+                current_potential = distances.gather(
+                    1, cluster_ixs.view(-1, 1)
+                ).sum()
 
-                if abs(current_potential - previous_potential) < self.tol or it == self.max_iter - 1:
+                if (
+                    abs(current_potential - previous_potential) < self.tol
+                    or it == self.max_iter - 1
+                ):
                     if self.verbose:
-                        print('Run: {}, n_iters: {}, stop_early: {}, potential: {:.3f}'.format(run,
-                                                                                               it,
-                                                                                               it != self.max_iter - 1,
-                                                                                               current_potential))
+                        print(
+                            "Run: {}, n_iters: {}, stop_early: {}, potential: {:.3f}".format(
+                                run,
+                                it,
+                                it != self.max_iter - 1,
+                                current_potential,
+                            )
+                        )
                     break
 
                 previous_potential = current_potential
@@ -342,7 +405,7 @@ class KMeans(torch.nn.Module):
                 lowest_potential_cluster_centers = cluster_centers.clone()
 
         if self.verbose:
-            print('Lowest potential: {}'.format(lowest_potential))
+            print("Lowest potential: {}".format(lowest_potential))
 
         return lowest_potential_cluster_ixs, lowest_potential_cluster_centers
 
@@ -365,10 +428,12 @@ class KMeans(torch.nn.Module):
             to a given cluster center (column).
 
         """
-        x_n = (x ** 2).sum(dim=1).view(-1, 1)  # (n_samples, 1)
-        c_n = (cluster_centers ** 2).sum(dim=1).view(1, -1)  # (1, n_clusters)
+        x_n = (x**2).sum(dim=1).view(-1, 1)  # (n_samples, 1)
+        c_n = (cluster_centers**2).sum(dim=1).view(1, -1)  # (1, n_clusters)
 
-        distances = x_n + c_n - 2 * torch.mm(x, cluster_centers.permute(1, 0))  # (n_samples, n_clusters)
+        distances = (
+            x_n + c_n - 2 * torch.mm(x, cluster_centers.permute(1, 0))
+        )  # (n_samples, n_clusters)
 
         return torch.clamp(distances, min=0)
 
@@ -390,7 +455,9 @@ class MultiplyByConstant(torch.nn.Module):
 
         self.dim_size = dim_size
         self.dim_ix = dim_ix
-        self.constant = torch.nn.Parameter(torch.ones(self.dim_size), requires_grad=True)
+        self.constant = torch.nn.Parameter(
+            torch.ones(self.dim_size), requires_grad=True
+        )
 
     def forward(self, x):
         """Perform forward pass.
@@ -407,8 +474,12 @@ class MultiplyByConstant(torch.nn.Module):
 
         """
         if self.dim_size != x.shape[self.dim_ix]:
-            raise ValueError('The size of dimension {} is {} which is different than {}'.format(self.dim_ix,
-                                                                                                x.shape[self.dim_ix],
-                                                                                                self.dim_size))
-        view = [self.dim_size if i == self.dim_ix else 1 for i in range(x.ndim)]
+            raise ValueError(
+                "The size of dimension {} is {} which is different than {}".format(
+                    self.dim_ix, x.shape[self.dim_ix], self.dim_size
+                )
+            )
+        view = [
+            self.dim_size if i == self.dim_ix else 1 for i in range(x.ndim)
+        ]
         return x * self.constant.view(view)

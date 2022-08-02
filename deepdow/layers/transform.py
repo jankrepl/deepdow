@@ -22,23 +22,31 @@ class Conv(nn.Module):
         What type of convolution is used in the background.
     """
 
-    def __init__(self, n_input_channels, n_output_channels, kernel_size=3, method='2D'):
+    def __init__(
+        self, n_input_channels, n_output_channels, kernel_size=3, method="2D"
+    ):
         super().__init__()
 
         self.method = method
 
-        if method == '2D':
-            self.conv = nn.Conv2d(n_input_channels,
-                                  n_output_channels,
-                                  kernel_size=kernel_size,
-                                  padding=(kernel_size - 1) // 2)
-        elif method == '1D':
-            self.conv = nn.Conv1d(n_input_channels,
-                                  n_output_channels,
-                                  kernel_size=kernel_size,
-                                  padding=(kernel_size - 1) // 2)
+        if method == "2D":
+            self.conv = nn.Conv2d(
+                n_input_channels,
+                n_output_channels,
+                kernel_size=kernel_size,
+                padding=(kernel_size - 1) // 2,
+            )
+        elif method == "1D":
+            self.conv = nn.Conv1d(
+                n_input_channels,
+                n_output_channels,
+                kernel_size=kernel_size,
+                padding=(kernel_size - 1) // 2,
+            )
         else:
-            raise ValueError("Invalid method {}, only supports '1D' or '2D'.".format(method))
+            raise ValueError(
+                "Invalid method {}, only supports '1D' or '2D'.".format(method)
+            )
 
     def forward(self, x):
         """Perform forward pass.
@@ -81,25 +89,44 @@ class RNN(nn.Module):
 
     """
 
-    def __init__(self, n_channels, hidden_size, cell_type='LSTM', bidirectional=True, n_layers=1):
+    def __init__(
+        self,
+        n_channels,
+        hidden_size,
+        cell_type="LSTM",
+        bidirectional=True,
+        n_layers=1,
+    ):
         """Construct."""
         super().__init__()
 
         if hidden_size % 2 != 0 and bidirectional:
-            raise ValueError('Hidden size needs to be divisible by two for bidirectional RNNs.')
+            raise ValueError(
+                "Hidden size needs to be divisible by two for bidirectional RNNs."
+            )
 
-        hidden_size_one_direction = int(hidden_size // (1 + int(bidirectional)))  # only will work out for
+        hidden_size_one_direction = int(
+            hidden_size // (1 + int(bidirectional))
+        )  # only will work out for
 
-        if cell_type == 'RNN':
-            self.cell = torch.nn.RNN(n_channels, hidden_size_one_direction, bidirectional=bidirectional,
-                                     num_layers=n_layers)
+        if cell_type == "RNN":
+            self.cell = torch.nn.RNN(
+                n_channels,
+                hidden_size_one_direction,
+                bidirectional=bidirectional,
+                num_layers=n_layers,
+            )
 
-        elif cell_type == 'LSTM':
-            self.cell = torch.nn.LSTM(n_channels, hidden_size_one_direction, bidirectional=bidirectional,
-                                      num_layers=n_layers)
+        elif cell_type == "LSTM":
+            self.cell = torch.nn.LSTM(
+                n_channels,
+                hidden_size_one_direction,
+                bidirectional=bidirectional,
+                num_layers=n_layers,
+            )
 
         else:
-            raise ValueError('Unsupported cell_type {}'.format(cell_type))
+            raise ValueError("Unsupported cell_type {}".format(cell_type))
 
     def forward(self, x):
         """Perform forward pass.
@@ -116,12 +143,18 @@ class RNN(nn.Module):
 
         """
         n_samples, n_channels, lookback, n_assets = x.shape
-        x_swapped = x.permute(0, 2, 3, 1)  # n_samples, lookback, n_assets, n_channels
+        x_swapped = x.permute(
+            0, 2, 3, 1
+        )  # n_samples, lookback, n_assets, n_channels
         res = []
 
         for i in range(n_samples):
-            all_hidden_ = self.cell(x_swapped[i])[0]  # lookback, n_assets, hidden_size
-            res.append(all_hidden_.permute(2, 0, 1))  # hidden_size, lookback, n_assets
+            all_hidden_ = self.cell(x_swapped[i])[
+                0
+            ]  # lookback, n_assets, hidden_size
+            res.append(
+                all_hidden_.permute(2, 0, 1)
+            )  # hidden_size, lookback, n_assets
 
         return torch.stack(res)
 
@@ -129,7 +162,7 @@ class RNN(nn.Module):
 class Warp(torch.nn.Module):
     """Custom warping layer."""
 
-    def __init__(self, mode='bilinear', padding_mode='reflection'):
+    def __init__(self, mode="bilinear", padding_mode="reflection"):
         super().__init__()
         self.mode = mode
         self.padding_mode = padding_mode
@@ -162,21 +195,30 @@ class Warp(torch.nn.Module):
         if tform.ndim == 3:
             ty = tform
         elif tform.ndim == 2:
-            ty = torch.stack(n_assets * [tform], dim=-1)  # (n_samples, lookback, n_assets)
+            ty = torch.stack(
+                n_assets * [tform], dim=-1
+            )  # (n_samples, lookback, n_assets)
         else:
-            raise ValueError('The tform tensor needs to be either 2 or 3 dimensional.')
+            raise ValueError(
+                "The tform tensor needs to be either 2 or 3 dimensional."
+            )
 
-        tx = torch.ones(n_samples, lookback, n_assets, dtype=dtype, device=device)
-        tx *= torch.linspace(-1, 1, steps=n_assets, device=device, dtype=dtype)[None, None, :]
+        tx = torch.ones(
+            n_samples, lookback, n_assets, dtype=dtype, device=device
+        )
+        tx *= torch.linspace(
+            -1, 1, steps=n_assets, device=device, dtype=dtype
+        )[None, None, :]
 
         grid = torch.stack([tx, ty], dim=-1)
 
-        x_warped = nn.functional.grid_sample(x,
-                                             grid,
-                                             mode=self.mode,
-                                             padding_mode=self.padding_mode,
-                                             align_corners=True,
-                                             )
+        x_warped = nn.functional.grid_sample(
+            x,
+            grid,
+            mode=self.mode,
+            padding_mode=self.padding_mode,
+            align_corners=True,
+        )
 
         return x_warped
 
@@ -203,7 +245,7 @@ class Zoom(torch.nn.Module):
 
     """
 
-    def __init__(self, mode='bilinear', padding_mode='reflection'):
+    def __init__(self, mode="bilinear", padding_mode="reflection"):
         super().__init__()
         self.mode = mode
         self.padding_mode = padding_mode
@@ -229,16 +271,22 @@ class Zoom(torch.nn.Module):
         """
         translate = 1 - scale
 
-        theta = torch.stack([torch.tensor([[1, 0, 0],
-                                           [0, s, t]]) for s, t in zip(scale, translate)], dim=0)
+        theta = torch.stack(
+            [
+                torch.tensor([[1, 0, 0], [0, s, t]])
+                for s, t in zip(scale, translate)
+            ],
+            dim=0,
+        )
         theta = theta.to(device=x.device, dtype=x.dtype)
 
         grid = nn.functional.affine_grid(theta, x.shape, align_corners=True)
-        x_zoomed = nn.functional.grid_sample(x,
-                                             grid,
-                                             mode=self.mode,
-                                             padding_mode=self.padding_mode,
-                                             align_corners=True,
-                                             )
+        x_zoomed = nn.functional.grid_sample(
+            x,
+            grid,
+            mode=self.mode,
+            padding_mode=self.padding_mode,
+            align_corners=True,
+        )
 
         return x_zoomed

@@ -15,7 +15,9 @@ from .data import RigidDataLoader
 from .losses import Loss, portfolio_cumulative_returns
 
 
-def generate_metrics_table(benchmarks, dataloader, metrics, device=None, dtype=None):
+def generate_metrics_table(
+    benchmarks, dataloader, metrics, device=None, dtype=None
+):
     """Generate metrics table for all benchmarks.
 
     Parameters
@@ -45,15 +47,17 @@ def generate_metrics_table(benchmarks, dataloader, metrics, device=None, dtype=N
     """
     # checks
     if not all(isinstance(bm, Benchmark) for bm in benchmarks.values()):
-        raise TypeError('The values of benchmarks need to be of type Benchmark')
+        raise TypeError(
+            "The values of benchmarks need to be of type Benchmark"
+        )
 
     if not isinstance(dataloader, RigidDataLoader):
-        raise TypeError('The type of dataloader needs to be RigidDataLoader')
+        raise TypeError("The type of dataloader needs to be RigidDataLoader")
 
     if not all(isinstance(metric, Loss) for metric in metrics.values()):
-        raise TypeError('The values of metrics need to be of type Loss')
+        raise TypeError("The values of metrics need to be of type Loss")
 
-    device = device or torch.device('cpu')
+    device = device or torch.device("cpu")
     dtype = dtype or torch.float
 
     for bm in benchmarks.values():
@@ -64,23 +68,38 @@ def generate_metrics_table(benchmarks, dataloader, metrics, device=None, dtype=N
 
     for batch_ix, (X_batch, y_batch, timestamps, _) in enumerate(dataloader):
         # Get batch
-        X_batch, y_batch = X_batch.to(device).to(dtype), y_batch.to(device).to(dtype)
+        X_batch, y_batch = X_batch.to(device).to(dtype), y_batch.to(device).to(
+            dtype
+        )
         for bm_name, bm in benchmarks.items():
             weights = bm(X_batch)
             for metric_name, metric in metrics.items():
                 metric_per_s = metric(weights, y_batch).detach().cpu().numpy()
-                all_entries.append(pd.DataFrame({'timestamp': timestamps,
-                                                 'benchmark': bm_name,
-                                                 'metric': metric_name,
-                                                 'value': metric_per_s}))
+                all_entries.append(
+                    pd.DataFrame(
+                        {
+                            "timestamp": timestamps,
+                            "benchmark": bm_name,
+                            "metric": metric_name,
+                            "value": metric_per_s,
+                        }
+                    )
+                )
 
     metrics_table = pd.concat(all_entries)
 
     return metrics_table
 
 
-def generate_cumrets(benchmarks, dataloader, device=None, dtype=None, returns_channel=0,
-                     input_type='log', output_type='log'):
+def generate_cumrets(
+    benchmarks,
+    dataloader,
+    device=None,
+    dtype=None,
+    returns_channel=0,
+    input_type="log",
+    output_type="log",
+):
     """Generate cumulative returns over the horizon for all benchmarks.
 
     Parameters
@@ -115,12 +134,14 @@ def generate_cumrets(benchmarks, dataloader, device=None, dtype=None, returns_ch
     """
     # checks
     if not all(isinstance(bm, Benchmark) for bm in benchmarks.values()):
-        raise TypeError('The values of benchmarks need to be of type Benchmark')
+        raise TypeError(
+            "The values of benchmarks need to be of type Benchmark"
+        )
 
     if not isinstance(dataloader, RigidDataLoader):
-        raise TypeError('The type of dataloader needs to be RigidDataLoader')
+        raise TypeError("The type of dataloader needs to be RigidDataLoader")
 
-    device = device or torch.device('cpu')
+    device = device or torch.device("cpu")
     dtype = dtype or torch.float
 
     all_entries = {}
@@ -131,18 +152,26 @@ def generate_cumrets(benchmarks, dataloader, device=None, dtype=None, returns_ch
 
     for batch_ix, (X_batch, y_batch, timestamps, _) in enumerate(dataloader):
         # Get batch
-        X_batch, y_batch = X_batch.to(device).to(dtype), y_batch.to(device).to(dtype)
+        X_batch, y_batch = X_batch.to(device).to(dtype), y_batch.to(device).to(
+            dtype
+        )
         for bm_name, bm in benchmarks.items():
             weights = bm(X_batch)
-            cumrets = portfolio_cumulative_returns(weights,
-                                                   y_batch[:, returns_channel, ...],
-                                                   input_type=input_type,
-                                                   output_type=output_type)
+            cumrets = portfolio_cumulative_returns(
+                weights,
+                y_batch[:, returns_channel, ...],
+                input_type=input_type,
+                output_type=output_type,
+            )
 
-            all_entries[bm_name].append(pd.DataFrame(cumrets.detach().cpu().numpy(),
-                                                     index=timestamps))
+            all_entries[bm_name].append(
+                pd.DataFrame(cumrets.detach().cpu().numpy(), index=timestamps)
+            )
 
-    cumrets_dict = {bm_name: pd.concat(entries).sort_index() for bm_name, entries in all_entries.items()}
+    cumrets_dict = {
+        bm_name: pd.concat(entries).sort_index()
+        for bm_name, entries in all_entries.items()
+    }
 
     return cumrets_dict
 
@@ -161,16 +190,18 @@ def plot_metrics(metrics_table):
         Axes with number of subaxes equal to number of metrics.
 
     """
-    all_metrics = metrics_table['metric'].unique()
+    all_metrics = metrics_table["metric"].unique()
     n_metrics = len(all_metrics)
 
     _, axs = plt.subplots(n_metrics)
 
     for i, metric_name in enumerate(all_metrics):
-        df = pd.pivot_table(metrics_table[metrics_table['metric'] == metric_name],
-                            values='value',
-                            columns='benchmark',
-                            index='timestamp').sort_index()
+        df = pd.pivot_table(
+            metrics_table[metrics_table["metric"] == metric_name],
+            values="value",
+            columns="benchmark",
+            index="timestamp",
+        ).sort_index()
         df.plot(ax=axs[i])
         axs[i].set_title(metric_name)
 
@@ -202,12 +233,14 @@ def generate_weights_table(network, dataloader, device=None, dtype=None):
         Index represents the timestep and column are different assets. The values are allocations.
     """
     if not isinstance(network, Benchmark):
-        raise TypeError('The network needs to be an instance of a Benchmark')
+        raise TypeError("The network needs to be an instance of a Benchmark")
 
     if not isinstance(dataloader, RigidDataLoader):
-        raise TypeError('The network needs to be an instance of a RigidDataloader')
+        raise TypeError(
+            "The network needs to be an instance of a RigidDataloader"
+        )
 
-    device = device or torch.device('cpu')
+    device = device or torch.device("cpu")
     dtype = dtype or torch.float
 
     if isinstance(network, torch.nn.Module):
@@ -225,17 +258,27 @@ def generate_weights_table(network, dataloader, device=None, dtype=None):
         all_timestamps.extend(timestamps)
 
     weights = np.concatenate(all_batches, axis=0)
-    asset_names = [dataloader.dataset.asset_names[asset_ix] for asset_ix in dataloader.asset_ixs]
+    asset_names = [
+        dataloader.dataset.asset_names[asset_ix]
+        for asset_ix in dataloader.asset_ixs
+    ]
 
-    weights_table = pd.DataFrame(weights,
-                                 index=all_timestamps,
-                                 columns=asset_names)
+    weights_table = pd.DataFrame(
+        weights, index=all_timestamps, columns=asset_names
+    )
 
     return weights_table.sort_index()
 
 
-def plot_weight_anim(weights, always_visible=None, n_displayed_assets=None, n_seconds=3, figsize=(10, 10),
-                     colors=None, autopct='%1.1f%%'):
+def plot_weight_anim(
+    weights,
+    always_visible=None,
+    n_displayed_assets=None,
+    n_seconds=3,
+    figsize=(10, 10),
+    colors=None,
+    autopct="%1.1f%%",
+):
     """Visualize portfolio evolution over time with pie charts.
 
     Parameters
@@ -273,14 +316,16 @@ def plot_weight_anim(weights, always_visible=None, n_displayed_assets=None, n_se
         Animated piechart over the time dimension.
 
     """
-    if 'others' in weights.columns:
-        raise ValueError('Cannot use an asset named others since it is user internally.')
+    if "others" in weights.columns:
+        raise ValueError(
+            "Cannot use an asset named others since it is user internally."
+        )
 
     n_timesteps, n_assets = weights.shape
     n_displayed_assets = n_displayed_assets or n_assets
 
     if not n_displayed_assets <= weights.shape[1]:
-        raise ValueError('Invalid number of assets.')
+        raise ValueError("Invalid number of assets.")
 
     fps = n_timesteps / n_seconds
     interval = (1 / fps) * 1000
@@ -288,9 +333,14 @@ def plot_weight_anim(weights, always_visible=None, n_displayed_assets=None, n_se
     always_visible = always_visible or []
 
     if n_displayed_assets <= len(always_visible):
-        raise ValueError('Too many always visible assets.')
+        raise ValueError("Too many always visible assets.")
 
-    top_assets = weights.sum(0).sort_values(ascending=False).index[:n_displayed_assets].to_list()
+    top_assets = (
+        weights.sum(0)
+        .sort_values(ascending=False)
+        .index[:n_displayed_assets]
+        .to_list()
+    )
 
     for a in reversed(always_visible):
         if a not in top_assets:
@@ -300,11 +350,11 @@ def plot_weight_anim(weights, always_visible=None, n_displayed_assets=None, n_se
     remaining_assets = [a for a in weights.columns if a not in top_assets]
 
     new_weights = weights[top_assets].copy()
-    new_weights['others'] = weights[remaining_assets].sum(1)
+    new_weights["others"] = weights[remaining_assets].sum(1)
 
     # create animation
     fig, ax = plt.subplots(figsize=figsize)
-    plt.axis('off')
+    plt.axis("off")
 
     labels = new_weights.columns
 
@@ -312,7 +362,7 @@ def plot_weight_anim(weights, always_visible=None, n_displayed_assets=None, n_se
         colors_ = None
 
     elif isinstance(colors, dict):
-        colors_ = [colors.get(label, 'black') for label in labels]
+        colors_ = [colors.get(label, "black") for label in labels]
 
     elif isinstance(colors, cm.colors.ListedColormap):
         colors_ = cycle(colors.colors)
@@ -320,21 +370,30 @@ def plot_weight_anim(weights, always_visible=None, n_displayed_assets=None, n_se
     def update(i):
         """Update function."""
         ax.clear()  # pragma: no cover
-        ax.axis('equal')  # pragma: no cover
+        ax.axis("equal")  # pragma: no cover
         values = new_weights.iloc[i].values  # pragma: no cover
-        ax.pie(values, labels=labels, colors=colors_, autopct=autopct)  # pragma: no cover
+        ax.pie(
+            values, labels=labels, colors=colors_, autopct=autopct
+        )  # pragma: no cover
         ax.set_title(new_weights.iloc[i].name)  # pragma: no cover
 
-    ani = FuncAnimation(fig,
-                        update,
-                        frames=n_timesteps,
-                        interval=interval)
+    ani = FuncAnimation(fig, update, frames=n_timesteps, interval=interval)
 
     return ani
 
 
-def plot_weight_heatmap(weights, add_sum_column=False, cmap="YlGnBu", ax=None, always_visible=None,
-                        asset_skips=1, time_skips=1, time_format='%d-%m-%Y', vmin=0, vmax=1):
+def plot_weight_heatmap(
+    weights,
+    add_sum_column=False,
+    cmap="YlGnBu",
+    ax=None,
+    always_visible=None,
+    asset_skips=1,
+    time_skips=1,
+    time_format="%d-%m-%Y",
+    vmin=0,
+    vmax=1,
+):
     """Create a heatmap out of the weights.
 
     Parameters
@@ -376,15 +435,21 @@ def plot_weight_heatmap(weights, add_sum_column=False, cmap="YlGnBu", ax=None, a
     always_visible = always_visible or []
 
     if add_sum_column:
-        if 'sum' in displayed_table.columns:
-            raise ValueError("The weights dataframe already contains the sum column.")
+        if "sum" in displayed_table.columns:
+            raise ValueError(
+                "The weights dataframe already contains the sum column."
+            )
 
         displayed_table = displayed_table.copy()
-        displayed_table['sum'] = displayed_table.sum(axis=1)
-        always_visible.append('sum')
+        displayed_table["sum"] = displayed_table.sum(axis=1)
+        always_visible.append("sum")
 
-    xlab = [str(c) if ((asset_skips and i % asset_skips == 0) or c in always_visible) else "" for i, c in
-            enumerate(weights.columns)]
+    xlab = [
+        str(c)
+        if ((asset_skips and i % asset_skips == 0) or c in always_visible)
+        else ""
+        for i, c in enumerate(weights.columns)
+    ]
 
     def formatter(x):
         """Format row index."""
@@ -393,20 +458,23 @@ def plot_weight_heatmap(weights, add_sum_column=False, cmap="YlGnBu", ax=None, a
         else:
             return x
 
-    ylab = [formatter(ix) if (time_skips and i % time_skips == 0) else "" for i, ix in
-            enumerate(weights.index)]
+    ylab = [
+        formatter(ix) if (time_skips and i % time_skips == 0) else ""
+        for i, ix in enumerate(weights.index)
+    ]
 
-    return_ax = sns.heatmap(displayed_table,
-                            vmin=vmin,
-                            vmax=vmax,
-                            cmap=cmap,
-                            ax=ax,
-                            xticklabels=xlab,
-                            yticklabels=ylab,
-                            )
+    return_ax = sns.heatmap(
+        displayed_table,
+        vmin=vmin,
+        vmax=vmax,
+        cmap=cmap,
+        ax=ax,
+        xticklabels=xlab,
+        yticklabels=ylab,
+    )
 
-    return_ax.xaxis.set_ticks_position('top')
-    return_ax.tick_params(axis='x', rotation=75, length=0)
-    return_ax.tick_params(axis='y', rotation=0, length=0)
+    return_ax.xaxis.set_ticks_position("top")
+    return_ax.tick_params(axis="x", rotation=75, length=0)
+    return_ax.tick_params(axis="y", rotation=0, length=0)
 
     return return_ax

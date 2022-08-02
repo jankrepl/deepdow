@@ -38,7 +38,9 @@ def prepare_standard_scaler(X, overlap=False, indices=None):
     return means, stds
 
 
-def prepare_robust_scaler(X, overlap=False, indices=None, percentile_range=(25, 75)):
+def prepare_robust_scaler(
+    X, overlap=False, indices=None, percentile_range=(25, 75)
+):
     """Compute median and percentile range for each channel.
 
     Parameters
@@ -67,13 +69,17 @@ def prepare_robust_scaler(X, overlap=False, indices=None, percentile_range=(25, 
 
     """
     if not 0 <= percentile_range[0] < percentile_range[1] <= 100:
-        raise ValueError('The percentile range needs to be in [0, 100] and left < right')
+        raise ValueError(
+            "The percentile range needs to be in [0, 100] and left < right"
+        )
 
     indices = indices if indices is not None else list(range(len(X)))
     considered_values = X[indices, ...] if overlap else X[indices, :, -1:, :]
 
     medians = np.median(considered_values, axis=(0, 2, 3))
-    percentiles = np.percentile(considered_values, percentile_range, axis=(0, 2, 3))  # (2, n_channels)
+    percentiles = np.percentile(
+        considered_values, percentile_range, axis=(0, 2, 3)
+    )  # (2, n_channels)
 
     ranges = percentiles[1] - percentiles[0]
 
@@ -125,7 +131,9 @@ class Compose:
             Transformed version of `asset_names`.
         """
         for t in self.transforms:
-            X_sample, y_sample, timestamps_sample, asset_names = t(X_sample, y_sample, timestamps_sample, asset_names)
+            X_sample, y_sample, timestamps_sample, asset_names = t(
+                X_sample, y_sample, timestamps_sample, asset_names
+            )
 
         return X_sample, y_sample, timestamps_sample, asset_names
 
@@ -178,7 +186,9 @@ class Dropout:
         asset_names
             Same as input.
         """
-        X_sample_new = torch.nn.functional.dropout(X_sample, p=self.p, training=self.training)
+        X_sample_new = torch.nn.functional.dropout(
+            X_sample, p=self.p, training=self.training
+        )
 
         return X_sample_new, y_sample, timestamps_sample, asset_names
 
@@ -266,7 +276,12 @@ class Noise:
         asset_names
             Same as input.
         """
-        X_sample_new = self.frac * X_sample.std([1, 2], keepdim=True) * torch.randn_like(X_sample) + X_sample
+        X_sample_new = (
+            self.frac
+            * X_sample.std([1, 2], keepdim=True)
+            * torch.randn_like(X_sample)
+            + X_sample
+        )
 
         return X_sample_new, y_sample, timestamps_sample, asset_names
 
@@ -295,10 +310,12 @@ class Scale:
 
     def __init__(self, center, scale):
         if len(center) != len(scale):
-            raise ValueError('The center and scale need to have the same size.')
+            raise ValueError(
+                "The center and scale need to have the same size."
+            )
 
         if np.any(scale <= 0):
-            raise ValueError('The scale parameters need to be positive.')
+            raise ValueError("The scale parameters need to be positive.")
 
         self.center = center
         self.scale = scale
@@ -337,13 +354,21 @@ class Scale:
         """
         n_channels = X_sample.shape[0]
         if n_channels != self.n_channels:
-            raise ValueError('Expected {} channels in X, got {}'.format(self.n_channels, n_channels))
+            raise ValueError(
+                "Expected {} channels in X, got {}".format(
+                    self.n_channels, n_channels
+                )
+            )
 
         X_sample_new = X_sample.clone()
         dtype, device = X_sample_new.dtype, X_sample_new.device
 
-        center = torch.as_tensor(self.center, dtype=dtype, device=device)[:, None, None]
-        scale = torch.as_tensor(self.scale, dtype=dtype, device=device)[:, None, None]
+        center = torch.as_tensor(self.center, dtype=dtype, device=device)[
+            :, None, None
+        ]
+        scale = torch.as_tensor(self.scale, dtype=dtype, device=device)[
+            :, None, None
+        ]
 
         X_sample_new.sub_(center).div_(scale)
 

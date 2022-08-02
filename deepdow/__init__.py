@@ -5,4 +5,4 @@ X.Y
 X.Y.Z for bug fixes
 """
 
-__version__ = '0.2.2'
+__version__ = "0.2.2"

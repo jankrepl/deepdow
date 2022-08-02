@@ -41,7 +41,9 @@ class AnalyticalMarkowitz(nn.Module):
         device = covmat.device
         dtype = covmat.dtype
 
-        ones = torch.ones(n_samples, n_assets, 1).to(device=device, dtype=dtype)
+        ones = torch.ones(n_samples, n_assets, 1).to(
+            device=device, dtype=dtype
+        )
         if rets is not None:
             expected_returns = rets.view(n_samples, n_assets, 1)
         else:
@@ -91,7 +93,9 @@ class NCO(nn.Module):
 
     """
 
-    def __init__(self, n_clusters, n_init=10, init='random', random_state=None):
+    def __init__(
+        self, n_clusters, n_init=10, init="random", random_state=None
+    ):
         super().__init__()
         self.n_clusters = n_clusters
         self.n_init = n_init
@@ -99,10 +103,12 @@ class NCO(nn.Module):
         self.random_state = random_state
 
         self.cov2corr_layer = Cov2Corr()
-        self.kmeans_layer = KMeans(n_clusters=self.n_clusters,
-                                   n_init=self.n_init,
-                                   init=self.init,
-                                   random_state=self.random_state)
+        self.kmeans_layer = KMeans(
+            n_clusters=self.n_clusters,
+            n_init=self.n_init,
+            init=self.init,
+            random_state=self.random_state,
+        )
 
         self.analytical_markowitz_layer = AnalyticalMarkowitz()
 
@@ -135,24 +141,52 @@ class NCO(nn.Module):
 
         corrmat = Cov2Corr()(covmat)
 
-        w_l = []  # we need to iterate over the sample dimension (currently no speedup)
+        w_l = (
+            []
+        )  # we need to iterate over the sample dimension (currently no speedup)
 
         for i in range(n_samples):
             cluster_ixs, cluster_centers = self.kmeans_layer(corrmat[i])
 
-            w_intra_clusters = torch.zeros((n_assets, self.n_clusters), dtype=dtype, device=device)
+            w_intra_clusters = torch.zeros(
+                (n_assets, self.n_clusters), dtype=dtype, device=device
+            )
 
             for c in range(self.n_clusters):
-                in_cluster = torch.where(cluster_ixs == c)[0]  # indices from the same cluster
-                intra_covmat = covmat[[i]].index_select(1, in_cluster).index_select(2, in_cluster)  # (1, ?, ?)
-                intra_rets = None if rets is None else rets[[i]].index_select(1, in_cluster)  # (1, ?)
-                w_intra_clusters[in_cluster, c] = self.analytical_markowitz_layer(intra_covmat, intra_rets)[0]
+                in_cluster = torch.where(cluster_ixs == c)[
+                    0
+                ]  # indices from the same cluster
+                intra_covmat = (
+                    covmat[[i]]
+                    .index_select(1, in_cluster)
+                    .index_select(2, in_cluster)
+                )  # (1, ?, ?)
+                intra_rets = (
+                    None
+                    if rets is None
+                    else rets[[i]].index_select(1, in_cluster)
+                )  # (1, ?)
+                w_intra_clusters[
+                    in_cluster, c
+                ] = self.analytical_markowitz_layer(intra_covmat, intra_rets)[
+                    0
+                ]
 
-            inter_covmat = w_intra_clusters.T @ (covmat[i] @ w_intra_clusters)  # (n_clusters, n_clusters)
-            inter_rets = None if rets is None else (w_intra_clusters.T @ rets[i]).view(1, -1)  # (1, n_clusters)
-            w_inter_clusters = self.analytical_markowitz_layer(inter_covmat.view(1, self.n_clusters, self.n_clusters),
-                                                               inter_rets)  # (1, n_clusters)
-            w_final = (w_intra_clusters * w_inter_clusters).sum(dim=1)  # (n_assets,)
+            inter_covmat = w_intra_clusters.T @ (
+                covmat[i] @ w_intra_clusters
+            )  # (n_clusters, n_clusters)
+            inter_rets = (
+                None
+                if rets is None
+                else (w_intra_clusters.T @ rets[i]).view(1, -1)
+            )  # (1, n_clusters)
+            w_inter_clusters = self.analytical_markowitz_layer(
+                inter_covmat.view(1, self.n_clusters, self.n_clusters),
+                inter_rets,
+            )  # (1, n_clusters)
+            w_final = (w_intra_clusters * w_inter_clusters).sum(
+                dim=1
+            )  # (n_assets,)
 
             w_l.append(w_final)
 
@@ -192,15 +226,16 @@ class NumericalMarkowitz(nn.Module):
         risk = cp.sum_squares(covmat_sqrt @ w)
         reg = alpha * (cp.norm(w) ** 2)
 
-        prob = cp.Problem(cp.Maximize(ret - risk - reg),
-                          [cp.sum(w) == 1,
-                           w >= 0,
-                           w <= max_weight
-                           ])
+        prob = cp.Problem(
+            cp.Maximize(ret - risk - reg),
+            [cp.sum(w) == 1, w >= 0, w <= max_weight],
+        )
 
         assert prob.is_dpp()
 
-        self.cvxpylayer = CvxpyLayer(prob, parameters=[rets, covmat_sqrt, alpha], variables=[w])
+        self.cvxpylayer = CvxpyLayer(
+            prob, parameters=[rets, covmat_sqrt, alpha], variables=[w]
+        )
 
     def forward(self, rets, covmat_sqrt, gamma_sqrt, alpha):
         """Perform forward pass.
@@ -230,7 +265,9 @@ class NumericalMarkowitz(nn.Module):
 
         """
         n_samples, n_assets = rets.shape
-        gamma_sqrt_ = gamma_sqrt.repeat((1, n_assets * n_assets)).view(n_samples, n_assets, n_assets)
+        gamma_sqrt_ = gamma_sqrt.repeat((1, n_assets * n_assets)).view(
+            n_samples, n_assets, n_assets
+        )
         alpha_abs = torch.abs(alpha)  # it needs to be nonnegative
 
         return self.cvxpylayer(rets, gamma_sqrt_ * covmat_sqrt, alpha_abs)[0]
@@ -273,11 +310,22 @@ class Resample(nn.Module):
         Available at SSRN 2658657 (2007)
     """
 
-    def __init__(self, allocator, n_draws=None, n_portfolios=5, sqrt=False, random_state=None):
+    def __init__(
+        self,
+        allocator,
+        n_draws=None,
+        n_portfolios=5,
+        sqrt=False,
+        random_state=None,
+    ):
         super().__init__()
 
-        if not isinstance(allocator, (AnalyticalMarkowitz, NCO, NumericalMarkowitz)):
-            raise TypeError('Unsupported type of allocator: {}'.format(type(allocator)))
+        if not isinstance(
+            allocator, (AnalyticalMarkowitz, NCO, NumericalMarkowitz)
+        ):
+            raise TypeError(
+                "Unsupported type of allocator: {}".format(type(allocator))
+            )
 
         self.allocator = allocator
         self.sqrt = sqrt
@@ -285,9 +333,11 @@ class Resample(nn.Module):
         self.n_portfolios = n_portfolios
         self.random_state = random_state
 
-        mapper = {'AnalyticalMarkowitz': False,
-                  'NCO': True,
-                  'NumericalMarkowitz': True}
+        mapper = {
+            "AnalyticalMarkowitz": False,
+            "NCO": True,
+            "NumericalMarkowitz": True,
+        }
 
         self.uses_sqrt = mapper[allocator.__class__.__name__]
 
@@ -320,10 +370,16 @@ class Resample(nn.Module):
 
         n_samples, n_assets, _ = matrix.shape
         dtype, device = matrix.dtype, matrix.device
-        n_draws = self.n_draws or n_assets  # make sure that if None then we have the same N=M
+        n_draws = (
+            self.n_draws or n_assets
+        )  # make sure that if None then we have the same N=M
 
         covmat = matrix @ matrix if self.sqrt else matrix
-        dist_rets = torch.zeros(n_samples, n_assets, dtype=dtype, device=device) if rets is None else rets
+        dist_rets = (
+            torch.zeros(n_samples, n_assets, dtype=dtype, device=device)
+            if rets is None
+            else rets
+        )
 
         dist = MultivariateNormal(loc=dist_rets, covariance_matrix=covmat)
 
@@ -331,20 +387,26 @@ class Resample(nn.Module):
 
         for _ in range(self.n_portfolios):
             draws = dist.rsample((n_draws,))  # (n_draws, n_samples, n_assets)
-            rets_ = draws.mean(dim=0) if rets is not None else None  # (n_samples, n_assets)
-            covmat_ = CovarianceMatrix(sqrt=self.uses_sqrt)(draws.permute(1, 0, 2))  # (n_samples, n_assets, ...)
+            rets_ = (
+                draws.mean(dim=0) if rets is not None else None
+            )  # (n_samples, n_assets)
+            covmat_ = CovarianceMatrix(sqrt=self.uses_sqrt)(
+                draws.permute(1, 0, 2)
+            )  # (n_samples, n_assets, ...)
 
             if isinstance(self.allocator, (AnalyticalMarkowitz, NCO)):
                 portfolio = self.allocator(covmat=covmat_, rets=rets_)
 
             elif isinstance(self.allocator, NumericalMarkowitz):
-                gamma = kwargs['gamma']
-                alpha = kwargs['alpha']
+                gamma = kwargs["gamma"]
+                alpha = kwargs["alpha"]
                 portfolio = self.allocator(rets_, covmat_, gamma, alpha)
 
             portfolios.append(portfolio)
 
-        portfolios_t = torch.stack(portfolios, dim=0)  # (n_portfolios, n_samples, n_assets)
+        portfolios_t = torch.stack(
+            portfolios, dim=0
+        )  # (n_portfolios, n_samples, n_assets)
 
         return portfolios_t.mean(dim=0)
 
@@ -371,33 +433,44 @@ class SoftmaxAllocator(torch.nn.Module):
 
     """
 
-    def __init__(self, temperature=1, formulation='analytical', n_assets=None, max_weight=1):
+    def __init__(
+        self,
+        temperature=1,
+        formulation="analytical",
+        n_assets=None,
+        max_weight=1,
+    ):
         super().__init__()
 
         self.temperature = temperature
 
-        if formulation not in {'analytical', 'variational'}:
-            raise ValueError('Unrecognized formulation {}'.format(formulation))
+        if formulation not in {"analytical", "variational"}:
+            raise ValueError("Unrecognized formulation {}".format(formulation))
 
-        if formulation == 'variational' and n_assets is None:
-            raise ValueError('One needs to provide n_assets for the variational formulation.')
+        if formulation == "variational" and n_assets is None:
+            raise ValueError(
+                "One needs to provide n_assets for the variational formulation."
+            )
 
-        if formulation == 'analytical' and max_weight != 1:
-            raise ValueError('Cannot constraint weights via max_weight for analytical formulation')
+        if formulation == "analytical" and max_weight != 1:
+            raise ValueError(
+                "Cannot constraint weights via max_weight for analytical formulation"
+            )
 
-        if formulation == 'variational' and n_assets * max_weight < 1:
-            raise ValueError('One cannot create fully invested portfolio with the given max_weight')
+        if formulation == "variational" and n_assets * max_weight < 1:
+            raise ValueError(
+                "One cannot create fully invested portfolio with the given max_weight"
+            )
 
         self.formulation = formulation
 
-        if formulation == 'analytical':
+        if formulation == "analytical":
             self.layer = torch.nn.Softmax(dim=1)
         else:
             x = cp.Parameter(n_assets)
             w = cp.Variable(n_assets)
             obj = -x @ w - cp.sum(cp.entr(w))
-            cons = [cp.sum(w) == 1.,
-                    w <= max_weight]
+            cons = [cp.sum(w) == 1.0, w <= max_weight]
             prob = cp.Problem(cp.Minimize(obj), cons)
             self.layer = CvxpyLayer(prob, [x], [w])
 
@@ -423,16 +496,22 @@ class SoftmaxAllocator(torch.nn.Module):
         device, dtype = x.device, x.dtype
 
         if not ((temperature is None) ^ (self.temperature is None)):
-            raise ValueError('Not clear which temperature to use')
+            raise ValueError("Not clear which temperature to use")
 
         if temperature is not None:
             temperature_ = temperature  # (n_samples,)
         else:
-            temperature_ = float(self.temperature) * torch.ones(n_samples, dtype=dtype, device=device)
+            temperature_ = float(self.temperature) * torch.ones(
+                n_samples, dtype=dtype, device=device
+            )
 
         inp = x / temperature_[..., None]
 
-        return self.layer(inp) if self.formulation == 'analytical' else self.layer(inp)[0]
+        return (
+            self.layer(inp)
+            if self.formulation == "analytical"
+            else self.layer(inp)[0]
+        )
 
 
 class SparsemaxAllocator(torch.nn.Module):
@@ -464,7 +543,9 @@ class SparsemaxAllocator(torch.nn.Module):
         super().__init__()
 
         if n_assets * max_weight < 1:
-            raise ValueError('One cannot create fully invested portfolio with the given max_weight')
+            raise ValueError(
+                "One cannot create fully invested portfolio with the given max_weight"
+            )
 
         self.n_assets = n_assets
         self.temperature = temperature
@@ -473,9 +554,7 @@ class SparsemaxAllocator(torch.nn.Module):
         x = cp.Parameter(n_assets)
         w = cp.Variable(n_assets)
         obj = cp.sum_squares(x - w)
-        cons = [cp.sum(w) == 1,
-                0. <= w,
-                w <= max_weight]
+        cons = [cp.sum(w) == 1, 0.0 <= w, w <= max_weight]
         prob = cp.Problem(cp.Minimize(obj), cons)
 
         self.layer = CvxpyLayer(prob, parameters=[x], variables=[w])
@@ -502,12 +581,14 @@ class SparsemaxAllocator(torch.nn.Module):
         device, dtype = x.device, x.dtype
 
         if not ((temperature is None) ^ (self.temperature is None)):
-            raise ValueError('Not clear which temperature to use')
+            raise ValueError("Not clear which temperature to use")
 
         if temperature is not None:
             temperature_ = temperature  # (n_samples,)
         else:
-            temperature_ = float(self.temperature) * torch.ones(n_samples, dtype=dtype, device=device)
+            temperature_ = float(self.temperature) * torch.ones(
+                n_samples, dtype=dtype, device=device
+            )
 
         inp = x / temperature_[..., None]
 
@@ -522,7 +603,9 @@ class WeightNorm(torch.nn.Module):
 
     def __init__(self, n_assets):
         super().__init__()
-        self.asset_weights = torch.nn.Parameter(torch.ones(n_assets), requires_grad=True)
+        self.asset_weights = torch.nn.Parameter(
+            torch.ones(n_assets), requires_grad=True
+        )
 
     def forward(self, x):
         """Perform forward pass.
@@ -583,7 +666,9 @@ class NumericalRiskBudgeting(nn.Module):
 
         assert prob.is_dpp()
 
-        self.cvxpylayer = CvxpyLayer(prob, parameters=[covmat_sqrt, b], variables=[w])
+        self.cvxpylayer = CvxpyLayer(
+            prob, parameters=[covmat_sqrt, b], variables=[w]
+        )
 
     def forward(self, covmat_sqrt, b):
         """Perform forward pass.

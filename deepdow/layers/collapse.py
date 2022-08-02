@@ -45,11 +45,17 @@ class AttentionCollapse(nn.Module):
 
         res_list = []
         for i in range(n_samples):
-            inp_single = x[i].permute(2, 1, 0)  # n_assets, lookback, n_channels
+            inp_single = x[i].permute(
+                2, 1, 0
+            )  # n_assets, lookback, n_channels
             tformed = self.affine(inp_single)  # n_assets, lookback, n_channels
             w = self.context_vector(tformed)  # n_assets, lookback, 1
-            scaled_w = torch.nn.functional.softmax(w, dim=1)  # n_assets, lookback, 1
-            weighted_sum = (inp_single * scaled_w).mean(dim=1)  # n_assets, n_channels
+            scaled_w = torch.nn.functional.softmax(
+                w, dim=1
+            )  # n_assets, lookback, 1
+            weighted_sum = (inp_single * scaled_w).mean(
+                dim=1
+            )  # n_assets, n_channels
             res_list.append(weighted_sum.permute(1, 0))  # n_channels, n_assets
 
         return torch.stack(res_list, dim=0)
@@ -124,7 +130,9 @@ class ExponentialCollapse(nn.Module):
     def __init__(self, collapse_dim=2, forgetting_factor=None):
         super().__init__()
         self.collapse_dim = collapse_dim
-        self.forgetting_factor = forgetting_factor or torch.nn.Parameter(torch.Tensor([0.5]), requires_grad=True)
+        self.forgetting_factor = forgetting_factor or torch.nn.Parameter(
+            torch.Tensor([0.5]), requires_grad=True
+        )
 
     def forward(self, x):
         """Perform forward pass.
@@ -148,7 +156,9 @@ class ExponentialCollapse(nn.Module):
         for _ in range(1, n_steps):
             w_unscaled.append(self.forgetting_factor * w_unscaled[-1] + 1)
 
-        w_unscaled = torch.Tensor(w_unscaled).to(dtype=x.dtype, device=x.device)
+        w_unscaled = torch.Tensor(w_unscaled).to(
+            dtype=x.dtype, device=x.device
+        )
         w = w_unscaled / w_unscaled.sum()
 
         return (x * w.view(*view)).sum(dim=self.collapse_dim)
