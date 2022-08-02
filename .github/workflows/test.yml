@@ -1,0 +1,52 @@
+name: Python application
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macost-latest]
+        python-version: [3.7, 3.8, 3.9]
+   
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: List dependencies
+      run: |
+        pip freeze
+
+    - name: Lint
+      run: |
+        pip install flake8, pydocstyle
+        flake8 deepdow tests
+        pydocstyle deepdow
+
+    - name: Install dependencies
+      run: |
+        pip install .[docs,examples]
+
+    - name: Run unittests
+      run: |
+        pytest
+
+    - name: Run doctests
+      run: |
+        pip install sphinx
+        sphinx-build -b doctest docs/ temp_doctest
+        
+    - name: Run cover coverage
+      uses: codecov/codecov-action@v1
