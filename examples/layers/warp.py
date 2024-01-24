@@ -52,5 +52,5 @@ for i, (tform_name, tform_lambda) in enumerate(transform_dict.items()):
 
     axs[i, 0].plot(tform.numpy().squeeze(), linewidth=3, color='red')
     axs[i, 1].plot(x_warped.numpy().squeeze(), linewidth=3, color='blue')
-    axs[i, 0].set_title(r'$\bf{}$ tform'.format(tform_name))
-    axs[i, 1].set_title(r'$\bf{}$ warped'.format(tform_name))
+    axs[i, 0].set_title('{} tform'.format(tform_name))
+    axs[i, 1].set_title('{} warped'.format(tform_name))

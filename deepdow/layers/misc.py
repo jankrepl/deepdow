@@ -141,7 +141,7 @@ class CovarianceMatrix(nn.Module):
 
         """
         fact = 1.0 / (m.size(1) - 1)
-        m = m - torch.mean(m, dim=1, keepdim=True)  # !!!!!!!!!!! INPLACE
+        m = m - torch.mean(m, dim=1, keepdim=True)
         mt = m.t()
 
         s = fact * m.matmul(mt)  # sample covariance matrix
