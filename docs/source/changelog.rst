@@ -3,6 +3,9 @@ Changelog
 
 Unreleased
 ----------
+
+v0.2.3
+------
 Fixes
 *****
 - Fix PyTorch in-place issue and matplotib plotting problem - #147
