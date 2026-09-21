@@ -287,6 +287,113 @@ class Loss:
         """
         return self.__add__(other)
 
+    def __neg__(self):
+        """Negate a loss.
+
+        Returns
+        -------
+        new : Loss
+            Instance of a ``Loss`` representing ``-self``.
+        """
+        new_instance = Loss()
+        new_instance._call = MethodType(
+            lambda inst, weights, y: -self(weights, y),
+            new_instance,
+        )
+        new_instance._repr = MethodType(
+            lambda inst: "-({})".format(self.__repr__()),
+            new_instance,
+        )
+
+        return new_instance
+
+    def __sub__(self, other):
+        """Subtract a loss or constant from this loss.
+
+        Parameters
+        ----------
+        other : Loss or int or float
+            If instance of ``Loss`` then creates a new loss that represents the difference of `self` and `other`. If a
+            number then create a new loss that is equal to `self` minus a constant.
+
+        Returns
+        -------
+        new : Loss
+            Instance of a ``Loss`` representing the subtraction operation.
+        """
+        if isinstance(other, Loss):
+            new_instance = Loss()
+            new_instance._call = MethodType(
+                lambda inst, weights, y: self(weights, y) - other(weights, y),
+                new_instance,
+            )
+            new_instance._repr = MethodType(
+                lambda inst: "{} - ({})".format(
+                    self.__repr__(), other.__repr__()
+                ),
+                new_instance,
+            )
+
+            return new_instance
+
+        elif isinstance(other, (int, float)):
+            new_instance = Loss()
+            new_instance._call = MethodType(
+                lambda inst, weights, y: self(weights, y) - other, new_instance
+            )
+            new_instance._repr = MethodType(
+                lambda inst: "{} - {}".format(self.__repr__(), other),
+                new_instance,
+            )
+
+            return new_instance
+        else:
+            raise TypeError("Unsupported type: {}".format(type(other)))
+
+    def __rsub__(self, other):
+        """Subtract this loss from a constant or another loss.
+
+        Parameters
+        ----------
+        other : Loss or int or float
+            If instance of ``Loss`` then creates a new loss that represents
+            ``other - self``. If a number then create a new loss that is equal
+            to ``other - self``.
+
+        Returns
+        -------
+        new : Loss
+            Instance of a ``Loss`` representing the subtraction operation.
+        """
+        if isinstance(other, Loss):
+            new_instance = Loss()
+            new_instance._call = MethodType(
+                lambda inst, weights, y: other(weights, y) - self(weights, y),
+                new_instance,
+            )
+            new_instance._repr = MethodType(
+                lambda inst: "({}) - ({})".format(
+                    other.__repr__(), self.__repr__()
+                ),
+                new_instance,
+            )
+
+            return new_instance
+
+        elif isinstance(other, (int, float)):
+            new_instance = Loss()
+            new_instance._call = MethodType(
+                lambda inst, weights, y: other - self(weights, y), new_instance
+            )
+            new_instance._repr = MethodType(
+                lambda inst: "({}) - ({})".format(other, self.__repr__()),
+                new_instance,
+            )
+
+            return new_instance
+        else:
+            raise TypeError("Unsupported type: {}".format(type(other)))
+
     def __mul__(self, other):
         """Multiply two losses together.
 

@@ -317,7 +317,7 @@ class TestAllLosses:
         ALL_LOSSES + [3],
         ids=[x.__name__ for x in ALL_LOSSES] + ["constant"],
     )
-    @pytest.mark.parametrize("op", ["add", "truediv", "mul", "pow"])
+    @pytest.mark.parametrize("op", ["add", "sub", "truediv", "mul", "pow"])
     def test_arithmetic(self, loss_class_r, op, Xy_dummy):
         _, y_dummy, _, _ = Xy_dummy
         n_samples, n_channels, horizon, n_assets = y_dummy.shape
@@ -350,7 +350,7 @@ class TestAllLosses:
             else loss_class_r,
         )
 
-        sign = {"add": "+", "truediv": "/", "mul": "*", "pow": "**"}[op]
+        sign = {"add": "+", "sub": "-", "truediv": "/", "mul": "*", "pow": "**"}[op]
 
         mixed_tensor = mixed_loss(weights, y_dummy)
 
@@ -376,6 +376,12 @@ class TestAllLosses:
             "wrong" + Loss()
 
         with pytest.raises(TypeError):
+            Loss() - "wrong"
+
+        with pytest.raises(TypeError):
+            "wrong" - Loss()
+
+        with pytest.raises(TypeError):
             Loss() * "wrong"
 
         with pytest.raises(TypeError):
@@ -389,6 +395,98 @@ class TestAllLosses:
 
         with pytest.raises(TypeError):
             Loss() ** "wrong"
+
+    def test_neg(self, Xy_dummy):
+        _, y_dummy, _, _ = Xy_dummy
+        n_samples, n_channels, horizon, n_assets = y_dummy.shape
+
+        weights = (torch.ones(n_samples, n_assets) / n_assets).to(
+            device=y_dummy.device, dtype=y_dummy.dtype
+        )
+
+        loss = SharpeRatio()
+        neg_loss = -loss
+
+        true_tensor = -loss(weights, y_dummy)
+        neg_tensor = neg_loss(weights, y_dummy)
+
+        assert torch.is_tensor(neg_tensor)
+        assert torch.allclose(neg_tensor, true_tensor)
+        assert neg_tensor.shape == (n_samples,)
+        assert "-" in repr(neg_loss)
+
+    def test_rsub(self, Xy_dummy):
+        _, y_dummy, _, _ = Xy_dummy
+        n_samples, n_channels, horizon, n_assets = y_dummy.shape
+
+        weights = (torch.ones(n_samples, n_assets) / n_assets).to(
+            device=y_dummy.device, dtype=y_dummy.dtype
+        )
+
+        loss = SharpeRatio()
+        constant = 5
+
+        # constant - loss
+        combined = constant - loss
+        true_tensor = constant - loss(weights, y_dummy)
+        combined_tensor = combined(weights, y_dummy)
+
+        assert torch.is_tensor(combined_tensor)
+        assert torch.allclose(combined_tensor, true_tensor)
+        assert combined_tensor.shape == (n_samples,)
+        assert repr(combined) == "({}) - ({})".format(constant, repr(loss))
+
+        # repr round-trip
+        recreated = eval(repr(combined))
+        recreated_tensor = recreated(weights, y_dummy)
+        assert torch.allclose(combined_tensor, recreated_tensor)
+
+    def test_sub_repr_roundtrip(self, Xy_dummy):
+        _, y_dummy, _, _ = Xy_dummy
+        n_samples, n_channels, horizon, n_assets = y_dummy.shape
+
+        weights = (torch.ones(n_samples, n_assets) / n_assets).to(
+            device=y_dummy.device, dtype=y_dummy.dtype
+        )
+
+        a = SharpeRatio()
+        b = StandardDeviation()
+        c = MaximumDrawdown()
+
+        # a - (b - c): nested subtraction must preserve grouping
+        nested = a - (b - c)
+        nested_recreated = eval(repr(nested))
+
+        assert torch.allclose(
+            nested(weights, y_dummy), nested_recreated(weights, y_dummy)
+        )
+
+    def test_rsub_with_loss_subclass(self, Xy_dummy):
+        _, y_dummy, _, _ = Xy_dummy
+        n_samples, n_channels, horizon, n_assets = y_dummy.shape
+
+        weights = (torch.ones(n_samples, n_assets) / n_assets).to(
+            device=y_dummy.device, dtype=y_dummy.dtype
+        )
+
+        class MyLoss(Loss):
+            def _call(self, weights, y):
+                return torch.zeros(n_samples, device=weights.device, dtype=weights.dtype)
+
+            def _repr(self):
+                return "MyLoss()"
+
+        # When a Loss subclass is on the right, Python may dispatch to
+        # __rsub__ on the subclass. Verify this works.
+        base = SharpeRatio()
+        sub = MyLoss()
+        result = base - sub
+
+        true_tensor = base(weights, y_dummy) - sub(weights, y_dummy)
+        result_tensor = result(weights, y_dummy)
+
+        assert torch.is_tensor(result_tensor)
+        assert torch.allclose(result_tensor, true_tensor)
 
     @pytest.mark.parametrize(
         "loss_class", ALL_LOSSES, ids=[x.__name__ for x in ALL_LOSSES]
@@ -416,7 +514,7 @@ class TestAllLosses:
         ALL_LOSSES + [3],
         ids=[x.__name__ for x in ALL_LOSSES] + ["constant"],
     )
-    @pytest.mark.parametrize("op", ["sum", "div", "mul", "pow"])
+    @pytest.mark.parametrize("op", ["sum", "sub", "div", "mul", "pow"])
     def test_repr_arithmetic(self, loss_class_l, loss_class_r, op):
         n_samples, n_assets, n_channels = 3, 4, 2
 
@@ -433,6 +531,9 @@ class TestAllLosses:
 
         if op == "sum":
             mixed = loss_instance_l + loss_instance_r
+
+        elif op == "sub":
+            mixed = loss_instance_l - loss_instance_r
 
         elif op == "mul":
             mixed = loss_instance_l * loss_instance_r
