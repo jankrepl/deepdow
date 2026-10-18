@@ -470,7 +470,7 @@ class SoftmaxAllocator(torch.nn.Module):
             x = cp.Parameter(n_assets)
             w = cp.Variable(n_assets)
             obj = -x @ w - cp.sum(cp.entr(w))
-            cons = [cp.sum(w) == 1.0, w <= max_weight]
+            cons = [cp.sum(w) == 1.0, w >= 0.0, w <= max_weight]
             prob = cp.Problem(cp.Minimize(obj), cons)
             self.layer = CvxpyLayer(prob, [x], [w])
 
