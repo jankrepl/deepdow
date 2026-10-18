@@ -775,6 +775,35 @@ class TestSoftmax:
         assert not torch.allclose(w_const, w_unconst)
         assert w_const.max().item() == pytest.approx(max_weight, abs=1e-4)
 
+    @pytest.mark.parametrize("n_assets", [3, 5])
+    @pytest.mark.parametrize("max_weight", [0.4, 1.0])
+    def test_variational_nonnegativity_constraint(self, n_assets, max_weight):
+        eps = 1e-5
+        layer = SoftmaxAllocator(
+            n_assets=n_assets,
+            temperature=1,
+            max_weight=max_weight,
+            formulation="variational",
+        )
+
+        # Both w >= 0 and w <= max_weight linear inequality constraints
+        assert layer.layer.cone_dims["l"] == 2 * n_assets
+
+        rets = torch.linspace(
+            -50.0, 50.0, steps=n_assets, dtype=torch.float64
+        ).unsqueeze(0)
+        rets.requires_grad_(True)
+
+        weights = layer(rets)
+
+        assert torch.all(weights >= -eps)
+        assert torch.all(weights <= max_weight + eps)
+        assert weights.sum().item() == pytest.approx(1.0, abs=eps)
+
+        weights.sum().backward()
+        assert rets.grad is not None
+        assert torch.all(torch.isfinite(rets.grad))
+
 
 class TestSparsemax:
     def test_errors(self):
